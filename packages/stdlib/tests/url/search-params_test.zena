@@ -8,7 +8,7 @@ import { suite, test, TestContext } from 'zena:test';
 // isNull/isNotNull are `<T extends anyref>(value: T | null)`, which does not
 // infer from a `String | null` argument, so null checks here use
 // `isTrue(x == null)` — the same shape url_test.zena and the WPT generator use.
-import { equal, isTrue, isFalse } from 'zena:assert';
+import { equal, isTrue, isFalse, throws } from 'zena:assert';
 import { URL, URLSearchParams } from 'zena:url';
 
 export let tests = suite('URLSearchParams', (): void => {
@@ -238,6 +238,84 @@ export let tests = suite('URLSearchParams', (): void => {
         count += 1;
       }
       equal(count, 0);
+    });
+  });
+
+  // Mutating during iteration is a hard error rather than the web API's
+  // silent misbehavior. In JS these same programs quietly go wrong: deleting
+  // 'b' while sitting on 'a' yields ["a","c"] — 'b' is skipped, because the
+  // live iterator's index now points past it — and appending never
+  // terminates. See ConcurrentModificationError for the reasoning.
+  suite('mutation during iteration fails fast', (): void => {
+    test('append during iteration throws', (ctx: TestContext): void => {
+      throws((): void => {
+        let p = new URLSearchParams('a=1&b=2');
+        for (let pair in p) {
+          p.append('c', '3');
+        }
+      });
+    });
+
+    test('delete of a LATER pair throws instead of skipping it', (ctx: TestContext): void => {
+      throws((): void => {
+        let p = new URLSearchParams('a=1&b=2&c=3');
+        for (let pair in p) {
+          let (n, _v) = pair;
+          if (n == 'a') {
+            p.delete('b');
+          }
+        }
+      });
+    });
+
+    test('set during iteration throws', (ctx: TestContext): void => {
+      throws((): void => {
+        let p = new URLSearchParams('a=1&b=2');
+        for (let pair in p) {
+          p.set('a', '9');
+        }
+      });
+    });
+
+    test('sort during iteration throws', (ctx: TestContext): void => {
+      throws((): void => {
+        let p = new URLSearchParams('b=2&a=1');
+        for (let pair in p) {
+          p.sort();
+        }
+      });
+    });
+
+    test('a read-only pass over the params does NOT throw', (ctx: TestContext): void => {
+      let p = new URLSearchParams('a=1&b=2&c=3');
+      var count = 0;
+      for (let pair in p) {
+        count += 1;
+      }
+      equal(count, 3);
+    });
+
+    test('mutating BETWEEN iterations is fine', (ctx: TestContext): void => {
+      let p = new URLSearchParams('a=1');
+      for (let pair in p) {
+        equal(p.size, 1);
+      }
+      p.append('b', '2');
+      var count = 0;
+      for (let pair in p) {
+        count += 1;
+      }
+      equal(count, 2);
+    });
+
+    test('IterableUtils methods inherit the check', (ctx: TestContext): void => {
+      throws((): void => {
+        let p = new URLSearchParams('a=1&b=2');
+        p.some((pair: (String, String)): boolean => {
+          p.append('c', '3');
+          return false;
+        });
+      });
     });
   });
 

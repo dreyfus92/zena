@@ -452,11 +452,21 @@ Each phase lands with its tests green and the expected-failures list updated.
    _Tests_: hand-written in `tests/url/search-params_test.zena` (WPT's
    URLSearchParams tests are JS files, not JSON, so the interesting cases are
    ported by hand).
-   Two deviations worth knowing: `sort()` orders by UTF-8 bytes, which is code
-   POINT order, where the spec sorts by UTF-16 code unit — they differ only
-   for a supplementary-plane name compared against U+E000..U+FFFF. And names
-   and values are stored DECODED, so a value containing `&` or `=`
-   round-trips through `toString()`.
+   Three deviations worth knowing:
+   - `sort()` orders by UTF-8 bytes, which is code POINT order, where the
+     spec sorts by UTF-16 code unit — they differ only for a
+     supplementary-plane name compared against U+E000..U+FFFF.
+   - Names and values are stored DECODED, so a value containing `&` or `=`
+     round-trips through `toString()`.
+   - **Mutating during iteration throws `ConcurrentModificationError`**
+     rather than iterating live. The web API's iterator indexes into the
+     current list and re-reads it every step (WebIDL's default pair
+     iterator), so in JS `delete`-ing a pair mid-loop silently SKIPS the
+     next one and `append`-ing never terminates — verified against Node:
+     iterating `a=1&b=2&c=3` and deleting `b` on the first step yields
+     `a, c`. Both are wrong answers with no signal, so this follows Java's
+     fail-fast collections instead. The check is best-effort, as Java's is:
+     it catches mistakes, it does not make concurrent mutation safe.
 5. **Value-type & builder ergonomics**: `==`/`hashCode`, `UrlString`,
    the `url` template tag with contextual encoding.
 6. **IDNA / UTS 46** (`idna.zena`): punycode encode/decode first,

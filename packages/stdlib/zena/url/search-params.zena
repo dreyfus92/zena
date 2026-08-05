@@ -3,6 +3,58 @@ import { IterableUtils } from 'zena:iterable-utils';
 import { parseFormUrlencoded, serializeFormUrlencoded } from './encoding.zena';
 
 /**
+ * Thrown when a `URLSearchParams` is mutated while an iteration over it is
+ * still in progress.
+ *
+ * This is a deliberate divergence from the web API, which iterates live: in
+ * JS, deleting a pair during a `for...of` silently SKIPS the following pair
+ * (WebIDL's default pair iterator indexes into the current list and re-reads
+ * it on every step), and appending during iteration never terminates. Both
+ * produce a wrong answer with no signal, so this follows Java's fail-fast
+ * collections instead and reports the bug where it happens.
+ *
+ * Like Java's, the check is best-effort: it exists to catch mistakes, not to
+ * make concurrent mutation safe.
+ *
+ * Lives here rather than in `zena:error` because `URLSearchParams` is the
+ * only collection that currently detects this; it should move if others
+ * adopt the same discipline.
+ */
+export class ConcurrentModificationError extends Error {
+  new() : super('URLSearchParams was modified during iteration');
+}
+
+/**
+ * Iterator over a `URLSearchParams`' pairs that fails fast when the params
+ * are mutated underneath it.
+ *
+ * It holds the pair list captured at creation plus the params' shared
+ * modification counter, so it can tell "unchanged" from "mutated" without
+ * `URLSearchParams` having to expose the counter publicly.
+ */
+final class URLSearchParamsIterator implements Iterator<(String, String)> {
+  #pairs: Array<(String, String)>;
+  #version: Box<i32>;
+  #expected: i32;
+  var #index: i32 = 0;
+
+  new(pairs: Array<(String, String)>, version: Box<i32>)
+    : #pairs = pairs, #version = version, #expected = version.value;
+
+  next(): inline (true, (String, String)) | inline (false, _) {
+    if (this.#version.value != this.#expected) {
+      throw new ConcurrentModificationError();
+    }
+    if (this.#index < this.#pairs.length) {
+      let pair = this.#pairs[this.#index];
+      this.#index += 1;
+      return (true, pair);
+    }
+    return (false, _);
+  }
+}
+
+/**
  * An ordered, mutable list of (name, value) pairs — the
  * `application/x-www-form-urlencoded` half of the WHATWG URL Standard
  * (https://url.spec.whatwg.org/#interface-urlsearchparams).
@@ -17,6 +69,14 @@ import { parseFormUrlencoded, serializeFormUrlencoded } from './encoding.zena';
 export final class URLSearchParams with IterableUtils<(String, String)>
     implements Iterable<(String, String)> {
   var #pairs: GrowableArray<(String, String)>;
+
+  /**
+   * Bumped by every mutation. Live iterators hold this same box and
+   * compare against the value they captured, so they can fail fast
+   * (see `ConcurrentModificationError`) without this counter becoming
+   * part of the public API.
+   */
+  #version: Box<i32> = new Box<i32>(0);
 
   /**
    * Parses `init` as an urlencoded string. A single leading `?` is
@@ -75,6 +135,7 @@ export final class URLSearchParams with IterableUtils<(String, String)>
   /** Appends a pair, keeping any existing pairs with the same name. */
   append(name: String, value: String): void {
     this.#pairs.push((name, value));
+    this.#version.value += 1;
   }
 
   /**
@@ -98,6 +159,7 @@ export final class URLSearchParams with IterableUtils<(String, String)>
       out.push((name, value));
     }
     this.#pairs = out;
+    this.#version.value += 1;
   }
 
   /**
@@ -113,6 +175,7 @@ export final class URLSearchParams with IterableUtils<(String, String)>
       }
     }
     this.#pairs = out;
+    this.#version.value += 1;
   }
 
   /**
@@ -140,6 +203,9 @@ export final class URLSearchParams with IterableUtils<(String, String)>
       }
       a[j + 1] = cur;
     }
+    // Reordering in place is as disruptive to a live iteration as an
+    // insert or a removal, so it counts as a modification too.
+    this.#version.value += 1;
   }
 
   /** Serializes to `application/x-www-form-urlencoded` (no leading `?`). */
@@ -148,7 +214,7 @@ export final class URLSearchParams with IterableUtils<(String, String)>
   }
 
   [Iterable.iterator](): Iterator<(String, String)> {
-    return this.#pairs.[Iterable.iterator]();
+    return new URLSearchParamsIterator(this.#pairs, this.#version);
   }
 }
 
