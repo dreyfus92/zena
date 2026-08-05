@@ -22,7 +22,7 @@ pieces out of compiled binaries:
 
 | Export                   | Description                               | Status                             |
 | ------------------------ | ----------------------------------------- | ---------------------------------- |
-| `URL`                    | WHATWG URL parsing and serialization      | Done — read-only; `with*` pending  |
+| `URL`                    | WHATWG URL parsing and serialization      | Done — read-only; `with*` pending. Usable as a map key (`==`/`hashCode` on the canonical form) |
 | `URLSearchParams`        | The query as an ordered multimap          | Done                               |
 | percent-encoding helpers | Encode sets, form-urlencoded codec        | Done                               |
 | `url` tag, `UrlString`   | Safe URL building, typed URL strings      | Design                             |

@@ -119,4 +119,60 @@ export let tests = suite('URL API', (): void => {
       equal(mustParse('http://xn--fsq.example/').hostname, 'xn--fsq.example');
     });
   });
+
+  suite('equality and hashing', (): void => {
+    test('URLs parsed from the same text are equal', (ctx: TestContext): void => {
+      isTrue(mustParse('https://example.com/a') == mustParse('https://example.com/a'));
+    });
+
+    test('equality is on the canonical form, not the input text', (ctx: TestContext): void => {
+      // Both sides normalize to https://example.com/b during parsing.
+      isTrue(mustParse('https://EXAMPLE.com:443/a/../b') == mustParse('https://example.com/b'));
+    });
+
+    test('differing URLs are not equal', (ctx: TestContext): void => {
+      isFalse(mustParse('https://example.com/a') == mustParse('https://example.com/b'));
+    });
+
+    test('the fragment is part of the identity', (ctx: TestContext): void => {
+      isFalse(mustParse('https://example.com/a#x') == mustParse('https://example.com/a'));
+    });
+
+    test('equal URLs hash equally — the Hashable contract', (ctx: TestContext): void => {
+      let a = mustParse('https://EXAMPLE.com:443/a/../b');
+      let b = mustParse('https://example.com/b');
+      isTrue(a == b);
+      equal(a.hashCode(), b.hashCode());
+    });
+
+    test('hashCode is stable across repeated calls', (ctx: TestContext): void => {
+      let u = mustParse('https://example.com/a?q=1#f');
+      equal(u.hashCode(), u.hashCode());
+    });
+
+    test('href is stable across repeated reads (it is cached)', (ctx: TestContext): void => {
+      let u = mustParse('https://example.com/a/../b?q=1#f');
+      equal(u.href, 'https://example.com/b?q=1#f');
+      equal(u.href, u.href);
+      equal(u.toString(), u.href);
+    });
+
+    test('works as a HashMap key, matching on canonical form', (ctx: TestContext): void => {
+      let m = new HashMap<URL, String>();
+      m[mustParse('https://example.com/a')] = 'first';
+      // A different spelling of the same URL must hit the same entry.
+      m[mustParse('https://EXAMPLE.com:443/a')] = 'second';
+      equal(m.size, 1);
+      equal(m[mustParse('https://example.com/a')], 'second');
+    });
+
+    test('distinct URLs occupy distinct HashMap entries', (ctx: TestContext): void => {
+      let m = new HashMap<URL, String>();
+      m[mustParse('https://example.com/a')] = 'a';
+      m[mustParse('https://example.com/b')] = 'b';
+      equal(m.size, 2);
+      equal(m[mustParse('https://example.com/a')], 'a');
+      equal(m[mustParse('https://example.com/b')], 'b');
+    });
+  });
 });

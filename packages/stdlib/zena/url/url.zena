@@ -1022,8 +1022,19 @@ let serializeUrl = (url: UrlRecord, excludeFragment: boolean): String => {
  * string shapes as the web API (`protocol` includes ':', `search` includes
  * '?', `hash` includes '#', all empty when absent).
  */
-export final class URL {
+export final class URL implements Hashable {
   var #rec: UrlRecord;
+
+  /**
+   * `href`, serialized on first read and kept.
+   *
+   * `href` is a URL's identity here — both `==` and `hashCode` are defined
+   * on it — so without this, every hash probe and every comparison would
+   * re-serialize the whole record. Safe to cache because a URL never
+   * mutates: `#rec` is set once by the constructor, and the `with*` methods
+   * of phase 3 return NEW instances rather than editing this one.
+   */
+  var #hrefCache: String | null = null;
 
   // Takes an already-parsed record. `UrlRecord` is not re-exported from
   // index.zena, so outside the library `URL.parse` is the only way in.
@@ -1082,7 +1093,17 @@ export final class URL {
       return if (f.length == 0) "" else "#" + f;
     }
   }
-  href: String { get { return serializeUrl(this.#rec, false); } }
+  href: String {
+    get {
+      let cached = this.#hrefCache;
+      if (cached != null) {
+        return cached as String;
+      }
+      let serialized = serializeUrl(this.#rec, false);
+      this.#hrefCache = serialized;
+      return serialized;
+    }
+  }
 
   /** "hostname:port", with the port omitted when it is null. */
   host(): String {
@@ -1119,6 +1140,35 @@ export final class URL {
    */
   searchParams(): URLSearchParams {
     return new URLSearchParams(this.search);
+  }
+
+  /**
+   * Two URLs are equal when they serialize identically.
+   *
+   * Comparing `href` rather than the records is not a shortcut: the parser
+   * canonicalizes as it goes — lowercasing the scheme and host, dropping a
+   * default port, resolving `.`/`..` — so URLs that differ as text but mean
+   * the same thing already share a serialization. `https://EXAMPLE.com:443/a/../b`
+   * equals `https://example.com/b`.
+   *
+   * This is the spec's own notion of URL equality
+   * (https://url.spec.whatwg.org/#concept-url-equals), minus its optional
+   * "exclude fragments" flag — a fragment is part of the URL, and a caller
+   * who wants to ignore it can compare `withHash('')` copies once phase 3
+   * lands.
+   */
+  operator ==(other: URL): boolean {
+    return this.href == other.href;
+  }
+
+  /**
+   * Hashes the serialization, so equal URLs always hash equal — the
+   * `Hashable` contract. Delegating to `String.hashCode` also means the
+   * cached href carries the string's own cached FNV-1a hash, making
+   * repeated map probes cheap after the first.
+   */
+  hashCode(): i32 {
+    return this.href.hashCode();
   }
 
   toString(): String { return this.href; }

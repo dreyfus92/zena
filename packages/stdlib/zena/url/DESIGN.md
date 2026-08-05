@@ -467,8 +467,20 @@ Each phase lands with its tests green and the expected-failures list updated.
      `a, c`. Both are wrong answers with no signal, so this follows Java's
      fail-fast collections instead. The check is best-effort, as Java's is:
      it catches mistakes, it does not make concurrent mutation safe.
-5. **Value-type & builder ergonomics**: `==`/`hashCode`, `UrlString`,
-   the `url` template tag with contextual encoding.
+5. **Value-type & builder ergonomics** — `==`/`hashCode` **done**;
+   `UrlString` and the `url` template tag with contextual encoding still to
+   come.
+   `URL` implements `Hashable`, so it can be a `HashMap`/`HashSet` key.
+   Equality compares `href`, which is not a shortcut: the parser
+   canonicalizes as it goes, so `https://EXAMPLE.com:443/a/../b` and
+   `https://example.com/b` already share a serialization and compare equal.
+   This is the spec's URL equality
+   (https://url.spec.whatwg.org/#concept-url-equals) minus its optional
+   "exclude fragments" flag; a caller wanting that can compare
+   `withHash('')` copies once phase 3 lands.
+   `href` is now serialized once and cached — it is read on every hash probe
+   and every comparison, and a `URL` never mutates (`with*` returns new
+   instances), so recomputing it each time was pure waste.
 6. **IDNA / UTS 46** (`idna.zena`): punycode encode/decode first,
    then the UTS 46 mapping tables (size-conscious; see Open Questions).
    _Tests_: generated `toascii.json` (+ `IdnaTestV2.json` if we go for full
