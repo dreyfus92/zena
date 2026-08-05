@@ -1,5 +1,5 @@
-// Public entry for 'zena:url' — re-exports only. See DESIGN.md; exports are
-// staged as implementation phases land.
+// Public entry for 'zena:url' — re-exports only. Implementation files are
+// siblings in this directory and are not importable on their own.
 
 export {
   EncodeSet,

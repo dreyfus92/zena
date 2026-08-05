@@ -2,9 +2,10 @@
 // Source: web-platform-tests/wpt url/resources/percent-encoding.json
 // Pinned at commit fefb5fc613b29f75ba402dc18360f98c7e92b212. See tests/url/wpt/README.md.
 //
-// Only each case's "utf-8" output is asserted: encoding override is
-// a non-goal (DESIGN.md, Scope). The fixture drives its inputs
-// through the query of an https URL, hence the special-query set.
+// Only each case's "utf-8" output is asserted: zena:url is always
+// UTF-8 and does not implement the spec's encoding override. The
+// fixture drives its inputs through the query of an https URL,
+// hence the special-query set.
 import {suite, test, testSkip, TestContext} from 'zena:test';
 import {equal} from 'zena:assert';
 import {percentEncode, EncodeSet} from 'zena:url';

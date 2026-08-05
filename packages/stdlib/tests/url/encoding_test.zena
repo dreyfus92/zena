@@ -10,8 +10,8 @@ import {
 } from 'zena:url';
 
 // Hand-written from the WHATWG URL Standard (https://url.spec.whatwg.org/).
-// Each suite links the spec section it covers. See DESIGN.md for the plan to
-// supplement these with generated WPT conformance suites.
+// Each suite links the spec section it covers. The generated WPT suites in
+// this directory cover conformance; these cover the API surface directly.
 export let tests = suite('URL percent-encoding', (): void => {
   // Set definitions: https://url.spec.whatwg.org/#percent-encoded-bytes
   // (one anchor per set is noted on its test below).

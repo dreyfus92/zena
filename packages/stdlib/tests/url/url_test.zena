@@ -108,8 +108,8 @@ export let tests = suite('URL API', (): void => {
   });
 
   suite('IDNA is not implemented yet', (): void => {
-    // DESIGN.md phase 6. Pinned so the behavior is an explicit failure rather
-    // than a silently wrong host; update these when the UTS 46 tables land.
+    // Pinned so the behavior is an explicit failure rather than a silently
+    // wrong host; update these when IDNA/UTS 46 support lands.
     test('a non-ASCII domain fails to parse rather than parsing wrongly', (ctx: TestContext): void => {
       isTrue(URL.parse('http://你好/') == null);
       isTrue(URL.parse('https://faß.example/') == null);

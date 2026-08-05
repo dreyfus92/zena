@@ -8,7 +8,7 @@
 // delimiter. Percent-encoding is likewise bytewise (see encoding.zena).
 //
 // NOT YET IMPLEMENTED: IDNA/UTS 46. A non-ASCII domain is a parse failure
-// rather than a silently wrong host (DESIGN.md phase 6 lands the tables).
+// rather than a silently wrong host, until the UTS 46 mapping tables land.
 
 import { asciiLowerByte } from 'zena:string';
 import { StringBuilder } from 'zena:string-builder';
@@ -471,7 +471,7 @@ let parseOpaqueHost = (input: String): String | null => {
 /**
  * https://url.spec.whatwg.org/#concept-domain-to-ASCII
  * ASCII-only stand-in for UTS 46 ToASCII: lowercases, and rejects non-ASCII
- * rather than guessing (DESIGN.md phase 6).
+ * rather than guessing. Replace this once the UTS 46 tables are available.
  */
 let domainToASCII = (domain: String): String | null => {
   for (var i = 0; i < domain.length; i += 1) {
@@ -1025,15 +1025,10 @@ let serializeUrl = (url: UrlRecord, excludeFragment: boolean): String => {
 export final class URL implements Hashable {
   var #rec: UrlRecord;
 
-  /**
-   * `href`, serialized on first read and kept.
-   *
-   * `href` is a URL's identity here — both `==` and `hashCode` are defined
-   * on it — so without this, every hash probe and every comparison would
-   * re-serialize the whole record. Safe to cache because a URL never
-   * mutates: `#rec` is set once by the constructor, and the `with*` methods
-   * of phase 3 return NEW instances rather than editing this one.
-   */
+  // Serialized on first read and kept: `==` and `hashCode` are both defined
+  // on `href`, so without this every comparison and hash probe would
+  // re-serialize the record. Valid only while a URL never mutates — `#rec`
+  // is set once by the constructor.
   var #hrefCache: String | null = null;
 
   // Takes an already-parsed record. `UrlRecord` is not re-exported from
@@ -1134,9 +1129,8 @@ export final class URL implements Hashable {
    * The query parsed as `URLSearchParams`.
    *
    * A SNAPSHOT, not the web API's live-bound object: `URL` is immutable
-   * here, so mutating the result does not touch this URL (DESIGN.md,
-   * "Failure is a value" and the searchParams divergence note). Write
-   * changes back by building a new URL from `params.toString()`.
+   * here, so mutating the result does not touch this URL. Write changes
+   * back by building a new URL from `params.toString()`.
    */
   searchParams(): URLSearchParams {
     return new URLSearchParams(this.search);
@@ -1153,9 +1147,8 @@ export final class URL implements Hashable {
    *
    * This is the spec's own notion of URL equality
    * (https://url.spec.whatwg.org/#concept-url-equals), minus its optional
-   * "exclude fragments" flag — a fragment is part of the URL, and a caller
-   * who wants to ignore it can compare `withHash('')` copies once phase 3
-   * lands.
+   * "exclude fragments" flag: a fragment is part of the URL and is compared
+   * like any other component.
    */
   operator ==(other: URL): boolean {
     return this.href == other.href;
