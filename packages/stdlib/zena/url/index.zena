@@ -13,4 +13,4 @@ export {
 
 export { URL } from './url.zena';
 
-export { URLSearchParams, URLSearchParamsIterator } from './search-params.zena';
+export { URLSearchParams } from './search-params.zena';

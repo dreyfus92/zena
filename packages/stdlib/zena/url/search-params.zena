@@ -2,23 +2,6 @@ import { Iterable, Iterator } from 'zena:iterator';
 import { IterableUtils } from 'zena:iterable-utils';
 import { parseFormUrlencoded, serializeFormUrlencoded } from './encoding.zena';
 
-/** Iterator over a URLSearchParams' (name, value) pairs, in list order. */
-export final class URLSearchParamsIterator implements Iterator<(String, String)> {
-  #pairs: Array<(String, String)>;
-  var #index: i32 = 0;
-
-  new(pairs: Array<(String, String)>) : #pairs = pairs;
-
-  next(): inline (true, (String, String)) | inline (false, _) {
-    if (this.#index < this.#pairs.length) {
-      let pair = this.#pairs[this.#index];
-      this.#index += 1;
-      return (true, pair);
-    }
-    return (false, _);
-  }
-}
-
 /**
  * An ordered, mutable list of (name, value) pairs — the
  * `application/x-www-form-urlencoded` half of the WHATWG URL Standard
@@ -165,7 +148,7 @@ export final class URLSearchParams with IterableUtils<(String, String)>
   }
 
   [Iterable.iterator](): Iterator<(String, String)> {
-    return new URLSearchParamsIterator(this.#pairs);
+    return this.#pairs.[Iterable.iterator]();
   }
 }
 
