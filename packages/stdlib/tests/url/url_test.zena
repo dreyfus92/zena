@@ -1,6 +1,6 @@
 import {suite, test, TestContext} from 'zena:test';
 import {equal, isTrue, isFalse} from 'zena:assert';
-import {URL} from 'zena:url';
+import {URL, URLSearchParams} from 'zena:url';
 
 // The Zena-specific API surface, which the generated WPT suite cannot cover:
 // URL.parse's null return, canParse, toString, and derived components. Spec
@@ -117,6 +117,74 @@ export let tests = suite('URL API', (): void => {
 
     test('ASCII domains are unaffected', (ctx: TestContext): void => {
       equal(mustParse('http://xn--fsq.example/').hostname, 'xn--fsq.example');
+    });
+  });
+
+  // Spec conformance of the setters themselves lives in wpt_setters_test.zena.
+  // These cover what that suite cannot: that the receiver is untouched, and
+  // that withHref/withSearchParams — which have no web setter equivalent to
+  // port — behave.
+  suite('with* methods', (): void => {
+    test('the receiver is unchanged', (ctx: TestContext): void => {
+      let u = mustParse('https://example.com/a?q=1#f');
+      let changed = u.withPathname('/b').withHash('#g').withSearch('?r=2');
+      equal(u.href, 'https://example.com/a?q=1#f');
+      equal(changed.href, 'https://example.com/b?r=2#g');
+    });
+
+    test('a rejected value leaves the component alone', (ctx: TestContext): void => {
+      // An empty scheme is not valid, so the URL comes back unchanged.
+      let u = mustParse('https://example.com/');
+      equal(u.withProtocol('').href, u.href);
+      // Under a state override the port parser stops at the first non-digit
+      // rather than erroring, so a wholly non-numeric port parses to nothing
+      // and the old one survives.
+      equal(mustParse('https://example.com:8080/').withPort('nope').port, '8080');
+    });
+
+    test('a partially applied change sticks, as on the web', (ctx: TestContext): void => {
+      // The host takes effect, then the out-of-range port fails. The spec
+      // parses in place and does not roll back, so the host change stands.
+      let u = mustParse('http://example.net/path');
+      let out = u.withHost('example.com:65536');
+      equal(out.href, 'http://example.com/path');
+      equal(out.port, '');
+    });
+
+    test('withSearchParams serializes the params into the query', (ctx: TestContext): void => {
+      let p = new URLSearchParams('');
+      p.append('q', 'a b');
+      p.append('x', '1&2');
+      equal(mustParse('https://example.com/').withSearchParams(p).href,
+            'https://example.com/?q=a+b&x=1%262');
+    });
+
+    test('withSearchParams with no pairs drops the query entirely', (ctx: TestContext): void => {
+      equal(mustParse('https://example.com/?q=1').withSearchParams(new URLSearchParams('')).href,
+            'https://example.com/');
+    });
+
+    test('withHref reparses from scratch and returns null on failure', (ctx: TestContext): void => {
+      let u = mustParse('https://example.com/a');
+      let ok = u.withHref('http://other.example/b?c');
+      isTrue(ok != null);
+      equal((ok as URL).href, 'http://other.example/b?c');
+      // Unlike the other with* methods, withHref has no old URL to fall back
+      // on — every component is replaced — so failure is a null return.
+      isTrue(u.withHref('not a url') == null);
+    });
+
+    test('withHost sets hostname and port together', (ctx: TestContext): void => {
+      let u = mustParse('https://example.com/').withHost('other.example:8080');
+      equal(u.hostname, 'other.example');
+      equal(u.port, '8080');
+      // withHostname leaves the port alone.
+      equal(u.withHostname('third.example').port, '8080');
+    });
+
+    test('with* results are usable as HashMap keys', (ctx: TestContext): void => {
+      isTrue(mustParse('https://example.com/a').withPathname('/b') ==
+             mustParse('https://example.com/b'));
     });
   });
 

@@ -31,3 +31,9 @@
 ["file://a%C2%ADb/p",null]
 # percent-decoded soft hyphen is ignored by UTS 46 mapping
 ["https://a%C2%ADb/",null]
+
+# Setter cases, keyed ["setter", property, href, new_value]. All three need
+# IDNA / UTS 46 host processing, same as the parser cases above.
+["setter","host","https://x/","ß"]
+["setter","host","https://example.com/","a%C2%ADb"]
+["setter","hostname","https://example.com/","a%C2%ADb"]

@@ -444,11 +444,31 @@ Each phase lands with its tests green and the expected-failures list updated.
    > = 0x80; and a non-ASCII domain is a hard parse failure rather than a
    > guess, so phase 6 is a strict improvement rather than a behavior change.
 
-3. **Copy-with setters**: state-override parsing; all `with*` methods.
-   _Tests_: generated `setters_tests.json` suite + hand-written immutability
-   tests.
+3. **Copy-with setters** — **DONE**: the parser takes an optional state
+   override, entering mid-machine to parse a single component, plus the
+   override-only "hostname" state and the override-only early exits the spec
+   calls for. On top of that: `withProtocol`, `withUsername`, `withPassword`,
+   `withHost`, `withHostname`, `withPort`, `withPathname`, `withSearch`,
+   `withSearchParams`, `withHash`, and `withHref`.
+   _Tests_: generated `setters_tests.json` suite — **274/274 passing, 3
+   skipped**, all three IDNA cases in `tests/url/wpt/expected-failures.txt`;
+   plus hand-written `with*` tests in `tests/url/url_test.zena`.
+
+   Two things the WPT data forced, both worth remembering:
+   - Under a state override the port parser treats ANY non-digit as the end of
+     the port rather than a syntax error, so `withPort('4wpt')` yields 4 and
+     `withHost('example.com:invalid')` leaves the port alone.
+   - A failed setter is not a rollback. The spec parses into the URL in place
+     and keeps whatever it applied before failing, so
+     `withHost('example.com:65536')` changes the host and then rejects the
+     port. `#withParsed` therefore returns its working copy unconditionally —
+     a parse that fails before touching anything leaves that copy identical to
+     the original anyway.
+
+   `withHref` is the one exception to the "failure returns an unchanged URL"
+   rule: it replaces every component, so there is nothing to fall back to and
+   it returns `URL | null`, matching `URL.parse`.
 4. **`URLSearchParams`** ✅ **done**: the class and `URL.searchParams()`.
-   `withSearchParams` waits on phase 3, being a `with*` method.
    _Tests_: hand-written in `tests/url/search-params_test.zena` (WPT's
    URLSearchParams tests are JS files, not JSON, so the interesting cases are
    ported by hand).
@@ -477,7 +497,7 @@ Each phase lands with its tests green and the expected-failures list updated.
    This is the spec's URL equality
    (https://url.spec.whatwg.org/#concept-url-equals) minus its optional
    "exclude fragments" flag; a caller wanting that can compare
-   `withHash('')` copies once phase 3 lands.
+   `withHash('')` copies.
    `href` is now serialized once and cached — it is read on every hash probe
    and every comparison, and a `URL` never mutates (`with*` returns new
    instances), so recomputing it each time was pure waste.
@@ -509,9 +529,10 @@ Phases 1–4 are the meat of "a URL object in `zena:url`"; 5 is cheap polish;
 - **Record-based `with()`**: a single `url.with({pathname: '/x', hash: ''})`
   reads better than chained `with*` calls; depends on optional-field record
   ergonomics. Could be added alongside, not instead.
-- **Retained URL record vs. re-parse in `with*`**: SETTLED for now — phase 2
-  retains the record and derives every component with a getter, so nothing is
-  cached and `href` is re-serialized per access. Revisit (cache the serialized
+- **Retained URL record vs. re-parse in `with*`**: SETTLED — the record is
+  retained and every component is derived with a getter, and `with*` clones
+  the record and re-enters the parser mid-machine rather than re-parsing an
+  `href`. Only `href` itself is cached. Revisit (cache the serialized
   components) once the benchmark suite covers URLs.
 - **`searchParams()` naming**: as a snapshot-returning method it arguably wants
   a more honest name (`parseSearchParams()`?) — or `URLSearchParams` could stay

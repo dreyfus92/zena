@@ -22,7 +22,7 @@ pieces out of compiled binaries:
 
 | Export                   | Description                               | Status                             |
 | ------------------------ | ----------------------------------------- | ---------------------------------- |
-| `URL`                    | WHATWG URL parsing and serialization      | Done — read-only; `with*` pending. Usable as a map key (`==`/`hashCode` on the canonical form) |
+| `URL`                    | WHATWG URL parsing and serialization      | Done, including the `with*` copy methods. Usable as a map key (`==`/`hashCode` on the canonical form) |
 | `URLSearchParams`        | The query as an ordered multimap          | Done                               |
 | percent-encoding helpers | Encode sets, form-urlencoded codec        | Done                               |
 | `url` tag, `UrlString`   | Safe URL building, typed URL strings      | Design                             |
@@ -50,7 +50,15 @@ let maybe = URL.parse('not a url');  // null
 let page = URL.parse('/guide/intro', 'https://zena.dev/docs/');
 
 // URLs are immutable; derive modified copies with `with*` methods
-let secure = u.withProtocol('http:').withPort('');
+let plain = u.withProtocol('http:').withPort('');
+
+// Like the web's setters, a value the spec rejects leaves the component
+// alone rather than reporting an error.
+u.withPort('nope').port;  // '8080', unchanged
+
+// `withHref` is the exception: it replaces every component, so there is
+// nothing to fall back to and it returns `URL | null` like `URL.parse`.
+let moved = u.withHref('https://zena.dev/');  // URL | null
 
 // Query parameters. A SNAPSHOT, not the web's live-bound object: URL is
 // immutable, so mutating these does not change `u`.

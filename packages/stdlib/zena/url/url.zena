@@ -14,7 +14,7 @@ import { asciiLowerByte } from 'zena:string';
 import { StringBuilder } from 'zena:string-builder';
 import { URLSearchParams } from './search-params.zena';
 import {
-  EncodeSet, percentDecode, encodeByteInto, byteNeedsPercentEncoding
+  EncodeSet, percentEncode, percentDecode, encodeByteInto, byteNeedsPercentEncoding
 } from './encoding.zena';
 
 // ============================================================================
@@ -160,9 +160,38 @@ export class UrlRecord {
     return this.username.length > 0 || this.password.length > 0;
   }
 
+  /**
+   * https://url.spec.whatwg.org/#cannot-have-a-username-password-port
+   * A URL needs somewhere to put them: no host means no authority, and
+   * file URLs have an authority but the spec gives them no credentials.
+   */
+  canHaveCredentialsOrPort(): boolean {
+    return this.host != null && (this.host as String).length > 0 &&
+           this.scheme != "file";
+  }
+
   clonePath(): GrowableArray<String> {
     let out = new GrowableArray<String>();
     for (let seg in this.path) { out.push(seg); }
+    return out;
+  }
+
+  /**
+   * A deep-enough copy to parse into: the path array is fresh, everything
+   * else is an immutable String or an i32. Setters work on a copy so that a
+   * parse failure can be discarded without having touched the original.
+   */
+  clone(): UrlRecord {
+    let out = new UrlRecord();
+    out.scheme = this.scheme;
+    out.username = this.username;
+    out.password = this.password;
+    out.host = this.host;
+    out.port = this.port;
+    out.path = this.clonePath();
+    out.opaquePath = this.opaquePath;
+    out.query = this.query;
+    out.fragment = this.fragment;
     return out;
   }
 
@@ -532,13 +561,15 @@ let S_PATH = 16;
 let S_OPAQUE_PATH = 17;
 let S_QUERY = 18;
 let S_FRAGMENT = 19;
+// The spec's "hostname state" is the host state with one difference: a ':'
+// ends the parse instead of starting a port. It exists only as a state
+// override, which is why it is not reachable from the state machine itself.
+let S_HOSTNAME = 20;
+// Sentinel for "no state override" — a full parse from the beginning.
+let NO_OVERRIDE = -1;
 
 /** Strip leading/trailing C0-control-or-space, then remove tab/LF/CR. */
-let cleanInput = (raw: String): String => {
-  var start = 0;
-  var end = raw.length;
-  while (start < end && raw.getByteAt(start) <= 0x20) { start += 1; }
-  while (end > start && raw.getByteAt(end - 1) <= 0x20) { end -= 1; }
+let stripTabsAndNewlines = (raw: String, start: i32, end: i32): String => {
   let sb = new StringBuilder(end - start);
   for (var i = start; i < end; i += 1) {
     let b = raw.getByteAt(i);
@@ -547,12 +578,45 @@ let cleanInput = (raw: String): String => {
   return sb.toString();
 };
 
-export let basicUrlParse = (rawInput: String, base: UrlRecord | null): UrlRecord | null => {
-  let input = cleanInput(rawInput);
-  let len = input.length;
-  let url = new UrlRecord();
+let cleanInput = (raw: String): String => {
+  var start = 0;
+  var end = raw.length;
+  while (start < end && raw.getByteAt(start) <= 0x20) { start += 1; }
+  while (end > start && raw.getByteAt(end - 1) <= 0x20) { end -= 1; }
+  return stripTabsAndNewlines(raw, start, end);
+};
 
-  var state = S_SCHEME_START;
+/**
+ * https://url.spec.whatwg.org/#concept-basic-url-parser
+ *
+ * With `existing` and `stateOverride` this parses a single component into an
+ * already-parsed record, which is how the spec defines every setter: "basic
+ * URL parse `value` with `url` and `<component>` state override". In that
+ * mode the parser stops as soon as the component is read — the spec's bare
+ * "return" — leaving the rest of the record alone, and many inputs are
+ * rejected by simply stopping early, so the component keeps its old value.
+ *
+ * Returns null on failure. Callers running a setter should discard the
+ * (copied) record and keep the original.
+ */
+export let basicUrlParse = (
+  rawInput: String,
+  base: UrlRecord | null,
+  existing: UrlRecord | null = null,
+  stateOverride: i32 = NO_OVERRIDE
+): UrlRecord | null => {
+  let hasOverride = stateOverride != NO_OVERRIDE;
+  // The leading/trailing C0-or-space trim applies to a whole URL. A setter is
+  // handed one component's value, where those bytes are content.
+  let input = if (hasOverride) {
+    stripTabsAndNewlines(rawInput, 0, rawInput.length)
+  } else {
+    cleanInput(rawInput)
+  };
+  let len = input.length;
+  let url = if (existing != null) existing as UrlRecord else new UrlRecord();
+
+  var state = if (hasOverride) stateOverride else S_SCHEME_START;
   var buffer = new StringBuilder();
   var atSignSeen = false;
   var insideBrackets = false;
@@ -570,6 +634,14 @@ export let basicUrlParse = (rawInput: String, base: UrlRecord | null): UrlRecord
   var failed = false;
   var running = true;
 
+  // Entering the query or fragment state directly means that component starts
+  // out present-but-empty rather than absent, so its buffer must be live from
+  // the first byte. `running = false` below is the spec's "return": stop
+  // parsing, then fall through to the flush that commits these buffers.
+  if (stateOverride == S_QUERY) { hasQueryBuf = true; }
+  if (stateOverride == S_FRAGMENT) { hasFragmentBuf = true; }
+  if (stateOverride == S_PATH_START) { url.path = new GrowableArray<String>(); }
+
   while (running && !failed) {
     let c = if (pointer < len) input.getByteAt(pointer) else EOF;
     let isSpecial = url.isSpecial();
@@ -580,6 +652,9 @@ export let basicUrlParse = (rawInput: String, base: UrlRecord | null): UrlRecord
         // requires ASCII lowercasing here regardless of locale.
         buffer.appendByte(asciiLowerByte(c));
         state = S_SCHEME;
+      } else if (hasOverride) {
+        // A scheme setter has nowhere to fall back to.
+        failed = true;
       } else {
         state = S_NO_SCHEME;
         pointer -= 1;
@@ -588,24 +663,53 @@ export let basicUrlParse = (rawInput: String, base: UrlRecord | null): UrlRecord
       if (c != EOF && (isASCIIAlphanumeric(c) || c == 0x2B || c == 0x2D || c == 0x2E)) {
         buffer.appendByte(asciiLowerByte(c));
       } else if (c == 0x3A) {
-        url.scheme = buffer.toString();
-        buffer = new StringBuilder();
-        if (url.scheme == "file") {
-          state = S_FILE;
-        } else if (url.isSpecial() && base != null &&
-                   base.scheme == url.scheme) {
-          state = S_SPECIAL_RELATIVE_OR_AUTHORITY;
-        } else if (url.isSpecial()) {
-          state = S_SPECIAL_AUTHORITY_SLASHES;
-        } else if (hasPrefixAt(input, pointer + 1, "/")) {
-          state = S_PATH_OR_AUTHORITY;
-          pointer += 1;
+        let candidate = buffer.toString();
+        if (hasOverride) {
+          // A scheme setter may not move a URL between the special and
+          // non-special worlds, nor turn a credentialed or ported URL into a
+          // file URL, nor make a hostless file URL special. Each of these is
+          // a silent no-op: stop, leaving the scheme as it was.
+          let candidateSpecial = isSpecialScheme(candidate);
+          let hostEmptyOrNull = url.host == null || (url.host as String).length == 0;
+          if (url.isSpecial() != candidateSpecial) {
+            running = false;
+          } else if (candidate == "file" &&
+                     (url.includesCredentials() || url.port >= 0)) {
+            running = false;
+          } else if (url.scheme == "file" && hostEmptyOrNull) {
+            running = false;
+          } else {
+            url.scheme = candidate;
+            // The old port may be the new scheme's default, in which case it
+            // stops being worth serializing.
+            if (url.port >= 0 && url.port == defaultPort(url.scheme)) {
+              url.port = -1;
+            }
+            running = false;
+          }
         } else {
-          url.opaquePath = "";
-          hasOpaqueBuf = true;
-          opaqueBuf = new StringBuilder();
-          state = S_OPAQUE_PATH;
+          url.scheme = candidate;
+          buffer = new StringBuilder();
+          if (url.scheme == "file") {
+            state = S_FILE;
+          } else if (url.isSpecial() && base != null &&
+                     (base as UrlRecord).scheme == url.scheme) {
+            state = S_SPECIAL_RELATIVE_OR_AUTHORITY;
+          } else if (url.isSpecial()) {
+            state = S_SPECIAL_AUTHORITY_SLASHES;
+          } else if (hasPrefixAt(input, pointer + 1, "/")) {
+            state = S_PATH_OR_AUTHORITY;
+            pointer += 1;
+          } else {
+            url.opaquePath = "";
+            hasOpaqueBuf = true;
+            opaqueBuf = new StringBuilder();
+            state = S_OPAQUE_PATH;
+          }
         }
+      } else if (hasOverride) {
+        // Not a scheme character and not the terminating ':'.
+        failed = true;
       } else {
         buffer = new StringBuilder();
         state = S_NO_SCHEME;
@@ -740,10 +844,19 @@ export let basicUrlParse = (rawInput: String, base: UrlRecord | null): UrlRecord
       } else {
         buffer.appendByte(c);
       }
-    } else if (state == S_HOST) {
-      if (c == 0x3A && !insideBrackets) {
+    } else if (state == S_HOST || state == S_HOSTNAME) {
+      if (hasOverride && url.scheme == "file") {
+        // A file URL's authority is parsed by the file host state, which
+        // knows about drive letters and "localhost".
+        pointer -= 1;
+        state = S_FILE_HOST;
+      } else if (c == 0x3A && !insideBrackets) {
         if (buffer.length == 0) {
           failed = true;
+        } else if (state == S_HOSTNAME) {
+          // The hostname setter takes no port, so it stops at the colon and
+          // leaves the host untouched.
+          running = false;
         } else {
           let host = parseHost(buffer.toString(), !url.isSpecial());
           if (host == null) {
@@ -759,6 +872,10 @@ export let basicUrlParse = (rawInput: String, base: UrlRecord | null): UrlRecord
         pointer -= 1;
         if (isSpecial && buffer.length == 0) {
           failed = true;
+        } else if (hasOverride && buffer.length == 0 &&
+                   (url.includesCredentials() || url.port >= 0)) {
+          // Clearing the host would leave credentials or a port stranded.
+          running = false;
         } else {
           let host = parseHost(buffer.toString(), !url.isSpecial());
           if (host == null) {
@@ -766,7 +883,7 @@ export let basicUrlParse = (rawInput: String, base: UrlRecord | null): UrlRecord
           } else {
             url.host = host;
             buffer = new StringBuilder();
-            state = S_PATH_START;
+            if (hasOverride) { running = false; } else { state = S_PATH_START; }
           }
         }
       } else {
@@ -778,7 +895,9 @@ export let basicUrlParse = (rawInput: String, base: UrlRecord | null): UrlRecord
       if (c != EOF && isASCIIDigit(c)) {
         buffer.appendByte(c);
       } else if (c == EOF || c == 0x2F || c == 0x3F || c == 0x23 ||
-                 (isSpecial && c == 0x5C)) {
+                 (isSpecial && c == 0x5C) || hasOverride) {
+        // In a setter ANY non-digit ends the port rather than failing, so
+        // "8080stuff2" is port 8080 and "invalid" leaves the port alone.
         if (buffer.length > 0) {
           let digits = buffer.toString();
           var port: i64 = 0 as i64;
@@ -795,8 +914,12 @@ export let basicUrlParse = (rawInput: String, base: UrlRecord | null): UrlRecord
           }
         }
         if (!failed) {
-          state = S_PATH_START;
-          pointer -= 1;
+          if (hasOverride) {
+            running = false;
+          } else {
+            state = S_PATH_START;
+            pointer -= 1;
+          }
         }
       } else {
         failed = true;
@@ -851,11 +974,11 @@ export let basicUrlParse = (rawInput: String, base: UrlRecord | null): UrlRecord
       if (c == EOF || c == 0x2F || c == 0x5C || c == 0x3F || c == 0x23) {
         pointer -= 1;
         let bufStr = buffer.toString();
-        if (isWindowsDriveLetter(bufStr)) {
+        if (!hasOverride && isWindowsDriveLetter(bufStr)) {
           state = S_PATH;
         } else if (bufStr.length == 0) {
           url.host = "";
-          state = S_PATH_START;
+          if (hasOverride) { running = false; } else { state = S_PATH_START; }
         } else {
           let host = parseHost(bufStr, !url.isSpecial());
           if (host == null) {
@@ -863,7 +986,7 @@ export let basicUrlParse = (rawInput: String, base: UrlRecord | null): UrlRecord
           } else {
             url.host = if (host == "localhost") "" else host;
             buffer = new StringBuilder();
-            state = S_PATH_START;
+            if (hasOverride) { running = false; } else { state = S_PATH_START; }
           }
         }
       } else {
@@ -873,21 +996,28 @@ export let basicUrlParse = (rawInput: String, base: UrlRecord | null): UrlRecord
       if (isSpecial) {
         state = S_PATH;
         if (c != 0x2F && c != 0x5C) { pointer -= 1; }
-      } else if (c == 0x3F) {
+      } else if (!hasOverride && c == 0x3F) {
         hasQueryBuf = true;
         queryBuf = new StringBuilder();
         state = S_QUERY;
-      } else if (c == 0x23) {
+      } else if (!hasOverride && c == 0x23) {
         hasFragmentBuf = true;
         fragmentBuf = new StringBuilder();
         state = S_FRAGMENT;
       } else if (c != EOF) {
         state = S_PATH;
         if (c != 0x2F) { pointer -= 1; }
+      } else if (hasOverride && url.host == null) {
+        // An empty pathname on a hostless URL still needs one empty segment,
+        // so it serializes as "/" rather than collapsing away.
+        url.path.push("");
       }
     } else if (state == S_PATH) {
+      // A pathname setter takes '?' and '#' as literal path bytes — there is
+      // no query or fragment to start — so they percent-encode instead of
+      // ending the segment.
       let atSegmentEnd = c == EOF || c == 0x2F || (isSpecial && c == 0x5C) ||
-                         c == 0x3F || c == 0x23;
+                         (!hasOverride && (c == 0x3F || c == 0x23));
       if (atSegmentEnd) {
         let bufStr = buffer.toString();
         let slashLike = c == 0x2F || (isSpecial && c == 0x5C);
@@ -944,7 +1074,9 @@ export let basicUrlParse = (rawInput: String, base: UrlRecord | null): UrlRecord
         encodeByteInto(opaqueBuf, c, EncodeSet.C0Control);
       }
     } else if (state == S_QUERY) {
-      if (c == 0x23) {
+      // With a query override a '#' is content, not a fragment delimiter, so
+      // it percent-encodes into the query like any other reserved byte.
+      if (c == 0x23 && !hasOverride) {
         url.query = queryBuf.toString();
         hasQueryBuf = false;
         hasFragmentBuf = true;
@@ -1134,6 +1266,137 @@ export final class URL implements Hashable {
    */
   searchParams(): URLSearchParams {
     return new URLSearchParams(this.search);
+  }
+
+  // Runs `value` through the parser in the given state override, against a
+  // copy of this URL's record, and wraps the result.
+  //
+  // The copy is returned even when the parse fails, because a setter's
+  // failure is not a rollback: the spec parses into the URL in place and
+  // leaves behind whatever it managed to apply first. Setting host to
+  // "example.com:65536" is the case that shows it — the host takes effect
+  // and then the out-of-range port fails, so the host change stands. When a
+  // parse fails before touching anything, the copy is identical to the
+  // original anyway.
+  #withParsed(value: String, stateOverride: i32): URL {
+    let draft = this.#rec.clone();
+    basicUrlParse(value, null, draft, stateOverride);
+    return new URL(draft);
+  }
+
+  /**
+   * This URL with a different scheme, e.g. `withProtocol('http:')`. A
+   * trailing ':' is optional.
+   *
+   * Returns an unchanged URL when the change is one the spec forbids:
+   * moving between special schemes (http, https, ws, wss, ftp, file) and
+   * non-special ones, making a URL with credentials or a port into a `file:`
+   * URL, or making a hostless `file:` URL special.
+   */
+  withProtocol(value: String): URL {
+    let withColon = if (value.endsWith(":")) value else value + ":";
+    return this.#withParsed(withColon, S_SCHEME_START);
+  }
+
+  /**
+   * This URL with a different username. Ignored, per the spec, on a URL that
+   * cannot carry credentials — one with no host, or a `file:` URL.
+   */
+  withUsername(value: String): URL {
+    if (!this.#rec.canHaveCredentialsOrPort()) return this;
+    let draft = this.#rec.clone();
+    draft.username = percentEncode(value, EncodeSet.Userinfo);
+    return new URL(draft);
+  }
+
+  /** This URL with a different password. Ignored like `withUsername`. */
+  withPassword(value: String): URL {
+    if (!this.#rec.canHaveCredentialsOrPort()) return this;
+    let draft = this.#rec.clone();
+    draft.password = percentEncode(value, EncodeSet.Userinfo);
+    return new URL(draft);
+  }
+
+  /**
+   * This URL with a different host, optionally including a port
+   * (`withHost('example.com:8080')`). Ignored on a URL with an opaque path,
+   * which has no authority to change.
+   */
+  withHost(value: String): URL {
+    if (this.#rec.hasOpaquePath()) return this;
+    return this.#withParsed(value, S_HOST);
+  }
+
+  /** This URL with a different host, ignoring any port in `value`. */
+  withHostname(value: String): URL {
+    if (this.#rec.hasOpaquePath()) return this;
+    return this.#withParsed(value, S_HOSTNAME);
+  }
+
+  /**
+   * This URL with a different port. An empty string removes the port, as
+   * does a port that is the scheme's default. Ignored on a URL that cannot
+   * carry one.
+   */
+  withPort(value: String): URL {
+    if (!this.#rec.canHaveCredentialsOrPort()) return this;
+    if (value.length == 0) {
+      let draft = this.#rec.clone();
+      draft.port = -1;
+      return new URL(draft);
+    }
+    return this.#withParsed(value, S_PORT);
+  }
+
+  /**
+   * This URL with a different path. Ignored on a URL with an opaque path,
+   * whose path is not a list of segments to replace.
+   */
+  withPathname(value: String): URL {
+    if (this.#rec.hasOpaquePath()) return this;
+    return this.#withParsed(value, S_PATH_START);
+  }
+
+  /**
+   * This URL with a different query. An empty string removes it; a leading
+   * '?' is optional.
+   */
+  withSearch(value: String): URL {
+    if (value.length == 0) {
+      let draft = this.#rec.clone();
+      draft.query = null;
+      return new URL(draft);
+    }
+    let body = if (value.getByteAt(0) == 0x3F) value.sliceBytes(1, value.length) else value;
+    return this.#withParsed(body, S_QUERY);
+  }
+
+  /** This URL with the query replaced by `params`. */
+  withSearchParams(params: URLSearchParams): URL {
+    return this.withSearch(params.toString());
+  }
+
+  /**
+   * This URL with a different fragment. An empty string removes it; a
+   * leading '#' is optional.
+   */
+  withHash(value: String): URL {
+    if (value.length == 0) {
+      let draft = this.#rec.clone();
+      draft.fragment = null;
+      return new URL(draft);
+    }
+    let body = if (value.getByteAt(0) == 0x23) value.sliceBytes(1, value.length) else value;
+    return this.#withParsed(body, S_FRAGMENT);
+  }
+
+  /**
+   * This URL reparsed from `value`, or null when `value` does not parse —
+   * unlike the other `with*` methods, replacing the whole URL has no
+   * component to fall back to.
+   */
+  withHref(value: String): URL | null {
+    return URL.parse(value, null);
   }
 
   /**
