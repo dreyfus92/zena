@@ -12,3 +12,5 @@ export {
 } from './encoding.zena';
 
 export { URL } from './url.zena';
+
+export { URLSearchParams, URLSearchParamsIterator } from './search-params.zena';

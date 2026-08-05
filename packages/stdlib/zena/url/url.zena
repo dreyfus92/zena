@@ -12,7 +12,10 @@
 
 import { asciiLowerByte } from 'zena:string';
 import { StringBuilder } from 'zena:string-builder';
-import { EncodeSet, percentDecode, encodeByteInto } from './encoding.zena';
+import { URLSearchParams } from './search-params.zena';
+import {
+  EncodeSet, percentDecode, encodeByteInto, byteNeedsPercentEncoding
+} from './encoding.zena';
 
 // ============================================================================
 // Byte classification
@@ -1104,6 +1107,18 @@ export final class URL {
       }
     }
     return "null";
+  }
+
+  /**
+   * The query parsed as `URLSearchParams`.
+   *
+   * A SNAPSHOT, not the web API's live-bound object: `URL` is immutable
+   * here, so mutating the result does not touch this URL (DESIGN.md,
+   * "Failure is a value" and the searchParams divergence note). Write
+   * changes back by building a new URL from `params.toString()`.
+   */
+  searchParams(): URLSearchParams {
+    return new URLSearchParams(this.search);
   }
 
   toString(): String { return this.href; }

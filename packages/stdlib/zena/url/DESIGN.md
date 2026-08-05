@@ -239,12 +239,16 @@ it is a collection/builder, like `Array` or `StringBuilder`. Backed by a
 growable array of pairs (order-preserving, duplicate keys allowed), following
 the spec's `application/x-www-form-urlencoded` parser/serializer.
 
+As implemented, the two constructors are one with a default (`new(init:
+String = '')`), and `size` is a property getter rather than the `size()`
+method sketched below — `Array.length` and `HashMap.size` are getters, and
+matching the surrounding stdlib matters more than matching this sketch.
+
 ```zena
 export final class URLSearchParams {
-  new();                                  // empty
-  new(init: String);                      // parses 'a=1&b=2' (leading '?' ok)
+  new(init: String = '');                 // parses 'a=1&b=2' (leading '?' ok)
 
-  size(): i32;
+  size: i32;                              // getter
   has(name: String, value: String | null = null): boolean;
   get(name: String): String | null;
   getAll(name: String): Array<String>;
@@ -411,8 +415,13 @@ Each phase lands with its tests green and the expected-failures list updated.
    from the spec (C0/fragment/query/special-query/path/userinfo/component/
    form-urlencoded), percent encode/decode over UTF-8 bytes (natural fit for
    Zena's UTF-8 strings), form-urlencoded parse/serialize.
-   _Tests_: hand-written unit tests (`tests/url/encoding_test.zena`). The
-   generated `percent-encoding.json` cases are still TODO — note that the
+   _Tests_: hand-written unit tests (`tests/url/encoding_test.zena`) plus the
+   generated `percent-encoding.json` suite (`tests/url/
+   wpt_percent_encoding_test.zena`, 7 cases). Only each fixture's `utf-8`
+   output is asserted — encoding override is a non-goal (see Scope), and the
+   generator reports how many legacy-encoding outputs it ignored rather than
+   dropping them silently. The fixture drives its inputs through the query of
+   an `https` URL, so the assertions use the special-query set. Note the
    hand-written set assertions initially missed U+005E (^) in the path set,
    which only the phase-2 WPT suite caught.
 2. **Parser core** (`zena:url`) — **DONE** (`url.zena`): the basic URL parser
@@ -438,9 +447,16 @@ Each phase lands with its tests green and the expected-failures list updated.
 3. **Copy-with setters**: state-override parsing; all `with*` methods.
    _Tests_: generated `setters_tests.json` suite + hand-written immutability
    tests.
-4. **`URLSearchParams`**: the class, `searchParams()`, `withSearchParams`.
-   _Tests_: hand-written (WPT's URLSearchParams tests are JS files, not JSON,
-   so we port the interesting cases manually).
+4. **`URLSearchParams`** ✅ **done**: the class and `URL.searchParams()`.
+   `withSearchParams` waits on phase 3, being a `with*` method.
+   _Tests_: hand-written in `tests/url/search-params_test.zena` (WPT's
+   URLSearchParams tests are JS files, not JSON, so the interesting cases are
+   ported by hand).
+   Two deviations worth knowing: `sort()` orders by UTF-8 bytes, which is code
+   POINT order, where the spec sorts by UTF-16 code unit — they differ only
+   for a supplementary-plane name compared against U+E000..U+FFFF. And names
+   and values are stored DECODED, so a value containing `&` or `=`
+   round-trips through `toString()`.
 5. **Value-type & builder ergonomics**: `==`/`hashCode`, `UrlString`,
    the `url` template tag with contextual encoding.
 6. **IDNA / UTS 46** (`idna.zena`): punycode encode/decode first,

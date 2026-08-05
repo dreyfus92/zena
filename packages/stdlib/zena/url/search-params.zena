@@ -1,0 +1,199 @@
+import { Iterable, Iterator } from 'zena:iterator';
+import { IterableUtils } from 'zena:iterable-utils';
+import { parseFormUrlencoded, serializeFormUrlencoded } from './encoding.zena';
+
+/** Iterator over a URLSearchParams' (name, value) pairs, in list order. */
+export final class URLSearchParamsIterator implements Iterator<(String, String)> {
+  #pairs: Array<(String, String)>;
+  var #index: i32 = 0;
+
+  new(pairs: Array<(String, String)>) : #pairs = pairs;
+
+  next(): inline (true, (String, String)) | inline (false, _) {
+    if (this.#index < this.#pairs.length) {
+      let pair = this.#pairs[this.#index];
+      this.#index += 1;
+      return (true, pair);
+    }
+    return (false, _);
+  }
+}
+
+/**
+ * An ordered, mutable list of (name, value) pairs — the
+ * `application/x-www-form-urlencoded` half of the WHATWG URL Standard
+ * (https://url.spec.whatwg.org/#interface-urlsearchparams).
+ *
+ * Order is significant and duplicate names are allowed, so this is a
+ * multimap over a list, not a map. Unlike `URL` this type is mutable: it
+ * is a collection/builder, like `GrowableArray` or `StringBuilder`.
+ *
+ * Names and values are held DECODED. Percent-encoding and `+`-for-space
+ * happen only at `toString`, so a value containing `&` or `=` round-trips.
+ */
+export final class URLSearchParams with IterableUtils<(String, String)>
+    implements Iterable<(String, String)> {
+  var #pairs: GrowableArray<(String, String)>;
+
+  /**
+   * Parses `init` as an urlencoded string. A single leading `?` is
+   * ignored, so `new URLSearchParams(url.search)` does the expected
+   * thing. Defaults to empty.
+   *
+   * The parser returns its list as the read-only `Array` interface; this
+   * class appends to and sorts that same list, so it takes it back as the
+   * `GrowableArray` it was built as.
+   */
+  new(init: String = '')
+      : #pairs = parseFormUrlencoded(stripLeadingQuestion(init)) as GrowableArray<(String, String)>;
+
+  /** Number of pairs, counting duplicate names separately. */
+  size: i32 {
+    get { return this.#pairs.length; }
+  }
+
+  /**
+   * True if any pair has this name — or, when `value` is given, if any
+   * pair has both this name and that value.
+   */
+  has(name: String, value: String | null = null): boolean {
+    for (let pair in this.#pairs) {
+      let (n, v) = pair;
+      if (n == name && (value == null || v == (value as String))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** The first value for `name`, or null when there is none. */
+  get(name: String): String | null {
+    for (let pair in this.#pairs) {
+      let (n, v) = pair;
+      if (n == name) {
+        return v;
+      }
+    }
+    return null;
+  }
+
+  /** Every value for `name`, in order. Empty when there is none. */
+  getAll(name: String): Array<String> {
+    let out = new GrowableArray<String>();
+    for (let pair in this.#pairs) {
+      let (n, v) = pair;
+      if (n == name) {
+        out.push(v);
+      }
+    }
+    return out;
+  }
+
+  /** Appends a pair, keeping any existing pairs with the same name. */
+  append(name: String, value: String): void {
+    this.#pairs.push((name, value));
+  }
+
+  /**
+   * Sets `name` to a single `value`: updates the first pair with that
+   * name and drops the rest, or appends when there is none. The first
+   * pair keeps its position.
+   */
+  set(name: String, value: String): void {
+    let out = new GrowableArray<(String, String)>();
+    var seen = false;
+    for (let pair in this.#pairs) {
+      let (n, v) = pair;
+      if (n != name) {
+        out.push(pair);
+      } else if (!seen) {
+        seen = true;
+        out.push((name, value));
+      }
+    }
+    if (!seen) {
+      out.push((name, value));
+    }
+    this.#pairs = out;
+  }
+
+  /**
+   * Removes every pair with this name — or, when `value` is given, only
+   * the pairs matching both.
+   */
+  delete(name: String, value: String | null = null): void {
+    let out = new GrowableArray<(String, String)>();
+    for (let pair in this.#pairs) {
+      let (n, v) = pair;
+      if (n != name || (value != null && v != (value as String))) {
+        out.push(pair);
+      }
+    }
+    this.#pairs = out;
+  }
+
+  /**
+   * Sorts pairs by name, preserving the relative order of pairs that
+   * share a name (an insertion sort, which is stable).
+   *
+   * The spec sorts by UTF-16 code unit; this compares UTF-8 bytes, which
+   * is code POINT order. The two agree on everything except a
+   * supplementary-plane name ordered against U+E000..U+FFFF — see
+   * `compareByteWise`.
+   */
+  sort(): void {
+    let a = this.#pairs;
+    for (var i = 1; i < a.length; i += 1) {
+      let cur = a[i];
+      let (curName, _cv) = cur;
+      var j = i - 1;
+      while (j >= 0) {
+        let (prevName, _pv) = a[j];
+        if (compareByteWise(prevName, curName) <= 0) {
+          break;
+        }
+        a[j + 1] = a[j];
+        j -= 1;
+      }
+      a[j + 1] = cur;
+    }
+  }
+
+  /** Serializes to `application/x-www-form-urlencoded` (no leading `?`). */
+  toString(): String {
+    return serializeFormUrlencoded(this.#pairs);
+  }
+
+  [Iterable.iterator](): Iterator<(String, String)> {
+    return new URLSearchParamsIterator(this.#pairs);
+  }
+}
+
+/** Drops one leading '?', so `url.search` can be passed through directly. */
+let stripLeadingQuestion = (s: String): String => {
+  if (s.length > 0 && s.getByteAt(0) == 0x3F) {
+    return s.sliceBytes(1, s.length);
+  }
+  return s;
+};
+
+/**
+ * Orders two strings by their UTF-8 bytes: negative, zero, or positive.
+ *
+ * UTF-8 byte order is code point order, whereas the spec's sort is by
+ * UTF-16 code unit. They differ only when comparing a supplementary-plane
+ * character (U+10000+, which UTF-16 encodes as a surrogate pair in
+ * 0xD800..0xDFFF) against U+E000..U+FFFF, where UTF-16 puts the
+ * supplementary character first and code point order puts it last.
+ */
+let compareByteWise = (a: String, b: String): i32 => {
+  let n = if (a.length < b.length) a.length else b.length;
+  for (var i = 0; i < n; i += 1) {
+    let x = a.getByteAt(i);
+    let y = b.getByteAt(i);
+    if (x != y) {
+      return x - y;
+    }
+  }
+  return a.length - b.length;
+};

@@ -20,12 +20,14 @@ Everything is one library — `import {...} from 'zena:url'` — implemented as
 multiple files in this directory, with dead-code elimination keeping unused
 pieces out of compiled binaries:
 
-| Export                   | Description                               | Status  |
-| ------------------------ | ----------------------------------------- | ------- |
-| `URL`, `URLSearchParams` | WHATWG URL parsing and serialization      | Design  |
-| `url` tag, `UrlString`   | Safe URL building, typed URL strings      | Design  |
-| `URLPattern`             | Route/pattern matching                    | Planned |
-| `URLPatternList`         | Fast multi-pattern matching (prefix trie) | Planned |
+| Export                   | Description                               | Status                             |
+| ------------------------ | ----------------------------------------- | ---------------------------------- |
+| `URL`                    | WHATWG URL parsing and serialization      | Done — read-only; `with*` pending  |
+| `URLSearchParams`        | The query as an ordered multimap          | Done                               |
+| percent-encoding helpers | Encode sets, form-urlencoded codec        | Done                               |
+| `url` tag, `UrlString`   | Safe URL building, typed URL strings      | Design                             |
+| `URLPattern`             | Route/pattern matching                    | Planned                            |
+| `URLPatternList`         | Fast multi-pattern matching (prefix trie) | Planned                            |
 
 ## Planned API at a glance
 
@@ -50,9 +52,16 @@ let page = URL.parse('/guide/intro', 'https://zena.dev/docs/');
 // URLs are immutable; derive modified copies with `with*` methods
 let secure = u.withProtocol('http:').withPort('');
 
-// Query parameters
+// Query parameters. A SNAPSHOT, not the web's live-bound object: URL is
+// immutable, so mutating these does not change `u`.
 let params = u.searchParams();
-params.get('q');  // 'zena' (String | null)
+params.get('q');       // 'zena' (String | null)
+params.getAll('tag');  // Array<String>, in order
+params.append('page', '2');
+params.toString();     // 'q=zena&page=2'
+for (let pair in params) {
+  let (name, value) = pair;
+}
 
 // Safe URL building with a template tag: interpolated values are
 // percent-encoded for the component they appear in
