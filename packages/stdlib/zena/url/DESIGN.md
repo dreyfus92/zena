@@ -38,11 +38,11 @@ standard library. This document covers the design of the initial `URL` /
 ## Scope
 
 **v1 (`zena:url`)**: `URL` (parse, serialize, resolve against base, derive
-modified copies), `URLSearchParams`, percent-encoding utilities.
+modified copies), `URLSearchParams`, percent-encoding utilities, the `url`
+template tag.
 
 **Later phases** (still exported from `zena:url`): IDNA/UTS 46 host
-processing, `UrlString` distinct type, `url` template tag, `URLPattern`,
-`URLPatternList`.
+processing, `UrlString` distinct type, `URLPattern`, `URLPatternList`.
 
 **Non-goals**: Node's legacy `url.parse()`/`format()` API; the spec's
 `encoding override` (we always use UTF-8); relative-reference resolution per
@@ -487,9 +487,8 @@ Each phase lands with its tests green and the expected-failures list updated.
      `a, c`. Both are wrong answers with no signal, so this follows Java's
      fail-fast collections instead. The check is best-effort, as Java's is:
      it catches mistakes, it does not make concurrent mutation safe.
-5. **Value-type & builder ergonomics** — `==`/`hashCode` **done**;
-   `UrlString` and the `url` template tag with contextual encoding still to
-   come.
+5. **Value-type & builder ergonomics** — `==`/`hashCode` and the `url`
+   template tag **done**; `UrlString` still open (see Open Questions).
    `URL` implements `Hashable`, so it can be a `HashMap`/`HashSet` key.
    Equality compares `href`, which is not a shortcut: the parser
    canonicalizes as it goes, so `https://EXAMPLE.com:443/a/../b` and
@@ -501,6 +500,31 @@ Each phase lands with its tests green and the expected-failures list updated.
    `href` is now serialized once and cached — it is read on every hash probe
    and every comparison, and a `URL` never mutates (`with*` returns new
    instances), so recomputing it each time was pure waste.
+
+   The `url` tag (`tag.zena`) landed as designed, with one rule the sketch
+   above did not anticipate: **interpolation is confined to the path, query,
+   and fragment.** A hole in the scheme, credentials, host, or port returns
+   null. Those parts are not percent-decoded when parsed — a host goes through
+   IDNA and IP parsing on its raw text — so no encoding makes an untrusted
+   value safe there, and encoding it anyway would produce something that looks
+   sanitized but is not. This is the same line safevalues draws when it
+   requires the origin of a `TrustedResourceUrl` to be developer-authored.
+
+   Deciding which component a hole lands in needs only a crude scanner over
+   the literal parts (scheme → `//` → authority → path → query → fragment),
+   not the real parser, because an interpolated value can never move a
+   component boundary: the component encode set covers every delimiter that
+   could. Two boundary cases fall out of that same fact and are pinned by
+   tests:
+   - ``url`mailto:${who}` `` is allowed. The scanner is sitting on the `:`
+     with no idea whether `//` follows, but since the hole cannot supply a
+     slash, no authority can open — it is an opaque path.
+   - ``url`https:/${host}/a` `` is refused. A special scheme reaches its host
+     through a single slash too, so that hole would be the host despite
+     looking like a path.
+
+   The tag returns `URL | null` rather than the `TemplateTag<URL>` sketched
+   above, for the same reason `URL.parse` does: this library does not throw.
 6. **IDNA / UTS 46** (`idna.zena`): punycode encode/decode first,
    then the UTS 46 mapping tables (size-conscious; see Open Questions).
    _Tests_: generated `toascii.json` (+ `IdnaTestV2.json` if we go for full
@@ -526,6 +550,14 @@ Phases 1–4 are the meat of "a URL object in `zena:url`"; 5 is cheap polish;
   choosing an ASCII-only host parser; or keep v1's behavior (non-ASCII hosts
   fail to parse, which is at least never silently wrong)
   available permanently as the lite variant. Decide when phase 6 starts.
+- **`UrlString`**: OPEN, and deliberately not landed with the `url` tag. The
+  brand is only worth anything once something *demands* it — a sink like
+  `fetch(input: UrlString | URL)` — and there is no such sink yet. Typing
+  `href` as `UrlString` today would buy nothing and cost an `as String` at
+  every site that compares or concatenates an `href`, since Zena requires an
+  explicit cast in both directions (`let m: Meters = 10 as Meters`). Revisit
+  when the first sink API arrives; the brand can be added then without
+  changing any behavior.
 - **Record-based `with()`**: a single `url.with({pathname: '/x', hash: ''})`
   reads better than chained `with*` calls; depends on optional-field record
   ergonomics. Could be added alongside, not instead.

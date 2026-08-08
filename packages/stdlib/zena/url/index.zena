@@ -13,4 +13,6 @@ export {
 
 export { URL } from './url.zena';
 
+export { url } from './tag.zena';
+
 export { URLSearchParams, ConcurrentModificationError } from './search-params.zena';

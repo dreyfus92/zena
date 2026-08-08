@@ -25,11 +25,12 @@ pieces out of compiled binaries:
 | `URL`                    | WHATWG URL parsing and serialization      | Done, including the `with*` copy methods. Usable as a map key (`==`/`hashCode` on the canonical form) |
 | `URLSearchParams`        | The query as an ordered multimap          | Done                               |
 | percent-encoding helpers | Encode sets, form-urlencoded codec        | Done                               |
-| `url` tag, `UrlString`   | Safe URL building, typed URL strings      | Design                             |
+| `url` tag                | Safe URL building by interpolation        | Done                               |
+| `UrlString`              | Typed URL strings                         | Design                             |
 | `URLPattern`             | Route/pattern matching                    | Planned                            |
 | `URLPatternList`         | Fast multi-pattern matching (prefix trie) | Planned                            |
 
-## Planned API at a glance
+## API at a glance
 
 ```zena
 import {URL, URLSearchParams, url} from 'zena:url';
@@ -71,11 +72,20 @@ for (let pair in params) {
   let (name, value) = pair;
 }
 
-// Safe URL building with a template tag: interpolated values are
-// percent-encoded for the component they appear in
+// Safe URL building with a template tag: the literal parts are trusted,
+// and every interpolated value is percent-encoded for the component it
+// lands in, so it cannot escape into another one.
 let team = 'a/b team';
 let link = url`https://example.com/teams/${team}/dashboard`;
 // → https://example.com/teams/a%2Fb%20team/dashboard
+
+url`https://example.com/s?q=${'a&admin=true'}`;
+// → ...?q=a%26admin%3Dtrue — one parameter, not two
+
+// Only the path, query, and fragment take interpolations. A hole in the
+// scheme, credentials, host, or port returns null: those are parsed from
+// their raw text, so no encoding would make an untrusted value safe.
+url`https://${host}/a`;  // null
 ```
 
 Deviations from the web API (and why) are covered in

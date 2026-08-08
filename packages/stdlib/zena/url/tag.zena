@@ -1,0 +1,138 @@
+// The `url` template tag: safe URL construction from a literal template.
+//
+// The literal parts are developer-authored and trusted verbatim; every
+// interpolated value is percent-encoded so it cannot escape the component it
+// sits in. Which component that is comes from scanning the literal parts, so
+// the same value encodes differently depending on where it lands.
+
+import { String } from 'zena:string';
+import { StringBuilder } from 'zena:string-builder';
+import { FixedArray } from 'zena:fixed-array';
+import { TemplateStringsArray } from 'zena:template-strings-array';
+import { EncodeSet, percentEncode } from './encoding.zena';
+import { URL } from './url.zena';
+
+// The four delimiters the scanner looks for, as bytes.
+let SLASH = 0x2F;
+let COLON = 0x3A;
+let QUESTION_MARK = 0x3F;
+let NUMBER_SIGN = 0x23;
+
+// Where the scanner sits in the literal text. Only the last three admit an
+// interpolation.
+let AT_SCHEME = 0;
+let AT_AFTER_COLON = 1;
+let AT_SLASH = 2;
+let AT_AUTHORITY = 3;
+let AT_PATH = 4;
+let AT_QUERY = 5;
+let AT_FRAGMENT = 6;
+
+/**
+ * Runs the scanner over one literal chunk and returns the state it ends in.
+ *
+ * This is far cruder than the basic URL parser and deliberately so: it only
+ * has to find the component boundaries in text the developer wrote, and an
+ * interpolated value can never move one, because every delimiter it could
+ * contain is percent-encoded first.
+ */
+let advance = (start: i32, chunk: String): i32 => {
+  var state = start;
+  var i = 0;
+  while (i < chunk.length) {
+    let c = chunk.getByteAt(i);
+    if (state == AT_AFTER_COLON) {
+      // "//" opens an authority; anything else is an opaque path, and the
+      // character that told us so still has to be examined as path text.
+      if (c == SLASH) {
+        state = AT_SLASH;
+        i += 1;
+      } else {
+        state = AT_PATH;
+      }
+    } else if (state == AT_SLASH) {
+      if (c == SLASH) {
+        state = AT_AUTHORITY;
+        i += 1;
+      } else {
+        state = AT_PATH;
+      }
+    } else {
+      if (state == AT_SCHEME) {
+        if (c == COLON) state = AT_AFTER_COLON;
+      } else if (state == AT_AUTHORITY) {
+        // A ':' here is a port separator or part of an IPv6 address; either
+        // way it does not end the authority, so it is not looked for.
+        if (c == SLASH) {
+          state = AT_PATH;
+        } else if (c == QUESTION_MARK) {
+          state = AT_QUERY;
+        } else if (c == NUMBER_SIGN) {
+          state = AT_FRAGMENT;
+        }
+      } else if (state == AT_PATH) {
+        if (c == QUESTION_MARK) {
+          state = AT_QUERY;
+        } else if (c == NUMBER_SIGN) {
+          state = AT_FRAGMENT;
+        }
+      } else if (state == AT_QUERY) {
+        if (c == NUMBER_SIGN) state = AT_FRAGMENT;
+      }
+      i += 1;
+    }
+  }
+  return state;
+};
+
+/**
+ * Builds a `URL` from a template, percent-encoding every interpolated value
+ * for the component it lands in.
+ *
+ * ```zena
+ * let team = 'a/b team';
+ * url`https://example.com/teams/${team}`;  // .../teams/a%2Fb%20team
+ * url`https://example.com/s?q=${team}`;    // ...?q=a%2Fb%20team
+ * ```
+ *
+ * Values are encoded with the component percent-encode set, which covers every
+ * delimiter that could end the component early — `/`, `?`, `#`, `&`, `=`, and
+ * `%` itself — so an interpolation cannot add a path segment, start a query,
+ * or smuggle in an extra parameter.
+ *
+ * Interpolation is only allowed in the path, query, and fragment. A hole in
+ * the scheme, credentials, host, or port returns null: those parts are not
+ * percent-decoded when parsed — a host goes through IDNA and IP parsing on its
+ * raw text — so there is no encoding that would make an untrusted value safe
+ * there, and pretending otherwise is worse than refusing. Build those with
+ * `URL.parse` and the `with*` methods if you need them dynamic.
+ *
+ * The template must be an absolute URL; like `URL.parse`, anything that does
+ * not parse comes back as null.
+ */
+export let url = (
+  strings: TemplateStringsArray,
+  values: FixedArray<String>
+): URL | null => {
+  let sb = new StringBuilder(64);
+  var state = AT_SCHEME;
+  var i = 0;
+  while (i < values.length) {
+    let literal = strings[i];
+    sb.append(literal);
+    state = advance(state, literal);
+    // A hole immediately after the scheme's ':' begins an opaque path, as in
+    // url`mailto:${who}`. The value is encoded, so it cannot supply the "//"
+    // that would open an authority instead. AT_SLASH is NOT promoted the same
+    // way: a special scheme reaches its host through a single slash too, so a
+    // hole there would land in the host.
+    if (state == AT_AFTER_COLON) state = AT_PATH;
+    if (state != AT_PATH && state != AT_QUERY && state != AT_FRAGMENT) {
+      return null;
+    }
+    sb.append(percentEncode(values[i], EncodeSet.Component));
+    i += 1;
+  }
+  sb.append(strings[strings.length - 1]);
+  return URL.parse(sb.toString(), null);
+};

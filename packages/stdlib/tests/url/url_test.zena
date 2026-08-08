@@ -182,6 +182,24 @@ export let tests = suite('URL API', (): void => {
       equal(u.withHostname('third.example').port, '8080');
     });
 
+    test('an IPv6 host round-trips through withHost and withHostname', (ctx: TestContext): void => {
+      let u = mustParse('http://example.com/a').withHost('[2001:db8::1]:8080');
+      equal(u.hostname, '[2001:db8::1]');
+      equal(u.port, '8080');
+      // The address is canonicalized on the way in, and the port survives a
+      // hostname-only change.
+      let v = u.withHostname('[0:0:0:0:0:0:0:1]');
+      equal(v.hostname, '[::1]');
+      equal(v.port, '8080');
+      equal(v.href, 'http://[::1]:8080/a');
+    });
+
+    test('a malformed IPv6 address leaves the host alone', (ctx: TestContext): void => {
+      let u = mustParse('http://example.com/a');
+      equal(u.withHostname('[::1').hostname, 'example.com');
+      equal(u.withHostname('[1:2:3:4:5:6:7:8:9]').hostname, 'example.com');
+    });
+
     test('with* results are usable as HashMap keys', (ctx: TestContext): void => {
       isTrue(mustParse('https://example.com/a').withPathname('/b') ==
              mustParse('https://example.com/b'));
