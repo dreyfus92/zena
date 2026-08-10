@@ -26,6 +26,7 @@ pieces out of compiled binaries:
 | `URLSearchParams`        | The query as an ordered multimap          | Done                               |
 | percent-encoding helpers | Encode sets, form-urlencoded codec        | Done                               |
 | `url` tag                | Safe URL building by interpolation        | Done                               |
+| punycode codec           | RFC 3492 encode/decode for one label      | Done — the IDNA host processing around it is not |
 | `UrlString`              | Typed URL strings                         | Design                             |
 | `URLPattern`             | Route/pattern matching                    | Planned                            |
 | `URLPatternList`         | Fast multi-pattern matching (prefix trie) | Planned                            |

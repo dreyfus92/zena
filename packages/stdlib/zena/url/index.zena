@@ -15,4 +15,6 @@ export { URL } from './url.zena';
 
 export { url } from './tag.zena';
 
+export { punycodeEncode, punycodeDecode } from './punycode.zena';
+
 export { URLSearchParams, ConcurrentModificationError } from './search-params.zena';

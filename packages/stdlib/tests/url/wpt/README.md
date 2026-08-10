@@ -17,8 +17,8 @@ same commit). These files are third-party data — do not hand-edit them.
 | File                    | Used by                        | Schema                                                                                                                                             |
 | ----------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `urltestdata.json`      | `../wpt_urltestdata_test.zena` | array mixing section-comment strings with `{input, base, ...}` objects that are either `failure: true` or a full set of expected component strings |
-| `percent-encoding.json` | not yet                        | `{input, output: {<encoding>: string}}`; only the `utf-8` expectations apply to us                                                                 |
-| `setters_tests.json`    | not yet (DESIGN.md phase 3)    | keyed by property name; `{href, new_value, expected}`                                                                                              |
+| `percent-encoding.json` | `../wpt_percent_encoding_test.zena` | `{input, output: {<encoding>: string}}`; only the `utf-8` expectations apply to us                                                            |
+| `setters_tests.json`    | `../wpt_setters_test.zena`     | keyed by property name; `{href, new_value, expected}`                                                                                              |
 
 `urltestdata-javascript-only.json` is deliberately NOT vendored: its cases are
 lone-surrogate inputs specific to UTF-16 JS strings, and Zena strings are

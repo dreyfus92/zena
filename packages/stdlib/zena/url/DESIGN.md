@@ -525,10 +525,34 @@ Each phase lands with its tests green and the expected-failures list updated.
 
    The tag returns `URL | null` rather than the `TemplateTag<URL>` sketched
    above, for the same reason `URL.parse` does: this library does not throw.
-6. **IDNA / UTS 46** (`idna.zena`): punycode encode/decode first,
-   then the UTS 46 mapping tables (size-conscious; see Open Questions).
-   _Tests_: generated `toascii.json` (+ `IdnaTestV2.json` if we go for full
-   compliance); burn down the phase-2 skip list.
+6. **IDNA / UTS 46** — punycode **done** (`punycode.zena`); the UTS 46
+   mapping tables still to come (size-conscious; see Open Questions).
+
+   `punycodeEncode`/`punycodeDecode` are the RFC 3492 Bootstring codec for a
+   single label, with no `xn--` prefix handling and none of the UTS 46
+   mapping that surrounds them in a real domain-to-ASCII conversion — that
+   split keeps the part with published test vectors separately verifiable
+   from the part that needs tables.
+   _Tests_: `tests/url/punycode_test.zena`, whose expectations are RFC 3492's
+   own section 7.1 sample strings — all nine round-trip — plus the overflow
+   and invalid-digit rejections.
+
+   Two things shaped the implementation:
+   - Zena's `/` always yields a float, so the arithmetic goes through a
+     truncating `divide()` that widens to f64 first. f32 cannot represent
+     every i32, and the RFC's overflow guards compare against values near
+     `MAX_I32`, where an f32 quotient would be wrong.
+   - The spec's rule that the delimiter is consumed only if something
+     preceded it is load-bearing: a leading `-` is a digit, not a separator,
+     so `"-"` alone must be rejected rather than decoding to the empty
+     string. This is pinned by a test.
+
+   Still to do: the UTS 46 mapping tables, `xn--` prefix handling, and
+   `domainToASCII` wired into `parseHost`.
+   _Tests_: generated `toascii.json` (vendored, 87 cases) — it exercises the
+   whole pipeline rather than punycode alone, so it lands with the mapping
+   work — plus `IdnaTestV2.json` if we go for full compliance; burn down the
+   15-entry skip list.
 7. **`URLPattern`** (`pattern.zena`): constructor-string and init-record forms,
    path-to-regexp pattern compilation, `test`/`exec`. Depends on `zena:regex`
    maturity (needs capture groups — present — and named-group bookkeeping we
