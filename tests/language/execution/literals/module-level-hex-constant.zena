@@ -1,0 +1,37 @@
+// @mode: run
+// @result: 42
+// Regression: a module-level `let` initialized with a NUMBER LITERAL is
+// baked into the wasm global's own const initializer rather than lowered
+// as an expression, and that path re-parses the literal's RAW TEXT. It
+// used decimal-only parseI32, so every hex literal failed to parse and
+// silently emitted 0 — module-level `let MASK = 0xFF;` was 0 while the
+// same literal as a local or inline was correct. i64 globals were fine,
+// because their path already used a hex-aware parser.
+//
+// Silent is the operative word: nothing failed to compile, the constants
+// were just zero at runtime.
+
+let HEX_BYTE = 0x2A;
+let HEX_UPPER = 0X2a;
+let HEX_WIDE = 0x0000002A;
+let HEX_BIG = 0x10FFFF;
+let HEX_NEG = -0x2A;
+let DECIMAL = 42;
+
+export let main = (): i32 => {
+  // Each of these was 0 before the fix.
+  if (HEX_BYTE != 42) return 1;
+  if (HEX_UPPER != 42) return 2;
+  if (HEX_WIDE != 42) return 3;
+  if (HEX_BIG != 1114111) return 5;
+  if (HEX_NEG != -42) return 6;
+  if (DECIMAL != 42) return 7;
+
+  // The same literal as a local and inline always worked; pin that the
+  // two agree now.
+  let local = 0x2A;
+  if (local != HEX_BYTE) return 8;
+  if (0x2A != HEX_BYTE) return 9;
+
+  return HEX_BYTE;
+};

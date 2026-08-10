@@ -9,9 +9,7 @@ import { ReachabilityAnalysis } from './reachability/analysis.zena';
 import { prepareGenerators } from './ir/generators.zena';
 import { prepareAsyncFunctions } from './ir/async.zena';
 import { prepareComponentEntry, prepareComponentExports } from './ir/component-adapters.zena';
-import {
-  getClassKey, sortStringsByLengthDescending, parseI64OrU64Literal,
-} from './codegen-utils.zena';
+import { getClassKey, getInterfaceKey, getInterfaceMemberKey, sortStringsByLengthDescending, parseI64OrU64Literal, parseI32WithHex } from './codegen-utils.zena';
 import { ClassType } from '../types.zena';
 import { Program } from '../program.zena';
 import {
@@ -19,6 +17,8 @@ import {
 } from '../ast.zena';
 import { Symbol } from '../scope/symbol.zena';
 import { ValType, resetWasmTypeUids } from './wasm.zena';
+import { parseF64, parseI64, i32ToString } from 'zena:string-convert';
+
 import { WasmEmitter } from './wasm-emitter.zena';
 import { performance } from '../time.zena';
 import { dirName, normalizePath } from '../module-resolver.zena';
@@ -535,18 +535,23 @@ export final class ModuleGenerator {
         match (initExpr) {
           case NumberLiteral {raw}: {
              let {type} = g;
+             // A literal initializer is baked into the global's own const
+             // expression, so it is re-parsed from the raw source text here.
+             // That text can be hex, and a parser that does not know it
+             // would quietly hand back 0 — the constant would simply be
+             // wrong at runtime with nothing failing to compile.
              if (type is ValTypeI32 ) {
-                if (let (true, val) = parseI32(raw)) {
-                  this.emitter.emitI32Const(val);
-                } else {
-                  this.emitter.emitI32Const(0);
+                let (ok, val) = parseI32WithHex(raw);
+                if (!ok) {
+                  throw new Error('global initializer is not a valid i32 literal: ' + raw);
                 }
+                this.emitter.emitI32Const(val);
              } else if (type is ValTypeI64 ) {
-                if (let (true, val) = parseI64OrU64Literal(raw)) {
-                  this.emitter.emitI64Const(val);
-                } else {
-                  this.emitter.emitI64Const(0 as i64);
+                let (ok, val) = parseI64OrU64Literal(raw);
+                if (!ok) {
+                  throw new Error('global initializer is not a valid i64 literal: ' + raw);
                 }
+                this.emitter.emitI64Const(val);
              } else if (type is ValTypeF64 ) {
                 this.emitter.emitF64Const(parseF64(raw));
              } else if (type is ValTypeF32 ) {
