@@ -1,0 +1,30 @@
+import { suite, test, TestContext } from 'zena:test';
+import { isTrue } from 'zena:assert';
+import { WasmStruct, WasmField, isValSubtype } from '../lib/codegen/wasm-module.zena';
+import { ValTypeRef, ValTypeRefNull } from '../lib/codegen/wasm.zena';
+
+export let tests = suite('isValSubtype', (): void => {
+  test('nullability is not part of the answer (issue #583)', (ctx: TestContext): void => {
+    // isValSubtype opens with valTypeEquals, which ignores nullability,
+    // so a nullable ref passes as a subtype of its non-null form. That
+    // is wrong — it is exactly the null check a cast performs — but
+    // lowering relies on it today, so this pins the behavior until the
+    // call sites are audited. Anything that folds a cast on the
+    // strength of this predicate must check nullability itself
+    // (simplify.zena's castIsIdentity does). When #583 lands, flip
+    // the last two assertions.
+    let base = new WasmStruct("Base", new GrowableArray<WasmField>());
+    let sub = new WasmStruct("Sub", new GrowableArray<WasmField>());
+    sub.superStruct = base;
+    isTrue(isValSubtype(new ValTypeRef(sub), new ValTypeRef(base)),
+        'non-null sub <: non-null base');
+    isTrue(isValSubtype(new ValTypeRefNull(sub), new ValTypeRefNull(base)),
+        'nullable sub <: nullable base');
+    isTrue(isValSubtype(new ValTypeRef(sub), new ValTypeRefNull(base)),
+        'non-null widens to nullable');
+    isTrue(!isValSubtype(new ValTypeRefNull(sub), new ValTypeRef(base)),
+        'the heap-subtype path does check nullability');
+    isTrue(isValSubtype(new ValTypeRefNull(sub), new ValTypeRef(sub)),
+        'the equality shortcut does not (issue #583)');
+  });
+});

@@ -31,8 +31,11 @@ pair. DCE runs last to sweep what folding and GVN left unused.
 
 The module pass is two-phase: every body is lowered, optimized, and
 verified (and retained) before any is emitted. Between the phases, at
-`-O2`, the module loop runs: inline sweeps (inline.zena) to a
-fixpoint with a round cap, re-cleaning every changed caller. `-O0`
+`-O2`, the module loop runs: an inline sweep (inline.zena) then a
+devirtualization sweep (devirt.zena) per round, to a fixpoint with a
+round cap, re-cleaning every changed body — inlining exposes the
+provenance devirtualization reads, and the direct calls it makes are
+the next round's inline sites. `-O0`
 skips the cleanup passes; GVN runs at every level (emission quality
 and the narrowing cast-dedup contract depend on it). The level arrives
 as `ZENA_OPT_LEVEL` / `-O<n>` (docs/design/optimization-pipeline.md);
@@ -61,6 +64,7 @@ polices the loop.
 | `blockmerge.zena`       | CFG cleanup: physically removes blocks unreachable after branch folding (compacts the block list, renumbers successor targets and tryJoin). Skips a function whose try-join block would die.                                                                                                                              |
 | `dce.zena`              | Use-count DCE, one reverse-id pass (dead chains collapse because operand ids precede uses). Effects/trap table decides removability; loads need a non-null receiver.                                                                                                                                                      |
 | `inline.zena`           | Always-inline tier (-O2): splices single-block callees (accessors, thunks, adapters) into direct call sites via IrBody.copyFrom; chains resolve over the driver's rounds. Multi-block callees, multi-value returns, and `tail return` bodies are the v2 tier.                                                             |
+| `devirt.zena`           | -O2: `call_ref` → `call` when the slot resolves — by provenance (vtable global read, `iface_pack`, `<vtable>` of a `struct_new`) or because every vtable global whose struct is the slot's owner or extends it installs the same function (closed-world single implementation, from the module's globals). Signatures must match exactly. |
 | `gvn.zena`              | Dominator-scoped value numbering; string keys + id-order walk keep it deterministic.                                                                                                                                                                                                                                      |
 | `verifier.zena`         | Structural/type checks on `IrBody`; failures are loud compile errors.                                                                                                                                                                                                                                                     |
 | `emit.zena`             | SSA destruction: stack scheduling (`#pushValue` discipline), block-param copy coalescing, domtree stackifier, terminator streaming, init-discipline non-null local typing (live validator replay + removable asserts, ir.md §12.1).                                                                                       |

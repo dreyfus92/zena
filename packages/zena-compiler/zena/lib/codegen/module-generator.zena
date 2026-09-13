@@ -31,6 +31,8 @@ import { runSimplify } from './ir/simplify.zena';
 import { runBlockCleanup } from './ir/blockmerge.zena';
 import { runDce } from './ir/dce.zena';
 import { runInline } from './ir/inline.zena';
+import { DevirtContext, runDevirt } from './ir/devirt.zena';
+import { printIr } from './ir/printer.zena';
 import { IrCfg } from './ir/cfg.zena';
 import { emitZirFunction } from './ir/emit.zena';
 import {
@@ -840,10 +842,15 @@ export final class ModuleGenerator {
       // into emission.
       let verifyErrors = verifyIr(body);
       if (verifyErrors.length > 0) {
-        var message = "zir verify failed for " +
-            (if (wasmFunc.name != null) wasmFunc.name as String else "<unnamed>") + ":";
+        let fname = if (wasmFunc.name != null) wasmFunc.name as String else "<unnamed>";
+        var message = "zir verify failed for " + fname + ":";
         for (let e in verifyErrors) {
           message = message + "\n  " + e;
+        }
+        if (this.zirStats) {
+          // The body as the passes left it: the ids the errors name
+          // are meaningless without it.
+          message = message + "\n" + printIr(body, fname);
         }
         throw new Error(message);
       }
@@ -857,22 +864,36 @@ export final class ModuleGenerator {
     // changed. Chains (an adapter calling an accessor) resolve across
     // rounds rather than by a topological order.
     var zirInlined = 0;
+    var zirDevirtualized = 0;
     if (this.optLevel >= 2) {
       let tLoop = performance.start("codegen-optimize-loop");
+      let devirtCx = new DevirtContext(wasm);
       let changed = new GrowableArray<boolean>();
       for (var i = 0; i < bodies.length; i += 1) {
         changed.push(false);
       }
       var round = 0;
-      while (round < 3) {
+      while (round < 4) {
         for (var i = 0; i < bodies.length; i += 1) {
           changed[i] = false;
         }
-        let n = runInline(wasm, bodies, changed);
-        if (n == 0) {
+        // Inline first, then devirtualize: inlining exposes the
+        // provenance devirtualization reads, and the direct calls
+        // devirtualization creates are the next round's inline sites.
+        let inlined = runInline(wasm, bodies, changed);
+        var devirtualized = 0;
+        for (var i = 0; i < bodies.length; i += 1) {
+          let d = runDevirt(devirtCx, bodies[i]);
+          if (d > 0) {
+            changed[i] = true;
+            devirtualized += d;
+          }
+        }
+        if (inlined == 0 && devirtualized == 0) {
           break;
         }
-        zirInlined += n;
+        zirInlined += inlined;
+        zirDevirtualized += devirtualized;
         for (var i = 0; i < bodies.length; i += 1) {
           if (!changed[i]) {
             continue;
@@ -917,6 +938,8 @@ export final class ModuleGenerator {
           " dead instructions removed");
       console.log("zir inline: " + i32ToString(zirInlined) +
           " call sites inlined");
+      console.log("zir devirt: " + i32ToString(zirDevirtualized) +
+          " call_ref sites made direct");
       console.log("zir locals: " + i32ToString(zirGraduated) +
           " ref locals non-null, " + i32ToString(zirDemoted) +
           " kept nullable (init rollback)");

@@ -29,6 +29,20 @@
  * Determinism: a single id-order walk, no hash containers.
  */
 import { IrBody, IrOp, IrSuccessor } from './ir.zena';
+import { isValSubtype } from '../wasm-module.zena';
+import { ValType, ValTypeRef, ValTypeRefNull } from '../wasm.zena';
+
+/**
+ * A cast from `from` to `to` that can neither trap nor change the
+ * value: `from` is already a subtype of `to`. The nullability check is
+ * spelled out rather than trusted to isValSubtype alone — a
+ * null-stripping cast that folds is a silent miscompile, and this is
+ * the one place that decides it.
+ */
+let castIsIdentity = (from: ValType, to: ValType): boolean => {
+  let stripsNull = from is ValTypeRefNull && !(to is ValTypeRefNull);
+  return !stripsNull && isValSubtype(from, to);
+};
 
 /** Runs the pass; returns the number of instructions rewritten. */
 export let runSimplify = (body: IrBody): i32 => {
@@ -352,6 +366,33 @@ export let runSimplify = (body: IrBody): i32 => {
       foldToBool(inst, body.constI64[body.a[av]] == z);
       continue;
     }
+    // --- reference folds ---
+    // A cast the operand's static type already satisfies cannot trap
+    // and yields the operand; folding it is what lets DCE remove the
+    // slot-load chains devirtualization strands (a trapping cast is
+    // never removed unused, so it has to fold first).
+    if (op == IrOp.ref_cast) {
+      let from = body.resultType(av);
+      if (from != null && bv >= 0 &&
+          castIsIdentity(from, body.typeTable[bv])) {
+        replaceWithValue(inst, av);
+        continue;
+      }
+      continue;
+    }
+    if (op == IrOp.ref_as_non_null) {
+      // Same test as the cast: the operand's type must already be a
+      // subtype of this instruction's (non-null) result type. A class
+      // test on the ValType would not do — nullability is what is
+      // being asked, and isValSubtype is where that rule lives.
+      let from = body.resultType(av);
+      let to = body.resultType(inst);
+      if (from != null && to != null && castIsIdentity(from, to)) {
+        replaceWithValue(inst, av);
+        continue;
+      }
+      continue;
+    }
     if (op == IrOp.f64_neg && body.op(av) == IrOp.const_f64) {
       foldToF64(inst, -body.constF64[body.a[av]]);
       continue;
@@ -374,6 +415,19 @@ export let runSimplify = (body: IrBody): i32 => {
     }
   }
 
+  // Ids precede uses only in a freshly lowered body: inlining splices
+  // callee instructions in at the end of the id space, so a spliced
+  // value's users can have SMALLER ids and were visited — operands
+  // rewritten — before the value itself was replaced. One final sweep
+  // makes canonicalization independent of visit order (a fold missed
+  // for the same reason is caught by the next round, never wrong).
+  if (rewrites > 0) {
+    for (var inst = 0; inst < count; inst += 1) {
+      if (body.op(inst) != IrOp.nop) {
+        body.rewriteValueOperands(inst, canon);
+      }
+    }
+  }
   return rewrites;
 };
 

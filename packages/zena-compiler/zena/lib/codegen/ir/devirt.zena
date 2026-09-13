@@ -1,0 +1,267 @@
+/**
+ * Devirtualization (docs/design/optimization-pipeline.md
+ * §Devirtualization): a `call_ref` whose callee value resolves to one
+ * function rewrites in place to a direct `call`. The dead slot-load
+ * chain it leaves behind (vtable loads, casts, fat-pointer unpacks)
+ * is the cleanup passes' business, and the new direct call is the
+ * inliner's on the next round.
+ *
+ * Every dispatch lowers to the same shape — a vtable value, a
+ * `struct_get` of a slot on it, a `ref_cast` to the slot's signature,
+ * then `call_ref` — and the resolver reads that shape backwards
+ * through casts. Two ways a slot resolves:
+ *
+ * - **Provenance.** The vtable value itself is known: a `global_get`
+ *   of a vtable global, the `iface_vtable` of an `iface_pack` (whose
+ *   ref names the pair's vtable global), or the `<vtable>` field of a
+ *   `struct_new` (whose operand is the class's vtable global). The
+ *   global's initializer names the slot's function outright.
+ * - **Hierarchy.** Otherwise, the runtime vtable is some global whose
+ *   struct type is the slot's owner or extends it (subclass vtable
+ *   structs extend their superclass's; interface pair vtables share
+ *   the interface's). RTA materializes a vtable global for exactly the
+ *   classes and pairs that can exist at runtime, so the candidates are
+ *   every such global in the module, and the slot devirtualizes when
+ *   they all install the same function. This is the closed-world
+ *   single-implementation rule, computed from the module's globals
+ *   rather than a hierarchy walk.
+ *
+ * A rewrite also requires the target's signature to equal the slot's
+ * exactly: wasm permits a stored function's signature to be a subtype
+ * of the slot's, and a direct call must type-check against the
+ * function's own signature. Multi-value call_refs are left for the
+ * next tier.
+ *
+ * Determinism: candidates scan wasm.globals in module order; no
+ * iteration over hash containers.
+ */
+import {
+  IrBody, IrOp, IrRefField, IrRefFunc, IrRefGlobal, IrRefType,
+} from './ir.zena';
+import {
+  WasmModule, WasmFunction, WasmGlobal, WasmStruct, VTableInit,
+  SignatureKey, asWasmSignature,
+} from '../wasm-module.zena';
+
+/** One vtable global and its initializer, collected once per module. */
+final class VTableCandidate {
+  global: WasmGlobal;
+  init: VTableInit;
+  new(this.global, this.init);
+}
+
+/** Per-module state for the pass: the vtable globals, in order. */
+export final class DevirtContext {
+  candidates = new GrowableArray<VTableCandidate>();
+  new(wasm: WasmModule) {
+    for (let g in wasm.globals) {
+      let init = g.initVTable;
+      if (init != null) {
+        this.candidates.push(new VTableCandidate(g, init));
+      }
+    }
+  }
+}
+
+/** Runs the pass on one body; returns the number of sites rewritten. */
+export let runDevirt = (cx: DevirtContext, body: IrBody): i32 => {
+  var count = 0;
+  for (let blk in body.blocks) {
+    for (let inst in blk.insts) {
+      if (body.op(inst) != IrOp.call_ref) {
+        continue;
+      }
+      let extraIdx = body.a[inst];
+      let callee = body.extra[extraIdx];
+      let calleeType = body.resultType(callee);
+      if (calleeType == null) {
+        continue;
+      }
+      let slotSig = asWasmSignature(calleeType);
+      if (slotSig == null || slotSig.returns.length > 1) {
+        continue;
+      }
+      let target = resolveCallee(cx, body, callee);
+      if (target == null) {
+        continue;
+      }
+      let targetSig = target.signature;
+      let slotKey = new SignatureKey(slotSig.params, slotSig.returns);
+      let targetKey = new SignatureKey(targetSig.params, targetSig.returns);
+      if (!(slotKey == targetKey)) {
+        continue;
+      }
+      // call_ref [callee, argc, args…] becomes call [argc, args…] with
+      // the function in the ref slot; the result type is unchanged
+      // because the signatures are.
+      let argc = body.extra[extraIdx + 1];
+      let newIdx = body.extra.length;
+      body.extra.push(argc);
+      var i = 0;
+      while (i < argc) {
+        body.extra.push(body.extra[extraIdx + 2 + i]);
+        i += 1;
+      }
+      body.refTable.push(new IrRefFunc(target));
+      body.opcode[inst] = IrOp.call as i32;
+      body.a[inst] = newIdx;
+      body.b[inst] = body.refTable.length - 1;
+      count += 1;
+    }
+  }
+  return count;
+};
+
+/** Steps over the casts lowering wraps around vtable and slot loads. */
+let throughCasts = (body: IrBody, v: i32): i32 => {
+  var c = v;
+  while (c >= 0) {
+    let op = body.op(c);
+    if (op == IrOp.ref_cast || op == IrOp.ref_as_non_null) {
+      c = body.a[c];
+      continue;
+    }
+    return c;
+  }
+  return c;
+};
+
+/** The vtable global a `global_get` reads, when it is one. */
+let vtableGlobalOf = (body: IrBody, v: i32): VTableInit | null => {
+  if (v < 0 || body.op(v) != IrOp.global_get) {
+    return null;
+  }
+  let r = body.refTable[body.b[v]];
+  if (r is IrRefGlobal) {
+    return r.target.initVTable;
+  }
+  return null;
+};
+
+/**
+ * The function a callee value can only ever be, or null. `callee` is
+ * the call_ref's callee operand, before any cast stepping.
+ */
+let resolveCallee = (cx: DevirtContext, body: IrBody,
+    callee: i32): WasmFunction | null => {
+  let v = throughCasts(body, callee);
+  if (v < 0) {
+    return null;
+  }
+  if (body.op(v) == IrOp.ref_func) {
+    let r = body.refTable[body.b[v]];
+    if (r is IrRefFunc) {
+      return r.target;
+    }
+    return null;
+  }
+  if (body.op(v) != IrOp.struct_get) {
+    return null;
+  }
+  let fieldRef = body.refTable[body.b[v]];
+  if (!(fieldRef is IrRefField)) {
+    return null;
+  }
+  let vst = fieldRef.owner;
+  let slot = vst.fieldIndexByName(fieldRef.fieldName);
+  if (slot < 0) {
+    return null;
+  }
+  let vt = throughCasts(body, body.a[v]);
+  if (vt < 0) {
+    return null;
+  }
+
+  // Provenance: the vtable value names its global.
+  let known = knownVTable(body, vt);
+  if (known != null) {
+    if (slot < known.funcs.length) {
+      return known.funcs[slot];
+    }
+    return null;
+  }
+
+  // Hierarchy: every vtable global whose struct is `vst` or extends
+  // it could be the runtime vtable; they must agree on the slot.
+  var agreed: WasmFunction | null = null;
+  var agreedUid = -1;
+  for (let cand in cx.candidates) {
+    if (!extendsStruct(cand.init.structType, vst)) {
+      continue;
+    }
+    if (slot >= cand.init.funcs.length) {
+      return null;
+    }
+    let f = cand.init.funcs[slot];
+    if (agreed == null) {
+      agreed = f;
+      agreedUid = f.uid;
+    } else if (f.uid != agreedUid) {
+      return null;
+    }
+  }
+  return agreed;
+};
+
+/**
+ * The initializer of the vtable a value holds, when the value's
+ * construction is visible in this body.
+ */
+let knownVTable = (body: IrBody, vt: i32): VTableInit | null => {
+  let direct = vtableGlobalOf(body, vt);
+  if (direct != null) {
+    return direct;
+  }
+  let op = body.op(vt);
+  if (op == IrOp.iface_vtable) {
+    // iface_vtable(iface_pack(instance; b = the pair's vtable global)).
+    let fp = throughCasts(body, body.a[vt]);
+    if (fp >= 0 && body.op(fp) == IrOp.iface_pack) {
+      let r = body.refTable[body.b[fp]];
+      if (r is IrRefGlobal) {
+        return r.target.initVTable;
+      }
+    }
+    return null;
+  }
+  if (op == IrOp.struct_get) {
+    // The <vtable> field of a fresh struct_new is the allocation's
+    // vtable operand. The field is declared mutable, but nothing
+    // writes it after construction (no struct_set targets it
+    // anywhere in lowering), so the operand is the value.
+    let r = body.refTable[body.b[vt]];
+    if (!(r is IrRefField) || r.fieldName != '<vtable>') {
+      return null;
+    }
+    let recv = throughCasts(body, body.a[vt]);
+    if (recv < 0 || body.op(recv) != IrOp.struct_new) {
+      return null;
+    }
+    let sr = body.refTable[body.b[recv]];
+    if (!(sr is IrRefType) || !(sr.target is WasmStruct)) {
+      return null;
+    }
+    let s = sr.target as WasmStruct;
+    let fieldIdx = s.fieldIndexByName('<vtable>');
+    let argsIdx = body.a[recv];
+    let argc = body.extra[argsIdx];
+    if (fieldIdx < 0 || fieldIdx >= argc) {
+      return null;
+    }
+    let arg = throughCasts(body, body.extra[argsIdx + 1 + fieldIdx]);
+    return vtableGlobalOf(body, arg);
+  }
+  return null;
+};
+
+/** `s` is `base` or transitively extends it (by identity). */
+let extendsStruct = (s: WasmStruct, base: WasmStruct): boolean => {
+  var cur: WasmStruct | null = s;
+  while (cur != null) {
+    if (cur.uid == base.uid) {
+      return true;
+    }
+    cur = cur.superStruct;
+  }
+  return false;
+};

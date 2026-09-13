@@ -411,6 +411,12 @@ export let valTypeIdentical = (a: ValType, b: ValType): boolean => {
 };
 
 export let isValSubtype = (a: ValType, b: ValType): boolean => {
+  // valTypeEquals ignores nullability (ref X equals refnull X), so
+  // this shortcut answers true for refnull X <: ref X — which is not
+  // a subtype. Lowering leans on that laxity in many places (it bails
+  // when told a nullable value does not conform), so it stays until
+  // those sites are audited; a caller that must not fold a null check
+  // (simplify's castIsIdentity) checks nullability itself.
   if (valTypeEquals(a, b)) {
     return true;
   }
