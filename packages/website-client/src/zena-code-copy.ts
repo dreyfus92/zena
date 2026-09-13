@@ -20,8 +20,19 @@ export class ZenaCodeCopy extends BehaviorElement {
         const code = button.parentElement?.querySelector('code');
         if (!code) return;
 
+        let text = '';
+        if (code.querySelector('.code-diagnostic')) {
+          const clone = code.cloneNode(true) as HTMLElement;
+          clone
+            .querySelectorAll('.code-diagnostic')
+            .forEach((el) => el.remove());
+          text = clone.textContent ?? '';
+        } else {
+          text = code.textContent ?? '';
+        }
+
         try {
-          await navigator.clipboard.writeText(code.textContent ?? '');
+          await navigator.clipboard.writeText(text);
         } catch {
           return;
         }

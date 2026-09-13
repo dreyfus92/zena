@@ -47,6 +47,7 @@
         "./packages/runtime:test",
         "./packages/stdlib:test",
         "./packages/wit-parser:test",
+        "./packages/website:test",
         "./packages/workflow:test",
         "./packages/zb:test",
         "./packages/zena-compiler:test",

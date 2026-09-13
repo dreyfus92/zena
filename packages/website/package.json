@@ -15,10 +15,19 @@
     "deploy:promote": "wireit",
     "deploy:setup": "wireit",
     "api": "wireit",
+    "test": "wireit",
     "scaffold": "node scripts/scaffold-docs.js && node scripts/print-outline.js",
     "outline": "node scripts/print-outline.js"
   },
   "wireit": {
+    "test": {
+      "command": "node --test test/*_test.js",
+      "files": [
+        "lib/**/*.js",
+        "test/**/*_test.js",
+        "../vscode-zena/syntaxes/zena.tmLanguage.json"
+      ]
+    },
     "build": {
       "command": "eleventy",
       "dependencies": [
@@ -127,6 +136,7 @@
     }
   },
   "dependencies": {
+    "@radica/bootstrap-icons": "^0.0.4",
     "@zena-lang/playground": "*",
     "@zena-lang/website-client": "*"
   },

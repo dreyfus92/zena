@@ -31,11 +31,12 @@ Pages are grouped by what they describe:
 ## Conventions
 
 Code samples are complete unless they end in `// ...`. Where a sample shows an
-error, the offending line is commented with the diagnostic:
+error or warning, it appears with an inline diagnostic and squiggly underline:
 
 ```zena
 let n: i32 = 42;
-// let x: f64 = n;  // error: i32 is not assignable to f64
+let x: f64 = n;
+//           ^ error: i32 is not assignable to f64
 ```
 
 Grammar snippets use a light EBNF: `?` for optional, `*` for zero or more, `|`

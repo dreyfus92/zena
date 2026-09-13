@@ -157,6 +157,81 @@ html:not(.dark):not(.rad-theme-dark) .code-block span {
   left: 10px;
 }
 
+/* Inline Code Diagnostics (Squiggles & Callouts) ------------------------- */
+
+[class*='language-'] code .code-error-span {
+  text-decoration: underline wavy var(--rad-color-red-500, #ef4444);
+  text-decoration-skip-ink: none;
+  text-underline-offset: 3.5px;
+  text-decoration-thickness: 1.5px;
+}
+
+[class*='language-'] code .code-warning-span {
+  text-decoration: underline wavy var(--rad-color-amber-500, #f59e0b);
+  text-decoration-skip-ink: none;
+  text-underline-offset: 3.5px;
+  text-decoration-thickness: 1.5px;
+}
+
+[class*='language-'] code .code-diagnostic {
+  --shiki-light: currentColor;
+  --shiki-dark: currentColor;
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 6px 0 8px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  white-space: normal;
+  user-select: none;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+[class*='language-'] code .code-diagnostic.code-diagnostic-error {
+  background-color: var(--rad-danger-fill-ghost);
+  border: 1px solid var(--rad-danger-stroke-subtle, rgba(239, 68, 68, 0.3));
+  border-left: 3px solid var(--rad-color-red-500, #ef4444);
+  color: var(--rad-color-red-700, #b91c1c);
+}
+
+:is(.dark, .rad-theme-dark)
+  [class*='language-']
+  code
+  .code-diagnostic.code-diagnostic-error {
+  color: var(--rad-color-red-300, #fca5a5);
+}
+
+[class*='language-'] code .code-diagnostic.code-diagnostic-warning {
+  background-color: var(--rad-warning-fill-ghost);
+  border: 1px solid var(--rad-warning-stroke-subtle, rgba(245, 158, 11, 0.3));
+  border-left: 3px solid var(--rad-color-amber-500, #f59e0b);
+  color: var(--rad-color-amber-800, #92400e);
+}
+
+:is(.dark, .rad-theme-dark)
+  [class*='language-']
+  code
+  .code-diagnostic.code-diagnostic-warning {
+  color: var(--rad-color-amber-300, #fcd34d);
+}
+
+[class*='language-'] code .code-diagnostic .code-diagnostic-icon {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+[class*='language-'] code .code-diagnostic .code-diagnostic-label {
+  font-weight: 600;
+  color: inherit;
+}
+
+[class*='language-'] code .code-diagnostic .code-diagnostic-message {
+  color: inherit;
+}
+
 /* Line Numbers ----------------------------------------------------------- */
 
 .prose div[class*='language-'].line-numbers-mode {
@@ -955,7 +1030,8 @@ zena-code-carousel {
     border-radius: 12px;
     border: 1.5px solid oklch(from var(--rad-color-indigo-500) l c h / 35%);
     background-color: var(--rad-surface-sunken);
-    box-shadow: 0 4px 24px -4px oklch(from var(--rad-color-indigo-500) l c h / 10%);
+    box-shadow: 0 4px 24px -4px
+      oklch(from var(--rad-color-indigo-500) l c h / 10%);
     overflow: hidden;
     transition: border-color 0.3s ease;
 
@@ -970,7 +1046,8 @@ zena-code-carousel {
 
     :is(.dark, .rad-theme-dark) & {
       border-color: oklch(from var(--rad-color-indigo-400) l c h / 45%);
-      box-shadow: 0 8px 32px -4px oklch(from var(--rad-color-indigo-500) l c h / 18%);
+      box-shadow: 0 8px 32px -4px
+        oklch(from var(--rad-color-indigo-500) l c h / 18%);
     }
 
     figcaption {
@@ -1052,5 +1129,3 @@ zena-code-carousel {
     }
   }
 }
-
-
