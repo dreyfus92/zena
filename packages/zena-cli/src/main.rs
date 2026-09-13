@@ -414,6 +414,55 @@ fn repo_root() -> Result<std::path::PathBuf> {
     )?)
 }
 
+/// Checks whether a cached wasm artifact is missing, empty (0-byte), or older
+/// than either the source file or the compiler wasm.
+fn cache_is_stale(
+    cached_path: &Path,
+    source_path: &Path,
+    compiler_wasm: &Path,
+    no_cache: bool,
+    verbose: bool,
+    file_label: &str,
+) -> bool {
+    if no_cache {
+        return true;
+    }
+    let metadata = match std::fs::metadata(cached_path) {
+        Ok(m) => m,
+        Err(_) => {
+            if verbose {
+                println!(
+                    "CACHE CHECK [{}]: cached_wasm_path does not exist: {:?}",
+                    file_label, cached_path
+                );
+            }
+            return true;
+        }
+    };
+    if metadata.len() == 0 {
+        if verbose {
+            println!(
+                "CACHE CHECK [{}]: cached file is 0 bytes: {:?}",
+                file_label, cached_path
+            );
+        }
+        return true;
+    }
+    let source_mod = std::fs::metadata(source_path).and_then(|m| m.modified()).ok();
+    let compiler_mod = std::fs::metadata(compiler_wasm).and_then(|m| m.modified()).ok();
+    let cached_mod = metadata.modified().ok();
+    if verbose {
+        println!(
+            "CACHE CHECK [{}]: source={:?}, compiler={:?}, cached={:?}",
+            file_label, source_mod, compiler_mod, cached_mod
+        );
+    }
+    match (source_mod, compiler_mod, cached_mod) {
+        (Some(s), Some(c), Some(ch)) => s > ch || c > ch,
+        _ => true,
+    }
+}
+
 /// Compiles a `.zena` source file by invoking the pre-built self-hosted compiler (`cli.wasm`)
 /// inside a Wasmtime sandbox, returning the path to the cached WebAssembly file.
 fn compile_to_cache(
@@ -546,30 +595,36 @@ fn compile_to_cache(
     };
     let cached_wasm_path = cache_dir.join(&cached_wasm_name);
 
-    let needs_compile = if no_cache {
-        true
-    } else if cached_wasm_path.exists() {
-        let source_mod = std::fs::metadata(&abs_path).and_then(|m| m.modified()).ok();
-        let compiler_mod = std::fs::metadata(&compiler_wasm).and_then(|m| m.modified()).ok();
-        let cached_mod = std::fs::metadata(&cached_wasm_path).and_then(|m| m.modified()).ok();
-        if verbose {
-            println!(
-                "CACHE CHECK [{}]: source={:?}, compiler={:?}, cached={:?}",
-                file, source_mod, compiler_mod, cached_mod
-            );
-        }
-        match (source_mod, compiler_mod, cached_mod) {
-            (Some(s), Some(c), Some(ch)) => s > ch || c > ch,
-            _ => true,
-        }
-    } else {
-        if verbose {
-            println!("CACHE CHECK [{}]: cached_wasm_path does not exist: {:?}", file, cached_wasm_path);
-        }
-        true
-    };
+    if !cache_is_stale(
+        &cached_wasm_path,
+        &abs_path,
+        &compiler_wasm,
+        no_cache,
+        verbose,
+        file,
+    ) {
+        return Ok(cached_wasm_path);
+    }
 
-    if !needs_compile {
+    // Compile holding a file lock to serialize concurrent compiles of the
+    // same target artifact.
+    let lock_path = cached_wasm_path.with_extension("lock");
+    let lock_file = std::fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .open(&lock_path)?;
+    lock_file.lock()?;
+
+    // Re-check staleness under the lock: another process may have finished
+    // writing the file while we waited for the lock.
+    if !cache_is_stale(
+        &cached_wasm_path,
+        &abs_path,
+        &compiler_wasm,
+        no_cache,
+        verbose,
+        file,
+    ) {
         return Ok(cached_wasm_path);
     }
 
@@ -585,8 +640,16 @@ fn compile_to_cache(
 
     let file_arg = rel_path.to_string_lossy().to_string();
 
-    // Pass the actual absolute path to the user's cache directory using the `-o` flag
-    let out_path_arg = cached_wasm_path.to_string_lossy().to_string();
+    // Direct compilation output to a temporary file, then atomically rename it
+    // into place. This prevents concurrent readers from observing a partial or
+    // 0-byte file while the compiler runs.
+    let temp_name = if wat {
+        format!("{}_{:x}.tmp-{}.wat", file_name, hash, std::process::id())
+    } else {
+        format!("{}_{:x}.tmp-{}.wasm", file_name, hash, std::process::id())
+    };
+    let temp_path = cache_dir.join(&temp_name);
+    let out_path_arg = temp_path.to_string_lossy().to_string();
 
     let mut compiler_args = vec!["zc".to_string(), file_arg, "-o".to_string(), out_path_arg];
     if let Some(target) = target {
@@ -610,8 +673,8 @@ fn compile_to_cache(
         compiler_args.push(world.to_string());
     }
 
-    if cached_wasm_path.exists() {
-        std::fs::remove_file(&cached_wasm_path).ok();
+    if temp_path.exists() {
+        std::fs::remove_file(&temp_path).ok();
     }
 
     let (wasi_stdout, wasi_stderr) = if capture_output {
@@ -680,6 +743,7 @@ fn compile_to_cache(
         let compiler_res = compiler_main.call(&mut store, &[], &mut compiler_results);
 
         if let Err(e) = compiler_res {
+            std::fs::remove_file(&temp_path).ok();
             eprintln!("Compiler failed with error: {:?}", e);
             if let Some(bt) = e.downcast_ref::<wasmtime::WasmBacktrace>() {
                 eprintln!("Wasm Backtrace:\n{}", bt);
@@ -697,11 +761,16 @@ fn compile_to_cache(
             anyhow::bail!("Compilation failed");
         }
 
-        if !cached_wasm_path.exists() {
+        if !temp_path.exists() {
             anyhow::bail!(
                 "Compiler did not emit expected WebAssembly file to {}.",
-                cached_wasm_path.display()
+                temp_path.display()
             );
+        }
+
+        if let Err(e) = std::fs::rename(&temp_path, &cached_wasm_path) {
+            let _ = std::fs::remove_file(&temp_path);
+            return Err(e.into());
         }
 
     Ok(cached_wasm_path)
@@ -1466,6 +1535,36 @@ mod tests {
         // Verify the backtrace has frames pointing to Wasm execution
         assert!(stack_trace.contains("test_stack_trace"));
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_cache_is_stale() -> Result<()> {
+        let dir = std::env::temp_dir().join(format!("zena-cache-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir)?;
+        let src = dir.join("src.zena");
+        let compiler = dir.join("compiler.wasm");
+        let cached = dir.join("cached.wasm");
+
+        std::fs::write(&src, b"let x = 1;")?;
+        std::fs::write(&compiler, b"compiler")?;
+
+        // Cached does not exist -> stale
+        assert!(cache_is_stale(&cached, &src, &compiler, false, false, "test"));
+
+        // Cached is 0 bytes -> stale
+        std::fs::write(&cached, b"")?;
+        assert!(cache_is_stale(&cached, &src, &compiler, false, false, "test"));
+
+        // Cached has content and is newer -> fresh
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        std::fs::write(&cached, b"\0asm")?;
+        assert!(!cache_is_stale(&cached, &src, &compiler, false, false, "test"));
+
+        // no_cache forces stale
+        assert!(cache_is_stale(&cached, &src, &compiler, true, false, "test"));
+
+        let _ = std::fs::remove_dir_all(&dir);
         Ok(())
     }
 }
