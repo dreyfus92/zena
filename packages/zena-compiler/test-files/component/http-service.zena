@@ -15,6 +15,7 @@ import { Outcome, Ok } from 'zena:result';
 import { Option, some, none } from 'zena:option';
 import { StreamWriter } from 'zena:stream';
 import { FixedArray } from 'zena:fixed-array';
+import { sleep, milliseconds } from 'zena:time';
 
 /**
  * Write `text`'s bytes to `writer`, then end the stream. The bytes
@@ -39,6 +40,11 @@ export async function handle(request: Request): Future<Outcome<Response, ErrorCo
   if (requestedPath is Some<String>) {
     path = (requestedPath as Some<String>).value;
   }
+  // Suspend mid-request, so that the e2e's concurrent requests are all
+  // in flight at once: each is its own task, and the driver must keep
+  // them apart — answer each from its own entry, return each its own
+  // value.
+  await sleep(milliseconds(100));
   let writer = new StreamWriter<u8>();
   sendBody(writer, 'hello from zena at ' + path);
   // The response's trailers are a future the sender resolves; this

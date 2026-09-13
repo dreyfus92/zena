@@ -100,7 +100,8 @@ export let prepareComponentEntry = (
 
   let poll = wasm.getStdlibFunc(driverModule, 'componentPoll');
   let resume = wasm.getStdlibFunc(driverModule, 'componentResume');
-  if (poll == null || resume == null) {
+  let begin = wasm.getStdlibFunc(driverModule, 'beginTask');
+  if (poll == null || resume == null || begin == null) {
     return;
   }
   if (!poll.isReached || !resume.isReached) {
@@ -117,7 +118,8 @@ export let prepareComponentEntry = (
   // started it.
   wasm.componentCallbackFunc = resume;
   pass.markFunctionReached(resume);
-  prepareAsyncExports(wasm, pass, poll);
+  pass.markFunctionReached(begin);
+  prepareAsyncExports(wasm, pass, begin, poll);
 
   let key = 'main' as ExportKey;
   if (!wasm.exportMap.has(key)) {
@@ -204,6 +206,10 @@ export let prepareComponentEntry = (
   let b = new IrBuilder();
   let block = b.newBlock();
   b.switchTo(block);
+  // This call is a task of its own, before anything the program does
+  // can wait or return.
+  b.callFunc(b.addRef(new IrRefFunc(begin)), new GrowableArray<i32>(0),
+      null);
   if (calleeReturnsFuture) {
     // The frame future, deliberately unobserved (see above).
     b.callFunc(b.addRef(new IrRefFunc(callee)), new GrowableArray<i32>(0),
@@ -242,13 +248,14 @@ let entryWrapperRun = (wasm: WasmModule): WasmFunction | null => {
  * wrapper's `<name>_export` function takes the export's flattened
  * core parameters and returns nothing: it starts the program's
  * function and hands the driver the typed return. The adapter around
- * it is what the component lifts, with the callback: call the
- * wrapper, then ask the driver what to do next, exactly as the entry
- * does for main.
+ * it is what the component lifts, with the callback: begin a task,
+ * call the wrapper, then ask the driver what to do next, exactly as
+ * the entry does for main.
  */
 let prepareAsyncExports = (
   wasm: WasmModule,
   pass: ReachabilityAnalysis,
+  begin: WasmFunction,
   poll: WasmFunction
 ): void => {
   let prog = wasm.program;
@@ -284,6 +291,8 @@ let prepareAsyncExports = (
           args.push(b.blockParam(block, vt));
         }
         b.switchTo(block);
+        b.callFunc(b.addRef(new IrRefFunc(begin)), new GrowableArray<i32>(0),
+            null);
         b.callFunc(b.addRef(new IrRefFunc(target)), args, null);
         let code = b.callFunc(b.addRef(new IrRefFunc(poll)),
             new GrowableArray<i32>(0), new ValTypeI32());

@@ -35,6 +35,7 @@ import { HashMap } from 'zena:map';
 import { Error } from 'zena:error';
 import { Completer, drainMicrotasks } from 'zena:async';
 
+
 // ============================================================================
 // The canonical builtins
 // ============================================================================
@@ -79,6 +80,33 @@ declare function subtaskDrop(subtask: Waitable): void;
 
 @external("canon", "task.return")
 declare function taskReturn(): void;
+
+// A task's wake future: a bare `future` (no payload) whose readable
+// end sits in the task's waitable set. The task arms it when its
+// value is still pending and it has nothing of its own to wait on;
+// whichever task's entry settles the value writes it, and the host
+// re-enters the waiting task with a FUTURE_READ event. See `armWake`.
+// The pair packs the readable end in the low 32 bits and the writable
+// end in the high 32, like a stream's. Named `#wake` because a core
+// module imports each canonical builtin once per name, and a program
+// may declare `future.write` at a type of its own.
+@external("canon", "future.new#wake", "future")
+declare function wakeFutureNew(): u64;
+
+/** The read: BLOCKED until written. `ptr` is unused for a bare
+ * future, and 0. */
+@external("canon", "future.read#wake", "future,async")
+declare function wakeFutureRead(end: i32, ptr: i32): i32;
+
+/** The write: completes at once when the read is pending. */
+@external("canon", "future.write#wake", "future,async")
+declare function wakeFutureWrite(end: i32, ptr: i32): i32;
+
+@external("canon", "future.drop-readable#wake", "future")
+declare function wakeFutureDropReadable(end: i32): void;
+
+@external("canon", "future.drop-writable#wake", "future")
+declare function wakeFutureDropWritable(end: i32): void;
 
 // ============================================================================
 // Callback codes and packed values
@@ -166,6 +194,10 @@ final class TaskContext {
   /** What the task's result failed with, if it did. Reported by the
    * next answer to the host instead of a return. */
   var failure: Error | null = null;
+  /** The wake future's two ends, or 0 before one is armed and after
+   * each is dropped (`armWake`, `wake`). */
+  var wakeReadable = 0;
+  var wakeWritable = 0;
 }
 
 /**
@@ -194,10 +226,24 @@ let pending = new HashMap<Waitable, Completer<void>>();
  */
 let pendingCopies = new HashMap<Waitable, Completer<i32>>();
 
-/** The running task, created lazily: the first task is whichever
- * code first waits or polls, which is the entry's. (`??=` would say
- * this in one line, but it does not lower on a module-level `var`
- * yet — #572.) */
+/**
+ * Start a task. Called by the synthesized adapter at the top of every
+ * export the host lifted async — the entry, a service's `handle` —
+ * before the program's function runs, so what that function waits
+ * on and returns belongs to the new task and not to whichever task
+ * ran last. Without this, two requests in flight in one instance
+ * would share a context: both joined to one waitable set, the second
+ * value parked where the first was already returned, and the host
+ * answering the wrong request or none.
+ */
+export function beginTask(): void {
+  currentTask = new TaskContext();
+}
+
+/** The running task, created lazily when nothing began one: code
+ * that waits before any adapter ran, which is the synchronous
+ * console's blocking path. (`??=` would say this in one line, but it
+ * does not lower on a module-level `var` yet — #572.) */
 let currentContext = (): TaskContext => {
   let existing = currentTask;
   if (existing != null) {
@@ -216,13 +262,19 @@ let ensureSet = (ctx: TaskContext): WaitableSet => {
   return ctx.waitableSet;
 };
 
-/** Join `waitable` to the running task's set and record that the
- * task is waiting on it. */
-let register = (waitable: Waitable): void => {
-  let ctx = currentContext();
+/** Join `waitable` to `ctx`'s set and record that `ctx` is waiting on
+ * it — from whichever task is running: a set is the instance's, and
+ * any task may put a waitable into any set. */
+let registerFor = (ctx: TaskContext, waitable: Waitable): void => {
   waitableJoin(waitable, ensureSet(ctx));
   owners[waitable] = ctx;
   ctx.pendingWaitables += 1;
+};
+
+/** Join `waitable` to the running task's set and record that the
+ * task is waiting on it. */
+let register = (waitable: Waitable): void => {
+  registerFor(currentContext(), waitable);
 };
 
 /** Look up which task was waiting on `waitable`, forget the
@@ -276,6 +328,65 @@ export function awaitWaitable(end: i32): Future<i32> {
 }
 
 /**
+ * Arm `ctx`'s wake future: a fresh bare future whose readable end
+ * joins `ctx`'s set with a read pending on it, so that a write to the
+ * other end re-enters `ctx` with a FUTURE_READ event. Armed from
+ * `ctx`'s own entry when its value is pending and it has nothing else
+ * to wait on, and from another task's entry by `wake` when the value
+ * settles there; either way the ends are the instance's, and joining
+ * from any task works.
+ */
+let armWake = (ctx: TaskContext): void => {
+  let pair = wakeFutureNew();
+  let readable = pair as i32;
+  ctx.wakeReadable = readable;
+  ctx.wakeWritable = (pair >> 32) as i32;
+  // -1 is BLOCKED: nothing written yet, the copy is in flight, and
+  // its completion arrives as a FUTURE_READ event.
+  if (wakeFutureRead(readable, 0) != -1) {
+    throw new Error("a wake future was readable before it was written");
+  }
+  registerFor(ctx, readable as Waitable);
+  pendingCopies[readable as Waitable] = new Completer<i32>();
+};
+
+/**
+ * Re-enter `ctx` to run its return, once its value has settled. The
+ * host re-enters a task only for an event in that task's set, and the
+ * value may have settled in another task's entry — a timer queue arms
+ * one host wait for every sleeper, so the wait that fires belongs to
+ * whichever task armed it, and every due sleep completes in that
+ * task's drain. `ctx` may be waiting on things of its own meanwhile,
+ * some of which never fire (a response's transmitted future the
+ * program ignores), so its own next entry cannot be counted on. The
+ * wake future is the event: armed here if `ctx` has none, written at
+ * once (the read is pending, so the write completes immediately), and
+ * `ctx`'s callback then finds the return parked. Settling in `ctx`'s
+ * own entry needs none of this: that entry's `nextCode` runs the
+ * return.
+ */
+let wake = (ctx: TaskContext): void => {
+  if (ctx.wakeWritable == 0) {
+    if (currentTask == ctx) {
+      // Settled in its own entry: the entry's `nextCode` runs the
+      // return, and no event is needed.
+      return;
+    }
+    // Settled in another task's entry, and `ctx` has not armed a wake
+    // — it may well have waitables of its own it is waiting on, some
+    // of which may never fire. The pair is created here, joined to
+    // `ctx`'s set from this task, and written at once.
+    armWake(ctx);
+  }
+  let writable = ctx.wakeWritable;
+  ctx.wakeWritable = 0;
+  if (wakeFutureWrite(writable, 0) == -1) {
+    throw new Error("a wake future's write blocked with its read pending");
+  }
+  wakeFutureDropWritable(writable);
+};
+
+/**
  * Hand the running task's result to the host once `result` settles:
  * `ret` is the typed `task.return` for the task's result type, and
  * the driver calls it from the task's own entry — the one running now
@@ -299,6 +410,7 @@ export async function finishTask<T>(
   } catch (e) {
     ctx.failure = e;
   }
+  wake(ctx);
 }
 
 /**
@@ -310,9 +422,12 @@ export async function finishTask<T>(
  * A task with a value calls its typed return as soon as the value is
  * known, here, from its own entry: `task.return` must be issued by
  * the task it belongs to. That can be before EXIT — the task may still
- * have waitables to see out — but never after, and a task that runs
- * out of things to wait on with no value is a deadlock, reported as
- * such rather than returned wrongly typed.
+ * have waitables to see out — but never after. A task that runs out
+ * of things to wait on with its value still pending is not done: the
+ * value is coming from work another task's entry will finish, so it
+ * arms its wake future and waits for that (`armWake`). A value that
+ * never comes leaves the task waiting forever, which is what the
+ * deadlock is; nothing here can tell it apart from a slow one.
  */
 let nextCode = (ctx: TaskContext): CallbackCode => {
   let failure = ctx.failure;
@@ -327,9 +442,13 @@ let nextCode = (ctx: TaskContext): CallbackCode => {
   }
   if (ctx.pendingWaitables == 0) {
     if (ctx.returnsValue && !ctx.returned) {
-      throw new Error(
-        "Deadlock: the task has nothing left to wait on, and its " +
-        "result is still pending");
+      armWake(ctx);
+      return waitOn(ctx.waitableSet);
+    }
+    if (ctx.wakeReadable != 0) {
+      // Fired and consumed; the end is out of the set already.
+      wakeFutureDropReadable(ctx.wakeReadable);
+      ctx.wakeReadable = 0;
     }
     if ((ctx.waitableSet as i32) != 0) {
       waitableSetDrop(ctx.waitableSet);

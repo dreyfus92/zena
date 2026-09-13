@@ -79,6 +79,11 @@ interface Fixture {
    * response body to `body`. For a wasi:http service world.
    */
   serveRequest?: [number, string, string];
+  /**
+   * How many requests to fire at once under `serveRequest`: request
+   * `i` asks for `path/i` and expects `body/i`. Default 1.
+   */
+  serveConcurrent?: number;
   invocations: Invocation[];
 }
 
@@ -296,6 +301,7 @@ const FIXTURES: Fixture[] = [
     // `task.return`, and the body streams out through a canonical
     // stream after the response has been returned.
     serveRequest: [18924, '/greet', 'hello from zena at /greet'],
+    serveConcurrent: 4,
     invocations: [],
   },
   {
@@ -433,10 +439,22 @@ for (const fixture of FIXTURES) {
       continue;
     }
     // Through node's own fetch: the CI sandbox has node and nothing
-    // else on the path.
+    // else on the path. The requests overlap, so a service whose
+    // handler suspends has several tasks in flight in one instance —
+    // wasmtime serves a p3 component with up to 128 concurrent calls
+    // per instance, and a driver that mixed up two tasks would answer
+    // the wrong one or deadlock. They are staggered a little rather
+    // than fired together: requests that arrive at the same instant
+    // can each get an instance of their own before the first is in
+    // the reuse pool, which would test nothing.
+    const concurrent = fixture.serveConcurrent ?? 1;
     const client =
-      `fetch('http://127.0.0.1:${port}${path}', {signal: AbortSignal.timeout(10000)})` +
-      `.then((r) => r.text()).then((t) => process.stdout.write(t))` +
+      `const urls = Array.from({length: ${concurrent}}, (_, i) => ` +
+      `'http://127.0.0.1:${port}${path}' + (${concurrent} > 1 ? '/' + i : ''));` +
+      `const pause = (ms) => new Promise((r) => setTimeout(r, ms));` +
+      `Promise.all(urls.map((u, i) => pause(i * 20).then(() => ` +
+      `fetch(u, {signal: AbortSignal.timeout(10000)})).then((r) => r.text())))` +
+      `.then((ts) => process.stdout.write(ts.join('\\n')))` +
       `.catch((e) => { process.stderr.write(String(e)); process.exit(1); });`;
     const fetched = spawnSync('node', ['-e', client], {encoding: 'utf8'});
     served.kill();
@@ -446,13 +464,18 @@ for (const fixture of FIXTURES) {
       );
       continue;
     }
-    if (fetched.stdout !== body) {
+    const expected = Array.from({length: concurrent}, (_, i) =>
+      concurrent > 1 ? `${body}/${i}` : body,
+    ).join('\n');
+    if (fetched.stdout !== expected) {
       fail(
-        `GET ${path} returned '${fetched.stdout}', expected '${body}'\n${servedErr}`,
+        `GET ${path} returned '${fetched.stdout}', expected '${expected}'\n${servedErr}`,
       );
       continue;
     }
-    console.log(`  ${GREEN}✓${NC} GET ${path} => '${body}'`);
+    console.log(
+      `  ${GREEN}✓${NC} GET ${path}${concurrent > 1 ? ` x${concurrent} concurrent` : ''} => '${body}'`,
+    );
     continue;
   }
 

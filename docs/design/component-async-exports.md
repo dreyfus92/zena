@@ -193,12 +193,38 @@ code)` finds the context, runs the completion, drains, and answers
   context when the future settles and calls it from the task's own
   entry — the next `componentPoll` or `componentResume` answering for
   that task — which is what "issued from the task's own execution"
-  requires. A task that runs out of waitables with its value still
-  pending is a deadlock, reported as one rather than returned wrongly.
-  The self-wake future above is what makes "the task's own entry"
-  arrive when the settling happened during another task's; with one
-  task there is always a next entry of its own, and the wake is the
-  next increment.
+  requires.
+- Every adapter begins a fresh task (`beginTask`) before the
+  program's function runs. Without it, a second call in flight in one
+  instance reused the first call's context, and wasmtime trapped with
+  `task.return called more than once for current task` once two
+  requests overlapped in one instance (`wasmtime serve` reuses an
+  instance for up to 16 concurrent calls).
+- **The self-wake future, landed.** With the timer queue arming one
+  host wait for every sleeper, every due sleep completes in the drain
+  of whichever task armed that wait, so a request's value routinely
+  settles in another task's entry. The wake is a bare `future`
+  (`future.*#wake` in the driver, named so a program may declare
+  `future.write` at a type of its own): `wake(ctx)` runs when the
+  value settles; if the running task is `ctx` nothing is needed, and
+  otherwise the pair is created _from the running task_, its readable
+  end joined to `ctx`'s set with a read pending, and the writable end
+  written at once — the host then re-enters `ctx` with a FUTURE_READ
+  event, and its callback finds the return parked. `nextCode` also
+  arms one in the task's own entry when its value is pending and it
+  has nothing else to wait on, since a WAIT needs a set with something
+  in it. Arming on demand rather than only there matters: a task can
+  hold waitables of its own that never fire — the `transmitted` future
+  of a response the program ignores is one — so "nothing left to wait
+  on" never comes, which is exactly how one request in sixteen hung
+  before this. The probe question above is answered by the same
+  mechanism: waitables one task creates are consumed from another
+  task's entry throughout, and wasmtime is fine with it.
+- A task that returned its value can linger, driving timers and
+  streams other tasks' work registered under it, until they fire; a
+  waitable that never fires keeps it alive for the instance's life.
+  That is a leak against the instance's concurrent-call cap, not a
+  hang, and the `transmitted` futures are the known case.
 
 **To verify against wasmtime before building** (each a small probe,
 in the spirit of the timer and stream probes that preceded C6). Two
@@ -209,11 +235,13 @@ of the three are already answered:
   existing entry does exactly this. `componentResume` calls
   `task.return` from a callback re-entry whenever the drain empties
   the registries, and the timer fixture exercises it in CI.
-- whether a subtask or stream end may be _created_ by task A and its
-  completion consumed while task B is the running task (cross-task
-  awaits make this reachable) — genuinely open; needs two live
-  tasks, so it becomes the first increment of the export work rather
-  than a standalone probe.
+- ~~whether a subtask or stream end may be _created_ by task A and
+  its completion consumed while task B is the running task~~ —
+  **yes**: the service under concurrent load does this constantly
+  (a request's response stream registered under whichever task's
+  drain ran its continuation, the wake future's read issued from the
+  settling task for the waiting one), and sixty-four staggered
+  requests through one instance all answered.
 - ~~whether `wasmtime serve` runs a p3 `service` world in the pinned
   version~~ — **yes**: v47's `serve` command implements
   `wasmtime_wasi_http::p3::WasiHttpView` and wires
