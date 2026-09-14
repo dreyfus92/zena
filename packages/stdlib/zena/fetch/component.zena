@@ -1,0 +1,192 @@
+/**
+ * zena:fetch — HTTP requests over `wasi:http@0.3.0`, for the component
+ * target.
+ *
+ * The same API as the JS target's (fetch/host.zena): `fetch(url)`
+ * resolves with a `Response` once the status and headers are in, and
+ * the body is read separately with `text()` or `bytes()` — a 404 is a
+ * normal completion, not a failure. The future fails only when there
+ * is no response at all: the host could not resolve, connect to, or
+ * hear back from the server.
+ *
+ * Underneath, a request is a `wasi:http/types` resource sent through
+ * `wasi:http/client`'s `send`, and a body is a canonical `stream<u8>`
+ * the host writes and this module pumps into a byte buffer. The
+ * request's trailers are a future the sender resolves; a GET carries
+ * none, so it is settled up front. The response body's completion is
+ * a future the reader resolves, settled here once the stream has
+ * ended.
+ */
+import { URL } from 'zena:url';
+import { Completer } from 'zena:async';
+import { Outcome, Ok, Err } from 'zena:result';
+import { readAllBytes } from 'zena:stream';
+import {
+  Fields, Request, Response as WireResponse, ErrorCode, Scheme,
+  SchemeHTTP, SchemeHTTPS, SchemeOther, ErrorCodeDNSError,
+  ErrorCodeDNSTimeout, ErrorCodeDestinationNotFound,
+  ErrorCodeDestinationUnavailable, ErrorCodeConnectionRefused,
+  ErrorCodeConnectionTimeout, ErrorCodeConnectionTerminated,
+  ErrorCodeHTTPRequestURIInvalid, ErrorCodeInternalError
+} from 'wasi:http/types';
+import { send } from 'wasi:http/client';
+
+/** The one spellable value of type void, for a `result<_, e>` ok arm. */
+function unit(): void {}
+
+/**
+ * An HTTP response: the status, and a one-shot handle on the body.
+ *
+ * The body stays on the host until it is read, so reading is
+ * asynchronous and — as on the web — allowed once: a second `text()`
+ * or `bytes()` throws rather than handing back an empty body.
+ */
+export class Response {
+  /** The HTTP status code. */
+  status: i32;
+  #wire: WireResponse;
+  var #bodyUsed: boolean = false;
+
+  new(this.status, wire: WireResponse) : #wire = wire;
+
+  /** True for a 2xx status, exactly like the web's `Response.ok`. */
+  ok: boolean {
+    get {
+      return this.status >= 200 && this.status < 300;
+    }
+  }
+
+  /**
+   * The first value of the response header `name`, or null when the
+   * response carries none. Header names are case-insensitive; values
+   * are bytes on the wire and decoded here as text.
+   */
+  header(name: String): String | null {
+    let values = this.#wire.getHeaders().get(name);
+    return if (values.length == 0) null else String.fromBytes(values[0]);
+  }
+
+  /** The response body, decoded as text. */
+  async text(): Future<String> {
+    return String.fromBytes(await this.bytes());
+  }
+
+  /** The response body's bytes. */
+  async bytes(): Future<FixedArray<u8>> {
+    if (this.#bodyUsed) {
+      throw new Error(
+        'zena:fetch: the response body has already been read');
+    }
+    this.#bodyUsed = true;
+    // `consume-body` takes a future the reader settles to say how
+    // receiving went, the mirror of a request's trailers future. It
+    // is settled with success once the stream has ended; the trailers
+    // future that comes back is left unobserved.
+    let received = new Completer<Outcome<void, ErrorCode>>();
+    let (body, trailers) =
+        WireResponse.consumeBody(this.#wire, received.future);
+    let bytes = await readAllBytes(body);
+    received.complete(new Ok<void, ErrorCode>(unit()));
+    return bytes;
+  }
+}
+
+/**
+ * Starts fetching `url` with a GET request, returning a future that
+ * resolves once the response is available.
+ *
+ * The future resolves to the `Response` for the request: its status
+ * and headers are in, and its body is read from it afterwards.
+ *
+ * The future fails only when the request itself fails — a URL that
+ * does not parse, a host the runtime could not resolve or reach, a
+ * connection that closed before a response arrived. It does not fail
+ * when the server answers with a status that means an error (404,
+ * 504, and so on): that is a response like any other, and the caller
+ * checks `ok` or `status`.
+ */
+export async function fetch(url: String | URL): Future<Response> {
+  var parsed: URL | null = null;
+  if (url is URL) {
+    parsed = url;
+  } else {
+    parsed = URL.parse(url as String);
+    if (parsed == null) {
+      throw new Error('zena:fetch: not a URL: ' + (url as String));
+    }
+  }
+  let target = parsed as URL;
+  let request = requestFor(target);
+  let sent = await send(request);
+  if (sent is Err<WireResponse, ErrorCode>) {
+    throw new Error('zena:fetch: ' + describe(
+        (sent as Err<WireResponse, ErrorCode>).error) + ': ' + target.href);
+  }
+  let wire = (sent as Ok<WireResponse, ErrorCode>).value;
+  return new Response(wire.getStatusCode() as i32, wire);
+}
+
+/**
+ * A GET request for `target`: no body, no trailers, the scheme,
+ * authority and path-with-query set from the URL. A p3 request has no
+ * URL string; those three are its addressing.
+ */
+let requestFor = (target: URL): Request => {
+  // The trailers future is the sender's to settle, and the host does
+  // not consider the request body finished until it is: this request
+  // has no body and no trailers, so it settles now with "none".
+  let trailers = Future.of<Outcome<Option<Fields>, ErrorCode>>(
+      new Ok<Option<Fields>, ErrorCode>(none));
+  // `new` returns the request and a future that settles once it has
+  // been transmitted; a client that wanted send errors ahead of the
+  // response would await it. It goes unobserved here (#587).
+  let (request, transmitted) =
+      Request.new_(Fields.create(), none, trailers, none);
+  request.setScheme(some(schemeOf(target.protocol)));
+  request.setAuthority(some(target.host()));
+  var path = target.pathname;
+  if (path == '') {
+    path = '/';
+  }
+  request.setPathWithQuery(some(path + target.search));
+  return request;
+};
+
+/** The WIT scheme for a URL protocol such as `http:`. */
+let schemeOf = (protocol: String): Scheme => {
+  if (protocol == 'http:') {
+    return new SchemeHTTP();
+  }
+  if (protocol == 'https:') {
+    return new SchemeHTTPS();
+  }
+  // Without the trailing colon, as WIT spells a scheme.
+  return new SchemeOther(protocol.sliceBytes(0, protocol.length - 1));
+};
+
+/** A short account of why a request produced no response. */
+let describe = (code: ErrorCode): String => {
+  if (code is ErrorCodeDNSError || code is ErrorCodeDNSTimeout ||
+      code is ErrorCodeDestinationNotFound) {
+    return 'the host could not be resolved';
+  }
+  if (code is ErrorCodeDestinationUnavailable ||
+      code is ErrorCodeConnectionRefused ||
+      code is ErrorCodeConnectionTimeout) {
+    return 'the server could not be reached';
+  }
+  if (code is ErrorCodeConnectionTerminated) {
+    return 'the connection was closed before a response arrived';
+  }
+  if (code is ErrorCodeHTTPRequestURIInvalid) {
+    return 'the server rejected the request URI';
+  }
+  if (code is ErrorCodeInternalError) {
+    let detail = (code as ErrorCodeInternalError).value;
+    if (detail is Some<String>) {
+      return 'the host reported: ' + (detail as Some<String>).value;
+    }
+    return 'the host reported an internal error';
+  }
+  return 'the request failed';
+};

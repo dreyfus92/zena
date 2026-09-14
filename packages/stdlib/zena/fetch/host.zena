@@ -22,9 +22,8 @@
  * included: in a browser, a request only succeeds where the page could
  * have made it itself.
  */
-import { Error } from 'zena:error';
 import { pending } from 'zena:js';
-import { String } from 'zena:string';
+import { URL } from 'zena:url';
 
 /** Opaque reference to the host's own response object. */
 distinct type JsResponse = anyref;
@@ -79,16 +78,22 @@ export class Response {
 }
 
 /**
- * GET `url`, resolving with the `Response` once headers arrive.
+ * Starts fetching `url` with a GET request, returning a future that
+ * resolves once the response is available.
  *
- * Fails — an ordinary failed future, caught with `try`/`catch` around
- * the `await` — only when there is no response: a network error, a
- * CORS refusal, a host with no fetch(). A non-2xx status is a normal
- * completion; check `ok` or `status`.
+ * The future resolves to the `Response` for the request: its status
+ * and headers are in, and its body is read from it afterwards.
+ *
+ * The future fails only when the request itself fails — a network
+ * error, a CORS refusal, a host with no fetch(). It does not fail
+ * when the server answers with a status that means an error (404,
+ * 504, and so on): that is a response like any other, and the caller
+ * checks `ok` or `status`.
  */
-export let fetch = async (url: String): Future<Response> => {
+export let fetch = async (url: String | URL): Future<Response> => {
+  let href = if (url is URL) url.href else url as String;
   let p = pending<anyref>();
-  __fetch_start(p.handle, url, url.length);
+  __fetch_start(p.handle, href, href.length);
   let response = (await p.future) as JsResponse;
   return new Response(__response_status(response), response);
 };

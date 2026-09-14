@@ -96,6 +96,20 @@ export final class String implements Hashable {
   }
 
   /**
+   * A String over a copy of `bytes`, taken as WTF-8 — the bytes a
+   * response body or a file arrives as. Zena strings are views over
+   * byte arrays, so nothing is re-encoded; the copy is what turns a
+   * fixed array into the backing store a view needs.
+   */
+  static fromBytes(bytes: FixedArray<u8>): String {
+    let data = __byte_array_new(bytes.length);
+    for (var i = 0; i < bytes.length; i += 1) {
+      data[i] = bytes[i];
+    }
+    return new String(data, 0, bytes.length, Encoding.WTF8);
+  }
+
+  /**
    * The encoding of the backing bytes. Encoding is deliberately an
    * internal detail almost everywhere; this exists for boundary code —
    * canonical-ABI marshaling, host interop — that copies the bytes

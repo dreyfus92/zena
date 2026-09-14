@@ -1,0 +1,26 @@
+// An HTTP GET with `zena:fetch`, as a WebAssembly component over
+// `wasi:http@0.3.0`.
+//
+// Build it as a component and run it under wasmtime with the p3 and
+// http worlds enabled (from `packages/zena-cli`, where `npm run zena`
+// resolves paths; the output lands there too):
+//
+//   npm run zena -w @zena-lang/zena-cli -- build ../../examples/fetch.zena --target component -o fetch.wasm
+//   wasmtime run -W gc=y,function-references=y,exceptions=y -S p3=y,http=y --invoke 'main()' packages/zena-cli/fetch.wasm
+//
+// `main` is async, so the component's `main` is lifted async: wasmtime
+// hands control back to the host while the request is in flight and
+// re-enters the component as the response arrives. On the `js` target
+// the same code runs over the host's own fetch().
+import { fetch } from 'zena:fetch';
+
+export async function main(): Future<void> {
+  let response = await fetch('http://example.com/');
+  console.log(`status: ${response.status}`);
+  let contentType = response.header('content-type');
+  if (contentType != null) {
+    console.log(`content-type: ${contentType}`);
+  }
+  let text = await response.text();
+  console.log(text);
+}

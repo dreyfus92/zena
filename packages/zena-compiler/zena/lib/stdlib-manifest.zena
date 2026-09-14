@@ -123,14 +123,15 @@ export let buildStdlibConfig = (stdlibRoot: String): PackageConfig => {
   jsVirtual["js"] = "js/index.zena";
   exports["js"] = new ModuleExport(jsVirtual);
 
-  // Virtual module: fetch → HTTP over the host's own fetch(). Only the
-  // JS-hosted targets have one, so only they resolve it; a WASI or
-  // component build fails at import resolution rather than linking an
-  // import no host provides. The component target's HTTP is wasi:http
-  // (async.md §4.1), which is its own track.
+  // Virtual module: fetch → HTTP requests. The JS-hosted targets go
+  // through the host's own fetch(); the component target speaks
+  // wasi:http through the bindings synthesized from the stdlib's WIT.
+  // A WASI p1 build fails at import resolution rather than linking an
+  // import no host provides.
   let fetchVirtual = new HashMap<String, String>();
   fetchVirtual["host"] = "fetch/host.zena";
   fetchVirtual["js"] = "fetch/host.zena";
+  fetchVirtual["component"] = "fetch/component.zena";
   exports["fetch"] = new ModuleExport(fetchVirtual);
 
   // Virtual module: time → sleeping and the monotonic clock. Both

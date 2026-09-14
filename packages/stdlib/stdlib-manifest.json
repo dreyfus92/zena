@@ -71,7 +71,8 @@
     "fetch": {
       "virtual": {
         "host": "fetch/host.zena",
-        "js": "fetch/host.zena"
+        "js": "fetch/host.zena",
+        "component": "fetch/component.zena"
       }
     },
     "fixed-array": {

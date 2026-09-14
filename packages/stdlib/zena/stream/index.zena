@@ -285,3 +285,25 @@ export {
   Multicast, Subscription, Policy, Conflate, Waits, Buffered, conflate,
   waits, buffered,
 } from './multicast.zena';
+
+/**
+ * Every byte of `stream` from here to end-of-stream, in one array:
+ * reads until a read returns 0. A response body is the usual case; a
+ * stream that never ends never resolves. Bytes rather than any `T`
+ * because a read needs a scratch buffer, and a buffer of `T` needs a
+ * value of `T` to fill it with.
+ */
+export async function readAllBytes(stream: Stream<u8>): Future<FixedArray<u8>> {
+  let chunk = new FixedArray<u8>(4096, 0);
+  let collected = new GrowableArray<u8>();
+  while (true) {
+    let n = await stream.read(chunk);
+    if (n == 0) {
+      break;
+    }
+    for (var i = 0; i < n; i += 1) {
+      collected.push(chunk[i]);
+    }
+  }
+  return FixedArray.from(collected);
+}
