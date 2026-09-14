@@ -126,8 +126,11 @@ export const extractDiagnostics = (code) => {
       const token = sameLineMatch[4];
       const message = sameLineMatch[5].trim();
 
-      let startCol = 0;
-      let endCol = codePart.length;
+      const indentMatch = codePart.match(/^\s*/);
+      const leadingSpaces = indentMatch ? indentMatch[0].length : 0;
+      const trimmedEnd = codePart.trimEnd().length;
+      let startCol = Math.min(leadingSpaces, trimmedEnd);
+      let endCol = trimmedEnd;
 
       if (token) {
         const tokenIdx = codePart.indexOf(token);
@@ -161,8 +164,11 @@ export const extractDiagnostics = (code) => {
       const targetLineIdx = Math.max(0, cleanedLines.length - 1);
       const targetLine = cleanedLines[targetLineIdx] ?? '';
 
-      let startCol = 0;
-      let endCol = targetLine.length;
+      const indentMatch = targetLine.match(/^\s*/);
+      const leadingSpaces = indentMatch ? indentMatch[0].length : 0;
+      const trimmedEnd = targetLine.trimEnd().length;
+      let startCol = Math.min(leadingSpaces, trimmedEnd);
+      let endCol = trimmedEnd;
       if (token) {
         const tokenIdx = targetLine.indexOf(token);
         if (tokenIdx !== -1) {

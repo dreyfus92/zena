@@ -115,6 +115,41 @@ describe('extractDiagnostics', () => {
     });
   });
 
+  it('skips leading indentation when targeting whole line with // @error: message', () => {
+    const input = [
+      'function test(): void {',
+      '  tail return count() + 1;',
+      '  // @error: tail return returns a call',
+      '}',
+    ].join('\n');
+
+    const result = extractDiagnostics(input);
+    assert.equal(result.diagnostics.length, 1);
+    assert.deepEqual(result.diagnostics[0], {
+      lineIndex: 1,
+      startCol: 2,
+      endCol: 26,
+      severity: 'error',
+      message: 'tail return returns a call',
+    });
+  });
+
+  it('skips leading indentation for same-line directive on indented line', () => {
+    const input = ['  let bad = t[5]; // @error: index out of bounds'].join(
+      '\n',
+    );
+
+    const result = extractDiagnostics(input);
+    assert.equal(result.diagnostics.length, 1);
+    assert.deepEqual(result.diagnostics[0], {
+      lineIndex: 0,
+      startCol: 2,
+      endCol: 17,
+      severity: 'error',
+      message: 'index out of bounds',
+    });
+  });
+
   it('supports warning severity in caret lines', () => {
     const input = ['let x = 42;', '//  ^ warning: unused variable x'].join(
       '\n',
