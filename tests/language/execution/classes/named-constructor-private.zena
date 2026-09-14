@@ -1,0 +1,17 @@
+// @mode: run
+// @result: 77
+class Secret {
+  value: i32;
+
+  new #privateCtor(this.value);
+
+  static create(v: i32): Secret {
+    return new Secret.#privateCtor(v);
+  }
+}
+
+export let main = (): i32 => {
+  let s = Secret.create(77);
+  return s.value;
+};
+

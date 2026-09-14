@@ -6289,7 +6289,8 @@ let instantiateGenericClass = (
   ct: ClassType,
   explicitTypeArgs: GrowableArray<TypeAnnotation> | null,
   args: GrowableArray<Expression>,
-  loc: SourceLocation | null
+  loc: SourceLocation | null,
+  ctorName: String | null = null
 ): ClassType => {
   let typeParams = ct.typeParameters;
   if (typeParams == null) { return ct; }
@@ -6309,7 +6310,11 @@ let instantiateGenericClass = (
   }
 
   // Infer type arguments from constructor arguments.
-  let ctor = ct.constructorType;
+  let ctor = if (ctorName != null && ct.constructors.has(ctorName as String)) {
+    ct.constructors[ctorName as String]
+  } else {
+    ct.constructorType
+  };
   if (ctor == null) { return ct; }
 
   // Build a map from type param names to inferred types. The `new`
@@ -8050,6 +8055,18 @@ let getMemberPathKey = (ctx: CheckerContext, expr: Expression): String | null =>
       return null;
     }
   }
+};
+
+let getMemberName = (node: Node): String => {
+  return match (node) {
+    case Identifier {name}: name
+    case SymbolPropertyName {symbolRef}: ":" + match (symbolRef) {
+      case Identifier {name}: name
+      case MemberExpression {property}: property.name
+      case _: "<symbol>"
+    }
+    case _: "<unknown>"
+  };
 };
 
 /** A generic class applied to its own type parameters; the class
@@ -12444,6 +12461,7 @@ let registerClassDeclaration = (ctx: CheckerContext, cd: ClassDeclaration): void
   classType.implementsList = new GrowableArray<InterfaceType>();
   classType.mixins = new GrowableArray<MixinType>();
   classType.constructorType = null;
+  classType.constructors.clear();
   classType.fieldSetterNames = null;
   classType.declaredFields = null;
   classType.sealedVariants = null;
@@ -12759,6 +12777,7 @@ let registerClassDeclaration = (ctx: CheckerContext, cd: ClassDeclaration): void
     let ctorType = new FunctionType(ctorParamTypes, ctorParamNames, classType);
     ctorType.optionalParameters = ctorOptionalParams;
     classType.constructorType = ctorType;
+    classType.constructors["<constructor>"] = ctorType;
   }
 
   // Register the class type in both namespaces.
@@ -12780,6 +12799,7 @@ let registerClassDeclaration = (ctx: CheckerContext, cd: ClassDeclaration): void
   // Track fields declared directly in this class body (not inherited).
   let ownFieldNames = new HashSet<String>();
   let ownMethodNames = new HashSet<String>();
+  let ownConstructorNames = new HashSet<String>();
   for (let member in cd.body) {
     match (member) {
       case FieldDefinition as fd: {
@@ -12801,6 +12821,13 @@ let registerClassDeclaration = (ctx: CheckerContext, cd: ClassDeclaration): void
         };
 
         if (fd.isStatic) {
+          if (ownConstructorNames.has(fieldName)) {
+            ctx.error(
+              "Static field '" + fieldName + "' conflicts with constructor '" + fieldName + "'.",
+              DiagnosticCode.DuplicateDeclaration,
+              fd.loc
+            );
+          }
           rejectClassTypeParamsInStatic(
               ctx, classType, fieldType, "field", fieldName, fd.loc);
         }
@@ -12956,21 +12983,68 @@ let registerClassDeclaration = (ctx: CheckerContext, cd: ClassDeclaration): void
           case _: "<unknown>"
         };
 
-        if (methodName == "<constructor>") {
-          if (cd.caseParams != null && classType.constructorType != null) {
-            ctx.error(
-              "Duplicate constructor in case class '" + className +
-              "'. Case classes auto-generate a constructor from their parameters.",
-              DiagnosticCode.DuplicateMethod,
-              md.loc
-            );
+        if (md.isConstructor) {
+          if (methodName == "<constructor>") {
+            if (cd.caseParams != null && classType.constructorType != null) {
+              ctx.error(
+                "Duplicate constructor in case class '" + className +
+                "'. Case classes auto-generate a constructor from their parameters.",
+                DiagnosticCode.DuplicateMethod,
+                md.loc
+              );
+            } else if (ownConstructorNames.has("<constructor>")) {
+              ctx.error(
+                "Duplicate constructor in class '" + className + "'.",
+                DiagnosticCode.DuplicateMethod,
+                md.loc
+              );
+            } else {
+              ownConstructorNames.add("<constructor>");
+              let ctorType = checkMethodSignature(ctx, classType, md);
+              ctorType.returnType = classType;
+              classType.constructorType = ctorType;
+              classType.constructors["<constructor>"] = ctorType;
+            }
           } else {
+            // Named constructor.
+            if (ownConstructorNames.has(methodName)) {
+              ctx.error(
+                "Duplicate constructor '" + methodName + "' in class '" + className + "'.",
+                DiagnosticCode.DuplicateMethod,
+                md.loc
+              );
+            } else {
+              ownConstructorNames.add(methodName);
+            }
+            if (classType.members.has(methodName)) {
+              let existing = classType.members[methodName];
+              if (existing is MethodInfo && (existing as MethodInfo).isStatic) {
+                ctx.error(
+                  "Constructor '" + methodName + "' conflicts with static method '" + methodName + "'.",
+                  DiagnosticCode.DuplicateDeclaration,
+                  md.loc
+                );
+              } else if (existing is FieldInfo && (existing as FieldInfo).isStatic) {
+                ctx.error(
+                  "Constructor '" + methodName + "' conflicts with static field '" + methodName + "'.",
+                  DiagnosticCode.DuplicateDeclaration,
+                  md.loc
+                );
+              }
+            }
             let ctorType = checkMethodSignature(ctx, classType, md);
             ctorType.returnType = classType;
-            classType.constructorType = ctorType;
+            classType.constructors[methodName] = ctorType;
           }
         } else {
           // Regular method.
+          if (md.isStatic && ownConstructorNames.has(methodName)) {
+            ctx.error(
+              "Static method '" + methodName + "' conflicts with constructor '" + methodName + "'.",
+              DiagnosticCode.DuplicateDeclaration,
+              md.loc
+            );
+          }
 
           // Check for field/method name conflict.
           if (ownFieldNames.has(methodName)) {
@@ -13397,6 +13471,7 @@ let registerClassDeclaration = (ctx: CheckerContext, cd: ClassDeclaration): void
         );
         vCtorType.optionalParameters = vCtorOptionalParams;
         variantType.constructorType = vCtorType;
+        variantType.constructors["<constructor>"] = vCtorType;
         synthesizeCaseClassMembers(ctx, variantType);
 
         (classType.sealedVariants as GrowableArray<ClassType>).push(variantType);
@@ -13463,6 +13538,7 @@ let registerClassDeclaration = (ctx: CheckerContext, cd: ClassDeclaration): void
             unitType.constructorType = new FunctionType(
               new GrowableArray<Type>(), new GrowableArray<String>(), unitType
             );
+            unitType.constructors["<constructor>"] = unitType.constructorType as FunctionType;
             synthesizeCaseClassMembers(ctx, unitType);
 
             (classType.sealedVariants as GrowableArray<ClassType>).push(unitType);
@@ -13473,13 +13549,14 @@ let registerClassDeclaration = (ctx: CheckerContext, cd: ClassDeclaration): void
     }
   }
 
-  if (classType.constructorType == null && classType.superType != null && !classType.isExtension && cd.caseParams == null) {
+  if (classType.constructorType == null && classType.constructors.size == 0 && classType.superType != null && !classType.isExtension && cd.caseParams == null) {
     var scWalk: ClassType | null = classType.superType;
     while (scWalk != null && scWalk.isMixinIntermediate && scWalk.constructorType == null) {
       scWalk = scWalk.superType;
     }
     if (scWalk != null && scWalk.constructorType != null) {
       classType.constructorType = scWalk.constructorType;
+      classType.constructors["<constructor>"] = scWalk.constructorType as FunctionType;
     }
   }
 
@@ -13650,10 +13727,14 @@ let checkClassBodies = (ctx: CheckerContext, cd: ClassDeclaration): void => {
             }
             case _: "<unknown>"
           };
-          if (methodName == "<constructor>") {
-            let {constructorType} = classType;
-            if (constructorType != null) {
-              checkMethodBody(ctx, classType, constructorType, md);
+          if (md.isConstructor) {
+            let ctorType = if (classType.constructors.has(methodName)) {
+              classType.constructors[methodName]
+            } else {
+              classType.constructorType
+            };
+            if (ctorType != null) {
+              checkMethodBody(ctx, classType, ctorType, md);
             }
             // Derived class constructors must call super() — except when the
             // superclass is a root nobody wrote. A `resource class` with no
@@ -13666,6 +13747,7 @@ let checkClassBodies = (ctx: CheckerContext, cd: ClassDeclaration): void => {
             while (scWalk != null) {
               if (!scWalk.isMixinIntermediate) {
                 if (scWalk.constructorType != null ||
+                    scWalk.constructors.size > 0 ||
                     !isWellKnown(WellKnown.ResourceClass, scWalk.name,
                         scWalk.sourcePath)) {
                   superNeedsInit = true;
@@ -14306,7 +14388,35 @@ let checkSuperInitArgs = (
     }
     return;
   }
-  let ctorType = superCt.constructorType;
+  var ctorType: FunctionType | null = null;
+  if (superInit.constructorName != null) {
+    let targetCtor = getMemberName(superInit.constructorName as Node);
+    if (!superCt.constructors.has(targetCtor)) {
+      ctx.error(
+        "Constructor '" + targetCtor + "' not found on superclass '" + superCt.name + "'.",
+        DiagnosticCode.IncompatibleTypes,
+        loc
+      );
+      for (let arg in args) {
+        checkExpression(ctx, arg, null);
+      }
+      return;
+    }
+    ctorType = superCt.constructors[targetCtor];
+  } else {
+    if (superCt.constructors.size > 0 && superCt.constructorType == null) {
+      ctx.error(
+        "Superclass '" + superCt.name + "' has no default constructor.",
+        DiagnosticCode.IncompatibleTypes,
+        loc
+      );
+      for (let arg in args) {
+        checkExpression(ctx, arg, null);
+      }
+      return;
+    }
+    ctorType = superCt.constructorType;
+  }
   if (ctorType == null) {
     // No explicit constructor anywhere up the chain — must have zero args.
     if (args.length > 0) {
@@ -14546,11 +14656,12 @@ let checkMethodBody = (
     case Identifier {name}: name
     case _: ""
   };
+  let isCtor = md.isConstructor || methodName == "<constructor>";
   let prevUsingDepth = ctx.usingDepth;
   ctx.setUsingDepth(0);
   let prevInConstructor = ctx.inConstructor;
-  ctx.setInConstructor(methodName == "<constructor>");
-  if (methodName == "<constructor>") {
+  ctx.setInConstructor(isCtor);
+  if (isCtor) {
     // The constructor prologue evaluates before the body: field
     // defaults, then the initializer list, then the super call. It is
     // checked in that order too, so flow-sensitive analysis — move
@@ -14685,7 +14796,7 @@ let checkMethodBody = (
   match (md.body as Node) {
     case BlockStatement as block: {
       ctx.enterOwnScope();
-      if (methodName != "<constructor>") {
+      if (!isCtor) {
         registerOwnParamCandidates(ctx, md.params, methodType.parameters);
       }
       prescanPendingFunctions(ctx, block.body);
@@ -14700,7 +14811,7 @@ let checkMethodBody = (
       ctx.enterOwnScope();
       // Async expression bodies stay out: their lowering completes the
       // frame's future directly, before the parameter regions exist.
-      if (methodName != "<constructor>" && ctx.asyncValueType == null) {
+      if (!isCtor && ctx.asyncValueType == null) {
         registerOwnParamCandidates(ctx, md.params, methodType.parameters);
       }
       let bodyType = checkExpression(ctx, bodyExpr, effectiveReturnType);
@@ -15297,7 +15408,7 @@ let checkMixinDeclaration = (ctx: CheckerContext, md: MixinDeclaration): void =>
         };
 
         // Reject constructors in mixins.
-        if (methodName == "<constructor>") {
+        if (methDef.isConstructor || methodName == "<constructor>") {
           ctx.error(
             "Mixins cannot define constructors.",
             DiagnosticCode.IncompatibleTypes,
@@ -15418,7 +15529,7 @@ let checkMixinDeclaration = (ctx: CheckerContext, md: MixinDeclaration): void =>
           }
           case _: "<unknown>"
          };
-         if (methodName != "<constructor>" && methDef.body != null && mixinType.members.has(methodName)) {
+         if (!methDef.isConstructor && methodName != "<constructor>" && methDef.body != null && mixinType.members.has(methodName)) {
            if (let (true, methodTypeInfo) = mixinType.members.get(methodName)) {
              ctx.enterNodeReferrer(methDef.id as i32);
              checkMethodBody(ctx, thisType, methodTypeInfo.type as FunctionType, methDef);
@@ -15698,13 +15809,60 @@ let checkNewExpression = (
       } else {
         args
       };
-      let instantiated = instantiateGenericClass(ctx, ct, typeArguments, inferArgs, loc);
+      let ctorName: String | null = if (newExpr.constructorName != null) {
+        getMemberName(newExpr.constructorName as Node)
+      } else {
+        null
+      };
+      let instantiated = instantiateGenericClass(ctx, ct, typeArguments, inferArgs, loc, ctorName);
 
-      let ctorType = instantiated.constructorType;
+      var ctorType: FunctionType | null = null;
+      var ctorMethodRef = "<constructor>";
+      if (ctorName != null) {
+        let name = ctorName as String;
+        ctorMethodRef = "<constructor>." + name;
+        // Check private constructor access
+        if (name.length > 0 && name.sliceBytes(0, 1) == "#") {
+          let cur = ctx.currentClass;
+          let isInside = if (cur != null) {
+            (cur as ClassType).canonical() == ct.canonical()
+          } else {
+            false
+          };
+          if (!isInside) {
+            ctx.error(
+              "Private constructor '" + name + "' can only be accessed within class '" + ct.name + "'.",
+              DiagnosticCode.PrivateAccess,
+              loc
+            );
+            return instantiated;
+          }
+        }
+        if (!instantiated.constructors.has(name)) {
+          ctx.error(
+            "Constructor '" + name + "' not found on class '" + instantiated.name + "'.",
+            DiagnosticCode.SymbolNotFound,
+            loc
+          );
+          return instantiated;
+        }
+        ctorType = instantiated.constructors[name];
+      } else {
+        if (instantiated.constructors.size > 0 && instantiated.constructorType == null) {
+          ctx.error(
+            "Class '" + instantiated.name + "' has no default constructor.",
+            DiagnosticCode.IncompatibleTypes,
+            loc
+          );
+          return instantiated;
+        }
+        ctorType = instantiated.constructorType;
+      }
+
       let deps = ctx.currentDependencies();
       if (deps != null) {
         deps.referencedTypes.add(instantiated as Type);
-           deps.referencedClassMethods.add(i32ToString((ct.genericSource ?? ct).symbolId as i32) + ".<constructor>");
+        deps.referencedClassMethods.add(i32ToString((ct.genericSource ?? ct).symbolId as i32) + "." + ctorMethodRef);
       }
       if (ctorType == null) {
         // No explicit constructor — must have zero args.

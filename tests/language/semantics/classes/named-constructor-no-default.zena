@@ -1,0 +1,10 @@
+// @mode: check
+
+class OnlyNamed {
+  x: i32;
+  new fromInt(this.x);
+}
+
+let a = new OnlyNamed(1); // @error: Class 'OnlyNamed' has no default constructor.
+let b = new OnlyNamed.fromInt(1);
+

@@ -1,0 +1,12 @@
+// @mode: check
+
+symbol createSym;
+
+class SymClass {
+  x: i32;
+
+  new [createSym](this.x);
+}
+
+let sc = new SymClass.[createSym](42);
+

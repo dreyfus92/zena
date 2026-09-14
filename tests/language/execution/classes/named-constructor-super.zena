@@ -1,0 +1,27 @@
+// @mode: run
+// @result: 100
+class Base {
+  x: i32;
+
+  new(this.x);
+
+  new doubleValue(v: i32)
+    : x = v * 2;
+}
+
+class Derived extends Base {
+  y: i32;
+
+  new fromBase(v: i32, this.y)
+    : super.doubleValue(v);
+
+  new withY(this.y)
+    : super(10);
+}
+
+export let main = (): i32 => {
+  let d1 = new Derived.fromBase(20, 15);
+  let d2 = new Derived.withY(35);
+  return d1.x + d1.y + d2.x + d2.y;
+};
+

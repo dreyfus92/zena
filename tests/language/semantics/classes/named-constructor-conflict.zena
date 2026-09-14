@@ -1,0 +1,17 @@
+// @mode: check
+
+class Foo {
+  static fromBar(): i32 { return 1; }
+  new fromBar() {} // @error: Constructor 'fromBar' conflicts with static method 'fromBar'.
+}
+
+class Bar {
+  new fromX() {}
+  static fromX(): i32 { return 2; } // @error: Static method 'fromX' conflicts with constructor 'fromX'.
+}
+
+class Baz {
+  new create() {}
+  new create() {} // @error: Duplicate constructor 'create' in class 'Baz'.
+}
+

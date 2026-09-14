@@ -14,7 +14,7 @@ import { findDeclaration, collectValueExports, isArrayIntrinsic } from '../looku
  */
 import { HashSet } from 'zena:set';
 import {
-  Node, Statement, Expression, FunctionExpression, BlockStatement, UsingStatement, ShieldedStatement, ReturnStatement, YieldStatement, BreakStatement, ContinueStatement, IfStatement, WhileStatement, ExpressionStatement, VariableDeclaration, BinaryExpression, UnaryExpression, AssignmentExpression, Identifier, NumberLiteral, BooleanLiteral, IdentifierPattern, BindingPattern, CallExpression, IfExpression, AsExpression, ForStatement, ForInStatement, IndexExpression, TemplateLiteral, NullLiteral, StringLiteral, NewExpression, MemberExpression, MethodDefinition, ThisExpression, Parameter, ClassDeclaration, MixinDeclaration, FieldDefinition, FieldInitializer, SuperInitializer, TypeAnnotation, AccessorDeclaration, SetterInfo, MatchExpression, LiteralPattern, TupleLiteral, EnumDeclaration, getMemberPropertyName, IsExpression, RangeExpression, PipelineExpression, PipePlaceholder, SuperExpression, ArrayLiteral, RecordLiteral, MapLiteral, ThrowExpression, TryExpression, TaggedTemplateExpression, ImportDeclaration, ImportSpecifier, Module, SpreadElement, LetPatternCondition, TuplePattern, ArrayPattern, RestPattern, PropertyAssignment, SealedVariant, RecordPattern, BindingProperty, AwaitExpression,
+  Node, Statement, Expression, FunctionExpression, BlockStatement, UsingStatement, ShieldedStatement, ReturnStatement, YieldStatement, BreakStatement, ContinueStatement, IfStatement, WhileStatement, ExpressionStatement, VariableDeclaration, BinaryExpression, UnaryExpression, AssignmentExpression, Identifier, NumberLiteral, BooleanLiteral, IdentifierPattern, BindingPattern, CallExpression, IfExpression, AsExpression, ForStatement, ForInStatement, IndexExpression, TemplateLiteral, NullLiteral, StringLiteral, NewExpression, MemberExpression, MethodDefinition, ThisExpression, Parameter, ClassDeclaration, MixinDeclaration, FieldDefinition, FieldInitializer, SuperInitializer, TypeAnnotation, AccessorDeclaration, SetterInfo, MatchExpression, LiteralPattern, TupleLiteral, EnumDeclaration, getMemberPropertyName, IsExpression, RangeExpression, PipelineExpression, PipePlaceholder, SuperExpression, ArrayLiteral, RecordLiteral, MapLiteral, ThrowExpression, TryExpression, TaggedTemplateExpression, ImportDeclaration, ImportSpecifier, Module, SpreadElement, LetPatternCondition, TuplePattern, ArrayPattern, RestPattern, PropertyAssignment, SealedVariant, RecordPattern, BindingProperty, AwaitExpression, SymbolPropertyName,
 } from '../../ast.zena';
 import {
   Type, VoidType, NeverType, ClassType, InterfaceType, FunctionType, FieldInfo, MethodInfo, ArrayType, InlineTupleType, TupleType, RecordType, TypeParameterType, UnionType, baseType, isVoidOrNeverType, isRefType, AnyRefType, EqRefType, arrayElementType, isSignedNarrowIntType, typeToString,
@@ -824,9 +824,10 @@ let lowerFunctionOrThrow = (wasm: WasmModule, func: WasmFunction): IrBody => {
   // when present, is the factory's `<constructor>` MethodDefinition.
   if (func.methodName != null) {
     let fMeth = func.methodName as String;
-    if (fMeth == '<ctor-init>' || fMeth == '<ctor-body>') {
+    if (fMeth == '<ctor-init>' || fMeth.startsWith('<ctor-init>.') ||
+        fMeth == '<ctor-body>' || fMeth.startsWith('<ctor-body>.')) {
       let lowerer = new FunctionLowerer(wasm, func);
-      lowerer.ctorPhase = if (fMeth == '<ctor-init>') 1 else 2;
+      lowerer.ctorPhase = if (fMeth == '<ctor-init>' || fMeth.startsWith('<ctor-init>.')) 1 else 2;
       if (func.node == null) {
         return lowerer.lowerSynthesizedConstructor();
       }
@@ -984,7 +985,7 @@ let lowerFunctionOrThrow = (wasm: WasmModule, func: WasmFunction): IrBody => {
     if (md.name is Identifier) {
       methName = (md.name as Identifier).name;
     }
-    let isCtor = methName == "<constructor>";
+    let isCtor = md.isConstructor || methName == "<constructor>";
     // Declares/abstracts have no body; non-constructor methods with
     // initializer machinery would be malformed; decorated constructors
     // (synthetic case-class ctors) have argument-forwarding rules the
@@ -1116,7 +1117,7 @@ export final class FunctionLowerer {
       if (node.name is Identifier) {
         methName = (node.name as Identifier).name;
       }
-      if (methName == "<constructor>") {
+      if (node.isConstructor || methName == "<constructor>") {
         if (this.func.classType != null &&
             (this.func.classType as ClassType).isExtension) {
           // Extension constructors take NO receiver (their signature
@@ -2063,8 +2064,12 @@ export final class FunctionLowerer {
       if (superWithCtor == null) {
         this.#bail('super without superclass');
       }
+      var superCtorMeth = '<constructor>';
+      if (si.constructorName != null) {
+        superCtorMeth = '<constructor>.' + getNodeMemberName(si.constructorName as Node);
+      }
       let superKey = getClassMethodKey(
-          getClassKey(superWithCtor), '<constructor>');
+          getClassKey(superWithCtor), superCtorMeth);
       let superCtor = if (let (true, sc) = this.wasm.classMethodMap.get(superKey)) sc else null;
       if (superCtor == null) {
         this.#bail('super constructor not found');
@@ -2265,6 +2270,7 @@ export final class FunctionLowerer {
     let bodyArgs = new GrowableArray<Array<i32>>();
     var args = level.superArgs;
     var anc = ct.superType;
+    var currentCtorNode: Node | null = this.func.node;
     while (anc != null) {
       let ancCt = anc;
       if (ancCt.isMixinIntermediate) {
@@ -2272,11 +2278,23 @@ export final class FunctionLowerer {
         continue;
       }
       let ancKey = getClassKey(ancCt);
+      var superCtorSuffix = "";
+      if (currentCtorNode is MethodDefinition) {
+        let md = currentCtorNode as MethodDefinition;
+        if (md.superInitializer != null) {
+          let si = md.superInitializer as SuperInitializer;
+          if (si.constructorName != null) {
+            superCtorSuffix = "." + getNodeMemberName(si.constructorName as Node);
+          }
+        }
+      }
+      let initMethName = "<ctor-init>" + superCtorSuffix;
+      let bodyMethName = "<ctor-body>" + superCtorSuffix;
       let initFn = if (let (true, f) = this.wasm.classMethodMap.get(
-          getClassMethodKey(ancKey, '<ctor-init>'))) f else null;
+          getClassMethodKey(ancKey, initMethName))) f else null;
       if (initFn == null) {
         this.#bail('super constructor phases missing for ' +
-            (ancKey as String));
+            (ancKey as String) + ' ' + initMethName);
       }
       let ancStruct = initFn.structType as WasmStruct;
       var ancOwnStart = 1;
@@ -2307,10 +2325,11 @@ export final class FunctionLowerer {
         k += 1;
       }
       let bodyFn = if (let (true, f) = this.wasm.classMethodMap.get(
-          getClassMethodKey(ancKey, '<ctor-body>'))) f else null;
+          getClassMethodKey(ancKey, bodyMethName))) f else null;
       bodyFns.push(bodyFn);
       bodyArgs.push(args);
       args = nextArgs;
+      currentCtorNode = if (initFn != null) initFn.node else null;
       anc = ancCt.superType;
     }
     let structArgs = new GrowableArray<i32>();
@@ -4484,11 +4503,15 @@ export final class FunctionLowerer {
     if (!(classType is ClassType)) {
       this.#bail('new erased kind');
     }
+    var ctorMethName = '<constructor>';
+    if (expr.constructorName != null) {
+      ctorMethName = '<constructor>.' + getNodeMemberName(expr.constructorName as Node);
+    }
     if (classType.isExtension) {
       // Extension `new` is a plain call: the constructor takes the
       // declared arguments (no receiver) and RETURNS the underlying
       // value (streaming's extension branch in generateNewExpression).
-      let ctorKey2 = getClassMethodKey(getClassKey(classType), '<constructor>');
+      let ctorKey2 = getClassMethodKey(getClassKey(classType), ctorMethName);
       let ctor = if (let (true, c) = this.wasm.classMethodMap.get(ctorKey2)) c else null;
       if (ctor == null) {
         this.#bail('extension constructor not found: ' + (getClassKey(classType) as String));
@@ -4524,7 +4547,7 @@ export final class FunctionLowerer {
     new ValTypeRef(structType);
 
     let {singletonGlobal} = classInfo;
-    if (singletonGlobal != null) {
+    if (singletonGlobal != null && expr.constructorName == null) {
       let singleton = singletonGlobal;
       let globalRef = this.b.addRef(new IrRefGlobal(singleton));
       let sv = this.b.emit(IrOp.global_get, singleton.type, -1, globalRef);
@@ -4532,7 +4555,7 @@ export final class FunctionLowerer {
       return sv;
     }
 
-    return this.#constructInstance(classInfo, cKey, expr.args);
+    return this.#constructInstance(classInfo, cKey, expr.args, ctorMethName);
   }
 
   /**
@@ -4541,11 +4564,11 @@ export final class FunctionLowerer {
    * struct.new and returns the instance (non-nullable-refs.md).
    */
   #constructInstance(classInfo: ClassCodegenInfo, cKey: ClassKey,
-      argExprs: Array<Expression>): i32 {
-    let ctorKey = getClassMethodKey(cKey, '<constructor>');
+      argExprs: Array<Expression>, ctorMethName: String = '<constructor>'): i32 {
+    let ctorKey = getClassMethodKey(cKey, ctorMethName);
     let ctor = if (let (true, c) = this.wasm.classMethodMap.get(ctorKey)) c else null;
     if (ctor == null) {
-      this.#bail('constructor missing for ' + (cKey as String));
+      this.#bail('constructor missing for ' + (cKey as String) + ' ' + ctorMethName);
     }
     let sig = ctor.signature;
     if (sig.params.length != this.#liveArgCount(argExprs) ||
@@ -8123,3 +8146,15 @@ export let multiSource = (cx: LoweringContext, init: Expression): Array<i32> =>
 /** Optional-chain hit arm (member machinery). */
 export let optionalHit = (cx: LoweringContext, expr: Expression, recv: i32): i32 =>
     hostOf(cx).hostOptionalHit(expr, recv);
+
+let getNodeMemberName = (node: Node): String => {
+  return match (node) {
+    case Identifier {name}: name
+    case SymbolPropertyName {symbolRef}: ":" + match (symbolRef) {
+      case Identifier {name}: name
+      case MemberExpression {property}: property.name
+      case _: "<symbol>"
+    }
+    case _: ""
+  };
+};

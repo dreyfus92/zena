@@ -1,0 +1,15 @@
+// @mode: run
+// @result: 99
+symbol symCtor;
+
+class Container {
+  data: i32;
+
+  new [symCtor](this.data);
+}
+
+export let main = (): i32 => {
+  let c = new Container.[symCtor](99);
+  return c.data;
+};
+

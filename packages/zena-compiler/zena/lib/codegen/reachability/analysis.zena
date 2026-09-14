@@ -3703,7 +3703,9 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
                 let mixScope = mixinScopeOfMember(this.program, this.classModels[lookupId], cd, node);
                 let nodeModel = mixinModelOfMember(this.program, this.classModels[lookupId], cd, node) ?? this.classModels[lookupId];
                 var methName = getMethodName(node);
-                if (mixScope != null && methName.length > 0 &&
+                if (node.isConstructor) {
+                  methName = if (methName == "<constructor>") "<constructor>" else "<constructor>." + methName;
+                } else if (mixScope != null && methName.length > 0 &&
                     methName.sliceBytes(0, 1) == "#") {
                   methName = mixScope + "::" + methName;
                 }
@@ -3753,7 +3755,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
                     regF.typeArguments == null;
                 if (refItem.isReachable && !genericStatic && !isGenericAtErasure &&
                     (isConcrete(ct) || this.#isMonomorphicStatic(node)) &&
-                    methName != "<constructor>") {
+                    !node.isConstructor && methName != "<constructor>") {
                   // The statics' backing globals hang off reaching a
                   // static, not off instantiating the class — a generic
                   // class whose statics are all anyone uses is never

@@ -297,10 +297,13 @@ export let nodeToJson = (node: Node): JsonObject => {
     case ThisExpression {}: {
       // No additional fields
     }
-    case NewExpression { callee, typeArguments, args }: {
+    case NewExpression { callee, typeArguments, args, constructorName }: {
       obj['callee'] = nodeToJson(callee);
       if (typeArguments != null) {
         obj['typeArguments'] = typeAnnotationsToJson(typeArguments);
+      }
+      if (constructorName != null) {
+        obj['constructorName'] = nodeToJson(constructorName);
       }
       obj['arguments'] = expressionsToJson(args);
     }
@@ -693,7 +696,7 @@ export let nodeToJson = (node: Node): JsonObject => {
         obj['mutability'] = mutability;
       }
     }
-    case MethodDefinition { name, typeParameters, receiver, params, returnType, body, initializerList, superInitializer, isFinal, isAbstract, isStatic, isDeclare, isGenerator, isAsync, decorators }: {
+    case MethodDefinition { name, typeParameters, receiver, params, returnType, body, initializerList, superInitializer, isFinal, isAbstract, isStatic, isDeclare, isGenerator, isAsync, decorators, isConstructor }: {
       obj['name'] = nodeToJson(name);
       if (typeParameters != null) {
         obj['typeParameters'] = typeParametersToJson(typeParameters);
@@ -726,6 +729,15 @@ export let nodeToJson = (node: Node): JsonObject => {
       if (isAsync) {
         obj['isAsync'] = new Box<boolean>(true);
       }
+      if (isConstructor) {
+        let isDefaultCtor = match (name) {
+          case Identifier { name }: name == "<constructor>"
+          case _: false
+        };
+        if (!isDefaultCtor) {
+          obj['isConstructor'] = new Box<boolean>(true);
+        }
+      }
       obj['decorators'] = decoratorsToJson(decorators);
     }
     case AccessorDeclaration { name, typeAnnotation, getter, setter, isFinal, isStatic, decorators }: {
@@ -752,8 +764,11 @@ export let nodeToJson = (node: Node): JsonObject => {
       obj['field'] = nodeToJson(field);
       obj['value'] = nodeToJson(value);
     }
-    case SuperInitializer { args }: {
+    case SuperInitializer { args, constructorName }: {
       obj['arguments'] = expressionsToJson(args);
+      if (constructorName != null) {
+        obj['constructorName'] = nodeToJson(constructorName);
+      }
     }
     
     // Interface Declarations

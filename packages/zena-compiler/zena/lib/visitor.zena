@@ -133,9 +133,10 @@ export let walkChildren = (node: Node, enter: (n: Node) => boolean, leave: (n: N
         walk(object, enter, leave);
         walk(index, enter, leave);
       }
-      case NewExpression {callee, typeArguments, args}: {
+      case NewExpression {callee, typeArguments, args, constructorName}: {
         walk(callee, enter, leave);
         if (typeArguments != null) { for (let t in typeArguments) { walk(t, enter, leave); } }
+        if (constructorName != null) { walk(constructorName as Node, enter, leave); }
         for (let a in args) { walk(a, enter, leave); }
       }
 
@@ -430,7 +431,8 @@ export let walkChildren = (node: Node, enter: (n: Node) => boolean, leave: (n: N
         walk(field, enter, leave);
         walk(value, enter, leave);
       }
-      case SuperInitializer {args}: {
+      case SuperInitializer {args, constructorName}: {
+        if (constructorName != null) { walk(constructorName as Node, enter, leave); }
         for (let a in args) { walk(a, enter, leave); }
       }
       case MethodSignature {name, typeParameters, params, returnType}: {

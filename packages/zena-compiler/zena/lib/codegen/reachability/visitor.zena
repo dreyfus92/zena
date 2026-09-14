@@ -855,6 +855,12 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
       }
       if (n is NewExpression) {
         let neType = model.getNodeType(n);
+        let ctorName = if (n.constructorName != null) {
+          getNodeMemberName(n.constructorName as Node)
+        } else {
+          "<constructor>"
+        };
+        let ctorMethodKey = if (ctorName == "<constructor>") "<constructor>" else "<constructor>." + ctorName;
         if (neType is ClassType) {
           var resolved = resolveType(neType) as ClassType;
           // A body constructs what its EMISSION constructs. The erasure
@@ -869,7 +875,7 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
             resolved = eraseTypeParameters(this.pass.wasm, resolved) as ClassType;
           }
           specializer.instantiateClassType(resolved, model);
-          this.queueExplicitCtor(resolved);
+          this.queueExplicitCtor(resolved, ctorMethodKey);
         }
         // A resource `new` TYPES as its wrapper — `Own<C>` is an
         // OPAQUE type, so the arm above skips entirely — but it
@@ -879,7 +885,7 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
         if (calleeSym != null) {
           let calleeT = model.getBindingTypeById(calleeSym.resolveTarget().id);
           if (calleeT is ClassType) {
-            this.queueExplicitCtor(resolveType(calleeT) as ClassType);
+            this.queueExplicitCtor(resolveType(calleeT) as ClassType, ctorMethodKey);
           }
         }
       }
@@ -955,7 +961,7 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
    * node+class key, and its reachable branch promotes prior
    * checkable state).
    */
-  queueExplicitCtor(resolved: ClassType): void {
+  queueExplicitCtor(resolved: ClassType, ctorMethodKey: String = "<constructor>"): void {
     // A `new` site is the constructor's evidence. Declared ctors are
     // walked as member referrers; SYNTHESIZED ctors (no `new(...)` in
     // the class body, or registered after this walk) have no node —
@@ -976,11 +982,11 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
         continue;
       }
       this.pass.ctorDemandedGenerics.add((dc.genericSource ?? dc).symbolId);
-      if (isConcrete(dc)) {
-        this.pass.notePendingMemberReach(
-            getClassMethodKey(getClassKey(dc), "<constructor>"));
-      }
       demandCt = dc.superType;
+    }
+    if (isConcrete(resolved)) {
+      this.pass.notePendingMemberReach(
+          getClassMethodKey(getClassKey(resolved), ctorMethodKey));
     }
     let ctorDeclId = ((resolved.genericSource ?? resolved)).symbolId;
     if (!this.pass.classDecls.has(ctorDeclId)) {
@@ -991,9 +997,10 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
       return;
     }
     let cdModel = this.pass.classModels[ctorDeclId];
+    let targetName = if (ctorMethodKey == "<constructor>") "<constructor>" else if (ctorMethodKey.startsWith("<constructor>.")) ctorMethodKey.sliceBytes(14, ctorMethodKey.length) else ctorMethodKey;
     for (let member in cdNode.body) {
       if (member is MethodDefinition) {
-        if (ctorMethodName(member) == "<constructor>") {
+        if (member.isConstructor && ctorMethodName(member) == targetName) {
           this.pass.queueReferrer(new Referrer(false, noSymbolId,
               (member as Node).id as i32, cdModel, resolved, true));
         }
@@ -1516,7 +1523,7 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
         if (cdNode is ClassDeclaration) {
           let cdModel = this.pass.classModels[declId];
           for (let member in cdNode.body) {
-            if (member is MethodDefinition) {
+            if (member is MethodDefinition && !member.isConstructor) {
               if (ctorMethodName(member) == methName) {
                 if (typeArguments != null &&
                     typeArguments.length > 0) {
@@ -1579,7 +1586,7 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
       if (scopes[i] != scope) { continue; }
       let member = members[i];
       var name = "";
-      if (member is MethodDefinition) {
+      if (member is MethodDefinition && !member.isConstructor) {
         name = ctorMethodName(member);
       } else if (member is AccessorDeclaration) {
         name = accessorMemberName(member);
@@ -1716,6 +1723,12 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
       }
       if (n is NewExpression) {
         let neType = model.getNodeType(n);
+        let ctorName = if (n.constructorName != null) {
+          getNodeMemberName(n.constructorName as Node)
+        } else {
+          "<constructor>"
+        };
+        let ctorMethodKey = if (ctorName == "<constructor>") "<constructor>" else "<constructor>." + ctorName;
         if (neType is ClassType) {
           var resolved = resolveType(neType) as ClassType;
           // A body constructs what its EMISSION constructs. The erasure
@@ -1730,7 +1743,7 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
             resolved = eraseTypeParameters(this.pass.wasm, resolved) as ClassType;
           }
           specializer.instantiateClassType(resolved, model);
-          this.queueExplicitCtor(resolved);
+          this.queueExplicitCtor(resolved, ctorMethodKey);
         }
         // A resource `new` TYPES as its wrapper — `Own<C>` is an
         // OPAQUE type, so the arm above skips entirely — but it
@@ -1740,7 +1753,7 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
         if (calleeSym != null) {
           let calleeT = model.getBindingTypeById(calleeSym.resolveTarget().id);
           if (calleeT is ClassType) {
-            this.queueExplicitCtor(resolveType(calleeT) as ClassType);
+            this.queueExplicitCtor(resolveType(calleeT) as ClassType, ctorMethodKey);
           }
         }
       }
@@ -3058,6 +3071,18 @@ let matchOverloadForImport = (t1: Type, t2: Type): boolean => {
 
 let accessorMemberName = (acc: AccessorDeclaration): String => {
   return match (acc.name) {
+    case Identifier {name}: name
+    case SymbolPropertyName {symbolRef}: ":" + match (symbolRef) {
+      case Identifier {name}: name
+      case MemberExpression {property}: property.name
+      case _: "<symbol>"
+    }
+    case _: ""
+  };
+};
+
+let getNodeMemberName = (node: Node): String => {
+  return match (node) {
     case Identifier {name}: name
     case SymbolPropertyName {symbolRef}: ":" + match (symbolRef) {
       case Identifier {name}: name

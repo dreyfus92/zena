@@ -1351,6 +1351,30 @@ class Point3D extends Point {
 
 Only actual fields (not setters) can appear in initializer lists.
 
+### Named Constructors
+
+Classes can define multiple constructors by name. Named constructors are called with `new Class.name(...)`:
+
+```zena
+class Point {
+  x: i32;
+  y: i32;
+
+  new(this.x, this.y);
+
+  new origin()
+    : x = 0, y = 0;
+
+  new fromX(x: i32)
+    : x = x, y = 0;
+}
+
+let p1 = new Point.origin();
+let p2 = new Point.fromX(10);
+```
+
+Named constructors can also use private names (`new #name(...)`) or symbol names (`new [sym](...)`), and subclasses call them via `super.name(...)`. Named constructors share their namespace with static methods, and a class with only named constructors does not receive an implicit default constructor.
+
 ### Getters and Setters
 
 Accessors define computed properties. They can override inherited fields or

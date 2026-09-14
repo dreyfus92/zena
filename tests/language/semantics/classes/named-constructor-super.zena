@@ -1,0 +1,27 @@
+// @mode: check
+
+class Base {
+  x: i32;
+  new fromX(this.x);
+}
+
+class ChildOk extends Base {
+  y: i32;
+  new(this.y, x: i32) : super.fromX(x);
+}
+
+class ChildBadDefault extends Base {
+  y: i32;
+  new(this.y) : super(); // @error: Superclass 'Base' has no default constructor.
+}
+
+class ChildMissingSuper extends Base {
+  y: i32;
+  new(this.y); // @error: Constructors in derived classes must call super().
+}
+
+class ChildNoSuchCtor extends Base {
+  y: i32;
+  new(this.y) : super.nonExistent(); // @error: Constructor 'nonExistent' not found on superclass 'Base'.
+}
+

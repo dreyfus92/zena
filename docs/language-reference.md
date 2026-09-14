@@ -2843,6 +2843,85 @@ class Rect {
 When combined with an explicit initializer list, the `this.` assignments are applied
 first, then the explicit initializer list entries (which can override them).
 
+### Named Constructors
+
+Classes can declare multiple constructors by providing a name after `new`:
+
+```zena
+class Point {
+  x: i32;
+  y: i32;
+
+  new(this.x, this.y);
+
+  new origin()
+    : x = 0, y = 0;
+
+  new fromX(x: i32)
+    : x = x, y = 0;
+}
+```
+
+Call named constructors with `new ClassName.constructorName(...)`:
+
+```zena
+let p1 = new Point.origin();
+let p2 = new Point.fromX(10);
+```
+
+Named constructors also support private names (`#name`) and symbol names (`[name]`):
+
+```zena
+symbol fromByteArray;
+
+class String {
+  new #fromBytes(data: ByteArray) { ... }
+  new [fromByteArray](data: ByteArray) { ... }
+}
+
+let s1 = new String.[fromByteArray](bytes);
+```
+
+#### Calling Super Constructors
+
+A derived class can call a named superclass constructor using `super.name(...)` in its initializer list:
+
+```zena
+class Base {
+  x: i32;
+  new fromInt(this.x);
+}
+
+class Derived extends Base {
+  y: i32;
+  new(v: i32, this.y)
+    : super.fromInt(v);
+}
+```
+
+#### Namespace and Default Constructor Rules
+
+Named constructors share the class namespace with static members. Declaring a static member and a named constructor with the same name on the same class is an error:
+
+```zena
+class Foo {
+  static fromBar() { }
+  new fromBar() { } // Error: collision with static method
+}
+```
+
+If a class defines at least one named constructor and no explicit default constructor (`new(...)`), the compiler does not synthesize a default constructor:
+
+```zena
+class OnlyNamed {
+  x: i32;
+  new fromInt(this.x);
+}
+
+let a = new OnlyNamed.fromInt(10); // OK
+let b = new OnlyNamed();            // Error: class 'OnlyNamed' has no default constructor
+```
+
 ### Sealed Classes
 
 A `sealed` class restricts which classes can extend it. All variants must be

@@ -1,0 +1,15 @@
+// @mode: run
+// @result: 50
+class Counter {
+  var count: i32;
+
+  new fromInitial(initial: i32) : count = initial {
+    this.count += 10;
+  }
+}
+
+export let main = (): i32 => {
+  let c = new Counter.fromInitial(40);
+  return c.count;
+};
+

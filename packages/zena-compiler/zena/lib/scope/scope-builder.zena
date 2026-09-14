@@ -859,7 +859,7 @@ export final class ScopeBuilder {
           this.#processExpression(arg);
         }
       }
-      case NewExpression {callee, typeArguments, args}: {
+      case NewExpression {callee, typeArguments, args, constructorName}: {
         let info = this.#current.resolve(callee.name);
         if (info == null) {
           this.#unresolvedNames.push(new UnresolvedName(callee.name, callee));
@@ -870,6 +870,14 @@ export final class ScopeBuilder {
         if (typeArguments != null) {
           for (let typeArgument in typeArguments) {
             this.#processTypeAnnotation(typeArgument);
+          }
+        }
+        if (constructorName != null) {
+          match (constructorName) {
+            case SymbolPropertyName {symbolRef}: {
+              this.#processExpression(symbolRef);
+            }
+            case _: {}
           }
         }
         for (let arg in args) {
@@ -1080,7 +1088,15 @@ export final class ScopeBuilder {
           }
           if (md.superInitializer != null) {
             match (md.superInitializer) {
-              case SuperInitializer {args}: {
+              case SuperInitializer {args, constructorName}: {
+                if (constructorName != null) {
+                  match (constructorName) {
+                    case SymbolPropertyName {symbolRef}: {
+                      this.#processExpression(symbolRef);
+                    }
+                    case _: {}
+                  }
+                }
                 for (let arg in args) {
                   this.#processExpression(arg);
                 }

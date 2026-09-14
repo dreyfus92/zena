@@ -209,6 +209,7 @@ export sealed class Expression extends Node {
     callee: Identifier,
     typeArguments: GrowableArray<TypeAnnotation> | null,
     args: GrowableArray<Expression>,
+    constructorName: Node | null,
     loc?: SourceLocation)
 
   // Collection Literals
@@ -633,6 +634,7 @@ export final class MethodDefinition(
   isGenerator: boolean,
   isAsync: boolean,
   decorators: GrowableArray<Decorator>,
+  isConstructor: boolean,
   loc?: SourceLocation) extends Node
 
 // ============================================================================
@@ -665,6 +667,7 @@ export final class FieldInitializer(
 
 export final class SuperInitializer(
   args: GrowableArray<Expression>,
+  constructorName: Node | null,
   loc?: SourceLocation) extends Node
 
 // ============================================================================

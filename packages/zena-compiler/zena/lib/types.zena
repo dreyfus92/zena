@@ -323,6 +323,7 @@ export final class ClassType extends Type {
    */
   var members: OrderedMap<String, MemberInfo> = new OrderedMap<String, MemberInfo>();
   var constructorType: FunctionType | null = null;
+  var constructors: HashMap<String, FunctionType> = new HashMap<String, FunctionType>();
   var fieldSetterNames: HashMap<String, String> | null = null;
   var isFinal = false;
   var isCaseClass = false;
@@ -529,6 +530,23 @@ let substituteInType = (
         } else {
           null
         };
+        inst.constructors = new HashMap<String, FunctionType>();
+        for (let entry in ct.constructors) {
+          let ctorName = entry.key;
+          let ctor = entry.value;
+          let newParams = new GrowableArray<Type>();
+          for (let p in ctor.parameters) {
+            let sub = substituteInType(p, combinedParams, combinedArgs);
+            newParams.push((sub ?? p));
+          }
+          let newFt = new FunctionType(newParams, ctor.parameterNames, ctor.returnType);
+          newFt.parameterInitializers = ctor.parameterInitializers;
+          newFt.parameterSymbols = ctor.parameterSymbols;
+          newFt.optionalParameters = ctor.optionalParameters;
+          newFt.functionSymbolId = ctor.functionSymbolId;
+          newFt.functionSymbolName = ctor.functionSymbolName;
+          inst.constructors[ctorName] = newFt;
+        }
         inst.fieldSetterNames = ct.fieldSetterNames;
         inst.isFinal = ct.isFinal;
         inst.isCaseClass = ct.isCaseClass;
@@ -946,6 +964,23 @@ export let instantiateClassType = (
   } else {
     null
   };
+  result.constructors = new HashMap<String, FunctionType>();
+  for (let entry in source.constructors) {
+    let ctorName = entry.key;
+    let ctor = entry.value;
+    let newParams = new GrowableArray<Type>();
+    for (let p in ctor.parameters) {
+      let sub = substituteInType(p, source.typeParameters, typeArguments);
+      newParams.push((sub ?? p));
+    }
+    let newFt = new FunctionType(newParams, ctor.parameterNames, ctor.returnType);
+    newFt.parameterInitializers = ctor.parameterInitializers;
+    newFt.parameterSymbols = ctor.parameterSymbols;
+    newFt.optionalParameters = ctor.optionalParameters;
+    newFt.functionSymbolId = ctor.functionSymbolId;
+    newFt.functionSymbolName = ctor.functionSymbolName;
+    result.constructors[ctorName] = newFt;
+  }
   result.fieldSetterNames = source.fieldSetterNames;
   result.isFinal = source.isFinal;
   result.isCaseClass = source.isCaseClass;

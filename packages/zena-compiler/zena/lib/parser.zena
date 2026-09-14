@@ -2245,6 +2245,25 @@ export final class Parser {
         this.#consumeGreater("Expected '>' after type arguments");
         typeArguments = args;
       }
+      var constructorName: Node | null = null;
+      if (this.#match(TokenType.Dot)) {
+        if (this.#match(TokenType.Hash)) {
+          let hashToken = this.#previous();
+          let id = this.#parseIdentifier();
+          constructorName = new Identifier("#" + id.name, this.#makeLocation(hashToken));
+        } else if (this.#match(TokenType.LBracket)) {
+          let colStart = this.#previous();
+          var symbolExpr: Expression = this.#parseIdentifier();
+          while (this.#match(TokenType.Dot)) {
+            let prop = this.#parseIdentifier();
+            symbolExpr = new MemberExpression(symbolExpr, prop, false, false, null, this.#makeLocation(colStart));
+          }
+          this.#consume(TokenType.RBracket, "Expected ']' after symbol name");
+          constructorName = new SymbolPropertyName(symbolExpr, this.#makeLocation(colStart));
+        } else {
+          constructorName = this.#parseIdentifier();
+        }
+      }
       this.#consume(TokenType.LParen, "Expected '(' after class name");
       let args = new GrowableArray<Expression>(4);
       if (!this.#check(TokenType.RParen)) {
@@ -2254,7 +2273,7 @@ export final class Parser {
         }
       }
       this.#consume(TokenType.RParen, "Expected ')' after arguments");
-      return new NewExpression(callee, typeArguments, args, this.#makeLocation(startToken));
+      return new NewExpression(callee, typeArguments, args, constructorName, this.#makeLocation(startToken));
     }
     
     // Identifier (including contextual keywords)
@@ -3380,10 +3399,39 @@ export final class Parser {
       }
     }
     
-    // Constructor: new(...)
+    // Constructor: new(...) or new fromBar(...) or new #fromByteArray(...) or new [fromByteArray](...)
     if (this.#check(TokenType.New)) {
       this.#advance();
-      return this.#parseMethodBody(new Identifier('<constructor>', this.#makeLocation(startToken)), null, isFinal, isAbstract, isDeclare, isStatic, isGen, isAsyncM, decorators, startToken);
+      if (isFinal) {
+        throw this.#error("Constructors cannot be final");
+      }
+      if (isAbstract) {
+        throw this.#error("Constructors cannot be abstract");
+      }
+      if (isDeclare) {
+        throw this.#error("Constructors cannot be declared 'declare'");
+      }
+      let ctorName: Node = if (this.#check(TokenType.LParen)) {
+        new Identifier('<constructor>', this.#makeLocation(startToken))
+      } else if (this.#match(TokenType.Hash)) {
+        let hashToken = this.#previous();
+        let id = this.#parseIdentifier();
+        new Identifier('#' + id.name, this.#makeLocation(hashToken))
+      } else if (this.#match(TokenType.LBracket)) {
+        let symStart = this.#previous();
+        var symbolExpr: Expression = this.#parseIdentifier();
+        while (this.#match(TokenType.Dot)) {
+          let prop = this.#parseIdentifier();
+          symbolExpr = new MemberExpression(symbolExpr, prop, false, false, null, this.#makeLocation(symStart));
+        }
+        this.#consume(TokenType.RBracket, "Expected ']' after symbol name");
+        new SymbolPropertyName(symbolExpr, this.#makeLocation(symStart))
+      } else if (this.#isIdentifier()) {
+        this.#parseIdentifier()
+      } else {
+        throw this.#error("Expected '(' or constructor name after 'new'");
+      };
+      return this.#parseMethodBody(ctorName, null, isFinal, isAbstract, isDeclare, isStatic, isGen, isAsyncM, decorators, startToken, true);
     }
     
     // Operator method: operator ==(other), operator [](index), operator +(other)
@@ -3399,7 +3447,7 @@ export final class Parser {
           opName = "[]=";
         }
         let identifier = new Identifier(opName, this.#makeLocation(opStart));
-        return this.#parseMethodBody(identifier, null, isFinal, isAbstract, isDeclare, isStatic, isGen, isAsyncM, decorators, startToken);
+        return this.#parseMethodBody(identifier, null, isFinal, isAbstract, isDeclare, isStatic, isGen, isAsyncM, decorators, startToken, false);
       }
       
       // Other operators (==, +, -, etc.)
@@ -3410,7 +3458,7 @@ export final class Parser {
         opName = "==";
       }
       let identifier = new Identifier(opName, this.#makeLocation(opStart));
-      return this.#parseMethodBody(identifier, null, isFinal, isAbstract, isDeclare, isStatic, isGen, isAsyncM, decorators, startToken);
+      return this.#parseMethodBody(identifier, null, isFinal, isAbstract, isDeclare, isStatic, isGen, isAsyncM, decorators, startToken, false);
     }
     
     // Private field/method: #name
@@ -3421,13 +3469,13 @@ export final class Parser {
       
       // Private method: #name(params) { ... }
       if (this.#check(TokenType.LParen)) {
-        return this.#parseMethodBody(hashName, null, isFinal, isAbstract, isDeclare, isStatic, isGen, isAsyncM, decorators, startToken);
+        return this.#parseMethodBody(hashName, null, isFinal, isAbstract, isDeclare, isStatic, isGen, isAsyncM, decorators, startToken, false);
       }
       // Generic private method: #name<T>(params) { ... }
       if (this.#check(TokenType.Less) && this.#isGenericMethodStart()) {
         this.#advance(); // consume '<'
         let typeParams = this.#parseTypeParameterList();
-        return this.#parseMethodBody(hashName, typeParams, isFinal, isAbstract, isDeclare, isStatic, isGen, isAsyncM, decorators, startToken);
+        return this.#parseMethodBody(hashName, typeParams, isFinal, isAbstract, isDeclare, isStatic, isGen, isAsyncM, decorators, startToken, false);
       }
       if (isGen || isAsyncM) {
         throw this.#error("Expected '(' after generator/async method name");
@@ -3476,7 +3524,7 @@ export final class Parser {
       
       // Symbol-keyed method: [name](params) { ... }
       if (this.#check(TokenType.LParen)) {
-        return this.#parseMethodBody(symPropName, null, isFinal, isAbstract, isDeclare, isStatic, isGen, isAsyncM, decorators, startToken);
+        return this.#parseMethodBody(symPropName, null, isFinal, isAbstract, isDeclare, isStatic, isGen, isAsyncM, decorators, startToken, false);
       }
       if (isGen || isAsyncM) {
         throw this.#error("Expected '(' after generator/async method name");
@@ -3505,12 +3553,12 @@ export final class Parser {
     if (this.#check(TokenType.Less) && this.#isGenericMethodStart()) {
       this.#advance(); // consume '<'
       let typeParams = this.#parseTypeParameterList();
-      return this.#parseMethodBody(name, typeParams, isFinal, isAbstract, isDeclare, isStatic, isGen, isAsyncM, decorators, startToken);
+      return this.#parseMethodBody(name, typeParams, isFinal, isAbstract, isDeclare, isStatic, isGen, isAsyncM, decorators, startToken, false);
     }
     
     // Method: name(params) { ... }
     if (this.#check(TokenType.LParen)) {
-      return this.#parseMethodBody(name, null, isFinal, isAbstract, isDeclare, isStatic, isGen, isAsyncM, decorators, startToken);
+      return this.#parseMethodBody(name, null, isFinal, isAbstract, isDeclare, isStatic, isGen, isAsyncM, decorators, startToken, false);
     }
     if (isGen || isAsyncM) {
       throw this.#error("Expected '(' after generator/async method name");
@@ -3634,7 +3682,7 @@ export final class Parser {
     return new AccessorDeclaration(name, typeAnnotation, getter, setter, isFinal, isStatic, decorators, this.#makeLocation(startToken));
   }
   
-  #parseMethodBody(name: Node, typeParameters: GrowableArray<TypeParameter> | null, isFinal: boolean, isAbstract: boolean, isDeclare: boolean, isStatic: boolean, isGenerator: boolean, isAsync: boolean, decorators: GrowableArray<Decorator>, startToken: Token): MethodDefinition {
+  #parseMethodBody(name: Node, typeParameters: GrowableArray<TypeParameter> | null, isFinal: boolean, isAbstract: boolean, isDeclare: boolean, isStatic: boolean, isGenerator: boolean, isAsync: boolean, decorators: GrowableArray<Decorator>, startToken: Token, isConstructor: boolean): MethodDefinition {
     this.#consume(TokenType.LParen, "Expected '(' after method name");
 
     // An explicitly declared receiver: `dispose(this: Own<this>)`. It leads
@@ -3674,10 +3722,6 @@ export final class Parser {
     if (this.#match(TokenType.Colon)) {
       // Check for initializer list (: field = value, ...) vs return type
       // If this is a constructor, the colon starts an initializer list
-      let isConstructor = match (name) {
-        case Identifier { name }: name == "<constructor>"
-        case _: false
-      };
       if (isConstructor) {
         // Parse initializer list
         let initList = new GrowableArray<Node>(4);
@@ -3725,7 +3769,7 @@ export final class Parser {
           initListResult = combined;
         }
         
-        return new MethodDefinition(name, typeParameters, receiver, params, null, body, initListResult, superInit, isFinal, isAbstract, isStatic, isDeclare, isGenerator, isAsync, decorators, this.#makeLocation(startToken));
+        return new MethodDefinition(name, typeParameters, receiver, params, null, body, initListResult, superInit, isFinal, isAbstract, isStatic, isDeclare, isGenerator, isAsync, decorators, true, this.#makeLocation(startToken));
       } else {
         returnType = this.#parseTypeAnnotation();
       }
@@ -3749,7 +3793,7 @@ export final class Parser {
       thisInitResult = thisInits;
     }
     
-    return new MethodDefinition(name, typeParameters, receiver, params, returnType, body, thisInitResult, null, isFinal, isAbstract, isStatic, isDeclare, isGenerator, isAsync, decorators, this.#makeLocation(startToken));
+    return new MethodDefinition(name, typeParameters, receiver, params, returnType, body, thisInitResult, null, isFinal, isAbstract, isStatic, isDeclare, isGenerator, isAsync, decorators, isConstructor, this.#makeLocation(startToken));
   }
   
   #parseFieldInitializer(): FieldInitializer {
@@ -3770,6 +3814,25 @@ export final class Parser {
   #parseSuperInitializer(): SuperInitializer {
     let superStart = this.#peek();
     this.#consume(TokenType.Super, "Expected 'super'");
+    var constructorName: Node | null = null;
+    if (this.#match(TokenType.Dot)) {
+      if (this.#match(TokenType.Hash)) {
+        let hashToken = this.#previous();
+        let id = this.#parseIdentifier();
+        constructorName = new Identifier("#" + id.name, this.#makeLocation(hashToken));
+      } else if (this.#match(TokenType.LBracket)) {
+        let colStart = this.#previous();
+        var symbolExpr: Expression = this.#parseIdentifier();
+        while (this.#match(TokenType.Dot)) {
+          let prop = this.#parseIdentifier();
+          symbolExpr = new MemberExpression(symbolExpr, prop, false, false, null, this.#makeLocation(colStart));
+        }
+        this.#consume(TokenType.RBracket, "Expected ']' after symbol name");
+        constructorName = new SymbolPropertyName(symbolExpr, this.#makeLocation(colStart));
+      } else {
+        constructorName = this.#parseIdentifier();
+      }
+    }
     this.#consume(TokenType.LParen, "Expected '(' after super");
     let args = new GrowableArray<Expression>(4);
     if (!this.#check(TokenType.RParen)) {
@@ -3779,7 +3842,7 @@ export final class Parser {
       }
     }
     this.#consume(TokenType.RParen, "Expected ')' after super arguments");
-    return new SuperInitializer(args, this.#makeLocation(superStart));
+    return new SuperInitializer(args, constructorName, this.#makeLocation(superStart));
   }
   
   // ==========================================================================

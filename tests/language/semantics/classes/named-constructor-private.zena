@@ -1,0 +1,15 @@
+// @mode: check
+
+class Secret {
+  x: i32;
+
+  new #priv(this.x);
+
+  static make(x: i32): Secret {
+    return new Secret.#priv(x);
+  }
+}
+
+let s1 = Secret.make(42);
+let s2 = new Secret.#priv(10); // @error: Private constructor '#priv' can only be accessed within class 'Secret'.
+
