@@ -449,7 +449,7 @@ also mean both sides missed. They live as workload pairs under
 `benchmarks/workloads/`, next to the frozen hand-written WAT baselines
 that anchor absolute cost.
 
-**P1 — `map` fusion.** `arr.map(x => ...)` against the handwritten
+**P1 — `map` fusion.** `arr.map((x) => ...)` against the handwritten
 loop that allocates the result array and fills it. `Array` being an
 interface puts receiver devirtualization at the front of the chain:
 devirtualize `map` on the fat pointer's provenance, inline it,

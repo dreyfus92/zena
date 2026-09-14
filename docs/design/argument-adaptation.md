@@ -51,7 +51,7 @@ This feature introduces overhead compared to a direct matching call.
 
 - **Impact**: Low to Moderate.
 - **Detail**: A new closure struct is allocated on the heap for the adapter. This happens every time the adaptation expression is evaluated.
-  - _Example_: If `arr.map(x => x)` is called inside a loop, a new adapter struct is allocated in each iteration.
+  - _Example_: If `arr.map((x) => x)` is called inside a loop, a new adapter struct is allocated in each iteration.
 
 ### 2. Execution Overhead (Runtime)
 
@@ -70,7 +70,7 @@ This feature introduces overhead compared to a direct matching call.
 ## Optimization Advice
 
 - **Prefer Exact Signatures**: For performance-critical loops, ensure function signatures match exactly to avoid the adapter overhead.
-  - _Slow_: `arr.map(x => x)`
+  - _Slow_: `arr.map((x) => x)`
   - _Fast_: `arr.map((x, _i, _a) => x)`
 - **Static Analysis**: This overhead **only** applies when the arity mismatch is detected statically. It does not affect dynamic dispatch or standard calls where arity matches.
 

@@ -257,14 +257,14 @@ To add a page: add it to the sidebar with an `outline`, then run
   - Definite assignment
   - Shadowing
   - Destructuring bindings
-- 📝 [Functions](src/reference/functions.md) — `/reference/functions/`
-  - Function declarations and arrows
-  - Parameters and arguments
-  - Default and optional parameters
-  - Arity adaptation
-  - Return types
+- ✅ [Functions](src/reference/functions.md) — `/reference/functions/`
+  - Function declarations and arrow functions
+  - Parameters
+  - Types and signatures
   - Closures
-  - Generic functions
+  - Tail calls
+  - Generator functions
+  - Async functions
 - 📝 [Expressions](src/reference/expressions.md) — `/reference/expressions/`
   - Evaluation order
   - Block expressions
@@ -627,4 +627,4 @@ To add a page: add it to the sidebar with an `outline`, then run
 
 ---
 
-34 of 95 pages written; 61 still placeholders.
+35 of 95 pages written; 60 still placeholders.

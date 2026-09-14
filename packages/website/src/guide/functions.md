@@ -122,7 +122,7 @@ signature, parameter types are inferred from context and can be omitted:
 let numbers = [1, 2, 3, 4];
 
 // Parameter 'x' is inferred as i32 from Array<i32>.map
-let doubled = numbers.map(x => x * 2);
+let doubled = numbers.map((x) => x * 2);
 ```
 
 ### Default parameters
@@ -202,7 +202,7 @@ let items = ['a', 'b', 'c'];
 
 // Array.forEach passes (item: String, index: i32, array: Array<String>)
 // The callback only takes 1 argument; extra arguments are safely ignored:
-items.forEach(item => {
+items.forEach((item) => {
   console.log(item);
 });
 ```
