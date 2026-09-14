@@ -27,7 +27,7 @@ import { WatGenerator } from '../lib/codegen/wat-generator.zena';
 import { Program, CompilationUnit } from '../lib/program.zena';
 import {
   isKebabName, toKebabName, ComponentShape, ComponentImportFunc,
-  ComponentFuncType
+  ComponentFuncType, componentEntryExport
 } from '../lib/codegen/component-emitter.zena';
 import {
   deriveImportsWit, encodeImportTypes, makeImportEncoder
@@ -313,17 +313,20 @@ export let tests = suite('Component emission', (): void => {
     // the host two entry points that mean different things — and the
     // one it would reach for returns before the timers it armed have
     // fired.
-    let exportSection = sectionPayload(
-        compileFor(`${fixtures}/timer.zena`, 'component'), 11);
-    isTrue(containsName(exportSection, 'run'),
-      'the timer component does not export `run`');
-    isTrue(!containsName(exportSection, 'main'),
-      'the timer component still exports `main` beside its async entry');
+    // The entry keeps the name `main` either way; what tells the two
+    // apart is the core export the async entry is lifted from, which
+    // the embedded core module names verbatim.
+    let timer = compileFor(`${fixtures}/timer.zena`, 'component');
+    isTrue(containsName(sectionPayload(timer, 11), 'main'),
+      'the timer component does not export `main`');
+    isTrue(containsName(timer, componentEntryExport),
+      'the timer component is not entered through the async entry');
     // The synchronous case is unchanged: no driver, no async entry.
-    let plain = sectionPayload(
-        compileFor(`${fixtures}/clock.zena`, 'component'), 11);
-    isTrue(containsName(plain, 'main'),
+    let plain = compileFor(`${fixtures}/clock.zena`, 'component');
+    isTrue(containsName(sectionPayload(plain, 11), 'main'),
       'a component with no async driver does not export `main`');
+    isTrue(!containsName(plain, componentEntryExport),
+      'a component with no async driver was given the async entry');
   });
 
   test('an async main with a value returns it through a typed task.return',
@@ -335,8 +338,10 @@ export let tests = suite('Component emission', (): void => {
     // once main's future settles. The core module imports that
     // declaration under its own name, beside the driver's bare one.
     let bytes = compileFor(`${fixtures}/exit-value.zena`, 'component');
-    isTrue(containsName(sectionPayload(bytes, 11), 'run'),
-      'the valued async entry is not exported as `run`');
+    isTrue(containsName(sectionPayload(bytes, 11), 'main'),
+      'the valued async entry is not exported as `main`');
+    isTrue(containsName(bytes, componentEntryExport),
+      'the valued main is not entered through the async entry');
     isTrue(containsName(bytes, 'task.return#main'),
       'the typed task.return for main is not imported');
     // The entry's lifted type: async (0x43), no params, one result,
@@ -903,7 +908,7 @@ world only {
       'the rich-parameter async wrapper is wrong:\n' + source);
     // And the consumer awaiting both compiles to a component.
     let bytes = compileFor(`${fixtures}/fetch-wit.zena`, 'component');
-    isTrue(containsName(sectionPayload(bytes, 11), 'run'),
+    isTrue(containsName(bytes, componentEntryExport),
       'an awaiting program should be entered through the async entry');
   });
 
@@ -1190,7 +1195,7 @@ world only {
     // gate must open for either door, or the entry stays sync-lifted
     // and stream events are never dispatched.
     let bytes = compileFor(`${fixtures}/pipe.zena`, 'component');
-    isTrue(containsName(sectionPayload(bytes, 11), 'run'),
+    isTrue(containsName(bytes, componentEntryExport),
       'a stream-awaiting program should be entered through the ' +
       'async entry');
   });
@@ -1271,17 +1276,16 @@ world only {
     // `wait-for` is `async` in the package's WIT, so the synthesized
     // module is the raw async-lowered declaration plus a `Future<void>`
     // wrapper over `awaitPacked`, and awaiting it roots the driver:
-    // the program is entered through the callback-lifted `run`. The
-    // hand-transcribed spelling (wait-ext.zena) must land in the same
-    // place.
+    // the program is entered through the callback-lifted entry, under
+    // `main`. The hand-transcribed spelling (wait-ext.zena) must land
+    // in the same place.
     let viaWit = compileFor(`${fixtures}/wait-wit.zena`, 'component');
-    let witExports = sectionPayload(viaWit, 11);
-    isTrue(containsName(witExports, 'run'),
+    isTrue(containsName(viaWit, componentEntryExport),
       'the WIT-typed async import did not produce the async entry');
-    isTrue(!containsName(witExports, 'main'),
-      'the async entry should replace main');
+    isTrue(containsName(sectionPayload(viaWit, 11), 'main'),
+      'the async entry should be exported as main');
     let viaExternal = compileFor(`${fixtures}/wait-ext.zena`, 'component');
-    isTrue(containsName(sectionPayload(viaExternal, 11), 'run'),
+    isTrue(containsName(viaExternal, componentEntryExport),
       'the hand-spelled async import did not produce the async entry');
   });
 
@@ -1293,11 +1297,10 @@ world only {
     // must not root it: only a program that actually awaits an
     // async-lowered import gets the callback-lifted entry, and this one
     // keeps its synchronous `main(): u64`.
-    let exports = sectionPayload(
-        compileFor(`${fixtures}/clock-wit.zena`, 'component'), 11);
-    isTrue(containsName(exports, 'main'),
+    let bytes = compileFor(`${fixtures}/clock-wit.zena`, 'component');
+    isTrue(containsName(sectionPayload(bytes, 11), 'main'),
       'a program that awaits nothing lost its synchronous main');
-    isTrue(!containsName(exports, 'run'),
+    isTrue(!containsName(bytes, componentEntryExport),
       'a program that awaits nothing was given the async entry');
   });
 

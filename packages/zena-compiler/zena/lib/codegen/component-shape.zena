@@ -414,9 +414,12 @@ export let buildComponentShape = (
   }
 
   // The async entry, where the program links a driver that needs one.
-  // It replaces `main` rather than joining it: `main` on its own would
-  // return before the timers it armed have fired, and lifting both
-  // would offer the host two entry points that mean different things.
+  // It replaces `main` rather than joining it, and takes its name:
+  // `main` on its own would return before the timers it armed have
+  // fired, and lifting both would offer the host two entry points that
+  // mean different things. So a program is always entered as `main`,
+  // and whether that is the synchronous lift or the callback-lifted
+  // entry is the compiler's business.
   let entry = wasm.componentEntryFunc;
   if (entry != null) {
     let callback = wasm.componentCallbackFunc;
@@ -434,7 +437,7 @@ export let buildComponentShape = (
       entryResult = wasm.componentEntryResult;
     }
     shape.exports.push(new ComponentExportFunc(
-      componentEntryExport, "run",
+      componentEntryExport, "main",
       new ComponentFuncType(new GrowableArray<i32>(), new GrowableArray<String>(),
           entryResult, true),
       componentCallbackExport));

@@ -303,7 +303,7 @@ memory and the allocator, and the program module imports both:
 ```
 
 ```
-$ wasmtime run --invoke 'run()' e3.wasm
+$ wasmtime run --invoke 'main()' e3.wasm
 written from memory the program allocated itself
 "written from memory the program allocated itself"
 ```
@@ -389,7 +389,7 @@ method — and that the main module imports its memory from `$memmod`:
 ```
 
 ```
-$ wasmtime run -W gc=y,function-references=y -S p3=y --invoke "run()" out.wasm
+$ wasmtime run -W gc=y,function-references=y -S p3=y --invoke "main()" out.wasm
 native p2 stdio, no adapter, no shim
 5650236
 ```

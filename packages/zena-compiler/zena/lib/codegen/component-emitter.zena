@@ -205,9 +205,11 @@ export let canonNamespace = "canon";
 
 /**
  * The core export names of the async entry and its callback. Internal
- * to the toolchain: the component exports the entry under its own name
- * ("run"), and the callback is not exported at the component level at
- * all — the host reaches it only through the lift's `callback` option.
+ * to the toolchain: the component exports the entry as `main` — the
+ * program's `main` is what it runs, so the name the host calls does
+ * not change with how it is lifted — and the callback is not exported
+ * at the component level at all; the host reaches it only through the
+ * lift's `callback` option.
  */
 export let componentEntryExport = "__zena_component_run";
 export let componentCallbackExport = "__zena_component_callback";

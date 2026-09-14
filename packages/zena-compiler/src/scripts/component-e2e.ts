@@ -219,7 +219,7 @@ const FIXTURES: Fixture[] = [
     // test.
     invocations: [
       {
-        invoke: 'run()',
+        invoke: 'main()',
         expect: '()',
         expectOutput: ['before the sleep', 'after the sleep'],
         minWallMs: 40,
@@ -252,7 +252,7 @@ const FIXTURES: Fixture[] = [
     // and two writes force partial drains on both sides.
     invocations: [
       {
-        invoke: 'run()',
+        invoke: 'main()',
         expect: '()',
         expectOutput: ['round trip ok'],
       },
@@ -269,9 +269,9 @@ const FIXTURES: Fixture[] = [
     serve: [18923, 'hello from the host'],
     invocations: [
       {
-        invoke: 'run()',
+        invoke: 'main()',
         expect: '()',
-        expectOutput: ['200', 'body ok'],
+        expectOutput: ['200', 'content-type: text/plain', 'body ok'],
       },
     ],
   },
@@ -284,7 +284,7 @@ const FIXTURES: Fixture[] = [
     // printed value crossed linear memory.
     invocations: [
       {
-        invoke: 'run()',
+        invoke: 'main()',
         expect: '()',
         expectOutput: ['42'],
       },
@@ -328,7 +328,7 @@ const FIXTURES: Fixture[] = [
     // u32`, and the value reaches the host through a typed
     // `task.return` issued from the callback re-entry after the timer
     // fires — not from the call that started main.
-    invocations: [{invoke: 'run()', expect: '42'}],
+    invocations: [{invoke: 'main()', expect: '42'}],
   },
   {
     name: 'clock',
@@ -341,12 +341,12 @@ const FIXTURES: Fixture[] = [
   {
     name: 'timer',
     wasi: ['p3=y'],
-    // The entry is lifted async with a callback, so `run` is the
-    // component's name for it rather than `main`. It returns nothing:
-    // the guest hands control back to the host while the timer runs.
+    // The entry is lifted async with a callback, still under the name
+    // `main`. It returns nothing: the guest hands control back to the
+    // host while the timer runs.
     invocations: [
       {
-        invoke: 'run()',
+        invoke: 'main()',
         expect: '()',
         minWallMs: 900,
         maxCpuFraction: 0.5,
