@@ -489,6 +489,7 @@ const reference = [
       'Type annotations',
       'Definite assignment',
       'Shadowing',
+      'Destructuring bindings',
     ],
   },
   {

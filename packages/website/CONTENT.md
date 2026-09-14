@@ -250,12 +250,13 @@ To add a page: add it to the sidebar with an `outline`, then run
   - Library resolution
   - Packages and manifests
   - Initialization order
-- 📝 [Variables](src/reference/variables.md) — `/reference/variables/`
+- ✅ [Variables](src/reference/variables.md) — `/reference/variables/`
   - let
   - var
   - Type annotations
   - Definite assignment
   - Shadowing
+  - Destructuring bindings
 - 📝 [Functions](src/reference/functions.md) — `/reference/functions/`
   - Function declarations and arrows
   - Parameters and arguments
@@ -626,4 +627,4 @@ To add a page: add it to the sidebar with an `outline`, then run
 
 ---
 
-33 of 95 pages written; 62 still placeholders.
+34 of 95 pages written; 61 still placeholders.
