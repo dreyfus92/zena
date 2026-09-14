@@ -74,7 +74,7 @@ let {x, y} = origin;  // destructuring
 for (let item in items) { ... }
 if (let Some {value} = maybeVal) { ... }
 
-// Modules: ES-style imports/exports
+// Libraries: ES-style imports/exports
 import {Map} from 'zena:collections';
 export function main(): i32 { return 0; }
 ```

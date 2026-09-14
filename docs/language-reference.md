@@ -970,7 +970,7 @@ See `docs/design/tail-calls.md`.
 ### Function Declarations
 
 A `function` declaration binds a name to a function at the top level of a
-module. It is a statement, not an expression, so its body must be a block.
+library. It is a statement, not an expression, so its body must be a block.
 
 ```zena
 function add(a: i32, b: i32): i32 {
@@ -986,15 +986,15 @@ export function main(): i32 {
 
 This is the one semantic difference, and the reason the form exists: **a
 `function` declaration can never be a closure.** Its body can reach only its
-own parameters, its own locals, and module-level bindings (globals, imports,
+own parameters, its own locals, and library-level bindings (globals, imports,
 classes). There is nothing else in scope, because a `function` may only appear
-at the top level of a module — writing one inside another function or a block
+at the top level of a library — writing one inside another function or a block
 is an error:
 
 ```zena
 let makeCounter = (start: i32) => {
   function bad(): i32 {   // Error: 'function' declarations may only appear
-    return start;         //        at the top level of a module.
+    return start;         //        at the top level of a library.
   }
   return bad;
 };
@@ -3336,7 +3336,7 @@ Subclasses can also add new overloads not present in the base class.
 
 ### Extension Classes
 
-Extension classes allow adding methods to existing types. This is useful for extending built-in types or types from other modules without modifying their definition.
+Extension classes allow adding methods to existing types. This is useful for extending built-in types or types from other libraries without modifying their definition.
 
 ```zena
 extension class ArrayExtensions<T> on array<T> {
@@ -3432,7 +3432,7 @@ let it = list.[Iterable.iterator]();
 - **No Collisions**: Two interfaces can define methods with the same _name_ but
   different _symbols_, allowing a class to implement both without conflict.
 - **Access Control**: Visibility is controlled via standard `export` rules. If a
-  symbol is not exported, it cannot be used outside the module.
+  symbol is not exported, it cannot be used outside the library.
 - **Distinct from Indexing**: The `[symbol]` declaration and `.[symbol]` access
   syntax is distinct from operator `[]` definitions (`operator []`) and indexing
   access (`obj[expr]`), avoiding ambiguity.
@@ -3792,11 +3792,11 @@ This enables a class to implement an interface (e.g. `Iterable<T>`) **via** a mi
 2. The mixin is applied, injecting the required implementation methods.
 3. The compiler validates that the class has implemented all members of the interface, which succeeds because of the injected mixin methods.
 
-## 8. Modules & Exports
+## 8. Libraries & Exports
 
 ### Imports
 
-Modules bring exported names from other files into scope using the `import` keyword:
+Libraries bring exported names from other files into scope using the `import` keyword:
 
 ```zena
 // Import named bindings
@@ -3811,7 +3811,7 @@ import * as math from 'zena:math';
 
 #### Namespace Imports
 
-A namespace import (`import * as x`) defines a read-only variable `x` whose type is a structural **`RecordType`** containing all of the value exports of the imported module as properties.
+A namespace import (`import * as x`) defines a read-only variable `x` whose type is a structural **`RecordType`** containing all of the value exports of the imported library as properties.
 
 Since namespace variables are compiled as standard structural records:
 
@@ -3821,7 +3821,7 @@ Since namespace variables are compiled as standard structural records:
 ### Exports
 
 Top-level declarations (variables, functions, classes) can be exported using the
-`export` keyword. This exposes them to other modules or the host environment.
+`export` keyword. This exposes them to other libraries or the host environment.
 
 ```zena
 // Export a function
@@ -3854,7 +3854,7 @@ functions (or other WASM modules).
 
 #### Re-exports
 
-Symbols can be re-exported from other modules using `export { ... } from` or
+Symbols can be re-exported from other libraries using `export { ... } from` or
 `export * from`:
 
 ```zena
@@ -3864,7 +3864,7 @@ export { Point, distance } from './geometry.zena';
 // Re-export with alias
 export { helper as util } from './helpers.zena';
 
-// Re-export all exports from a module
+// Re-export all exports from a library
 export * from './types.zena';
 ```
 
@@ -4642,7 +4642,7 @@ A minimal Zena program can compile to as few as 41 bytes.
 ## 15. Grammar (Simplified)
 
 ```ebnf
-Module ::= Statement*
+Library ::= Statement*
 
 Statement ::= ExportStatement | VariableDeclaration | UsingStatement | ExpressionStatement | BlockStatement | ReturnStatement | BreakStatement | ContinueStatement | IfStatement | WhileStatement | ForStatement
 

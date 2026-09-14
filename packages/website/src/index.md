@@ -571,7 +571,7 @@ provide fallback for missing values.
   <summary>SIMD</summary>
 
 Zena provides direct access to 128-bit SIMD vector instructions through the `v128`
-primitive type and the `zena:simd` standard library module. Over 200 fixed-width SIMD
+primitive type and the `zena:simd` standard library. Over 200 fixed-width SIMD
 instructions—including `i32x4`, `f32x4`, `f64x2`, lanes, shuffles, and bitwise
 operations—map directly to WebAssembly SIMD bytecode.
 
@@ -854,7 +854,7 @@ happen frequently.
     <table>
       <thead>
         <tr>
-          <th>Module</th>
+          <th>Library</th>
           <th>Status</th>
         </tr>
       </thead>

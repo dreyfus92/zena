@@ -58,7 +58,7 @@ still open to change — nothing in Zena is frozen yet.
 ## Quick links
 
 - [Comments](/reference/comments/) — comments and documentation syntax
-- [Libraries](/reference/libraries/) — directories, entry points, and modules
+- [Libraries](/reference/libraries/) — source files, entry points, imports, and packages
 - [Type system overview](/reference/types/) — how the type system fits together
 - [Numbers](/reference/numbers/) — integers, floats, and numeric semantics
 - [Strings](/reference/strings/) — string literals, template interpolation, and encodings

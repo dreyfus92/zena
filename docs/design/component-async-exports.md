@@ -130,8 +130,8 @@ nothing triggers. The fix is a self-wake channel:
   a bare `future`, the one payload shape currently refused, or a
   `future<u8>` written with a byte if bare futures stay refused).
 - Whoever's drain completes the program's work thereby fires B's wake
-  future — the host delivers B's FUTURE_READ event, B's callback runs
-  _as B_, finds the stored result, lowers it through `task.return`,
+  future — the host delivers B's FUTURE*READ event, B's callback runs
+  \_as B*, finds the stored result, lowers it through `task.return`,
   and returns EXIT.
 
 A task that completes without ever suspending skips all of this: the

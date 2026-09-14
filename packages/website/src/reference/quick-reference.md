@@ -69,14 +69,14 @@ if (x > 0) {
 let y = if (x > 0) 1 else 2;  // Required (expression context)
 ```
 
-## Modules
+## Libraries
 
-Every Zena source file is a module. Modules provide namespacing and control
+Every Zena source file is a library. Libraries provide namespacing and control
 visibility—top-level declarations are private by default.
 
 ### Imports
 
-Use `import` to bring declarations from other modules into scope:
+Use `import` to bring declarations from other libraries into scope:
 
 ```zena
 // Named imports
@@ -93,11 +93,11 @@ regex.match(pattern, text);
 from 'zena:string' import {String};
 ```
 
-Namespace imports (`import * as x`) define a read-only variable `x` whose type is a structural **`RecordType`** containing all of the value exports of the imported module as properties. They behave as standard record values and can be passed to functions, returned, stored, or destructured.
+Namespace imports (`import * as x`) define a read-only variable `x` whose type is a structural **`RecordType`** containing all of the value exports of the imported library as properties. They behave as standard record values and can be passed to functions, returned, stored, or destructured.
 
 ### Exports
 
-Mark declarations with `export` to make them available to other modules and the
+Mark declarations with `export` to make them available to other libraries and the
 host environment:
 
 ```zena
@@ -119,7 +119,7 @@ let helper = (x: i32) => x * 2;
 ## Variables
 
 Zena uses `let` and `var` to declare variables. Both are block-scoped and can
-appear at module level or in nested scopes. Variables can be shadowed in inner
+appear at library level or in nested scopes. Variables can be shadowed in inner
 scopes but cannot be redeclared in the same scope. Unlike JavaScript, variables
 cannot be referenced before their declaration.
 
@@ -188,7 +188,7 @@ let back: u8 = sum as u8;     // 0 — narrowing is explicit and truncates
 
 ## Built-in Types (Prelude)
 
-The following types are automatically available in every Zena module—no import
+The following types are automatically available in every Zena library—no import
 needed. They come from the _prelude_, which is implicitly imported.
 
 | Type                    | Description                                                  |
@@ -237,7 +237,7 @@ let getAnswer = () => 42;
 
 ### Function Declarations
 
-A `function` declaration names a function at the top level of a module. It is
+A `function` declaration names a function at the top level of a library. It is
 hoisted, so forward references and mutual recursion just work.
 
 ```zena
@@ -258,7 +258,7 @@ function isOdd(n: i32): i32 {
 
 **The difference from an arrow function is closures: a `function` can never be
 one.** It may only appear at the top level, so its body sees only its own
-parameters and locals plus module-level bindings — never a variable from an
+parameters and locals plus library-level bindings — never a variable from an
 enclosing scope. When you need to capture, use an arrow function.
 
 ```zena
@@ -2115,8 +2115,8 @@ let p = obj as Point;         // Throws if not a Point
 
 ## Standard Library
 
-Zena's standard library is organized into modules. Types from the
-[prelude](#built-in-types-prelude) are available without imports; other modules
+Zena's standard library is organized into libraries. Types from the
+[prelude](#built-in-types-prelude) are available without imports; other libraries
 must be explicitly imported.
 
 ### zena:math
@@ -2185,7 +2185,7 @@ alignment. See [simd.md](https://github.com/elematic/zena/blob/main/docs/design/
 ### zena:console
 
 Console output for logging and debugging. The `console` global is automatically
-available in every module (via the prelude), so you don't need to import it.
+available in every library (via the prelude), so you don't need to import it.
 
 ```zena
 console.log('Hello, world!');

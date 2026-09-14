@@ -241,14 +241,14 @@ To add a page: add it to the sidebar with an `outline`, then run
   - How to read this reference
   - Conventions
   - Feature status
-- 📝 [Libraries](src/reference/libraries.md) — `/reference/libraries/`
-  - Library directories and files
+- ✅ [Libraries](src/reference/libraries.md) — `/reference/libraries/`
+  - Libraries and source files
   - Top-level declarations
   - Entry points and main()
   - Imports and exports
   - Re-exports and host imports
-  - Module resolution
-  - Package manifest
+  - Library resolution
+  - Packages and manifests
   - Initialization order
 - 📝 [Variables](src/reference/variables.md) — `/reference/variables/`
   - let
@@ -626,4 +626,4 @@ To add a page: add it to the sidebar with an `outline`, then run
 
 ---
 
-32 of 95 pages written; 63 still placeholders.
+33 of 95 pages written; 62 still placeholders.
