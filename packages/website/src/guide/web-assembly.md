@@ -167,7 +167,7 @@ can compile strings to UTF-8/WTF-8 (for WASI and native runtimes) or UTF-16/WTF-
 match the host platform and avoid costly re-encoding—without breaking Zena
 programs.
 
-See [Strings and Unicode](/guide/strings/) for full details on string semantics,
+See [Strings](/guide/strings/) for full details on string semantics,
 Unicode indexing, and string operations.
 
 ## Linear memory and `zena:memory`

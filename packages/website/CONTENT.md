@@ -67,6 +67,12 @@ To add a page: add it to the sidebar with an `outline`, then run
     - Unions and nullability
     - Type aliases, distinct types, and opaque types
     - Type operators
+  - ✅ [Strings](src/guide/strings.md) — `/guide/strings/`
+    - Literals and templates
+    - Operations and equality
+    - Slices, views, and copies
+    - Unicode and safety
+    - Performance and representations
   - ✅ [Functions](src/guide/functions.md) — `/guide/functions/`
     - Top-level functions and arrow functions
     - Parameters and arguments
@@ -155,11 +161,6 @@ To add a page: add it to the sidebar with an `outline`, then run
     - What ends up in the binary
     - Dead code elimination
     - Measuring and benchmarking
-  - 📝 [Strings and Unicode](src/guide/strings.md) — `/guide/strings/`
-    - One String type, several representations
-    - WTF-8 and WTF-16
-    - Slices, views, and copies
-    - Building and parsing strings
 - **Building Things**
   - 📝 [Project Layout](src/guide/project-layout.md) — `/guide/project-layout/`
     - Anatomy of a project
@@ -282,7 +283,7 @@ To add a page: add it to the sidebar with an `outline`, then run
   - Operator precedence and associativity
 - ✅ [Comments](src/reference/comments.md) — `/reference/comments/`
   - Line comments (//)
-  - Block comments (/\* \*/)
+  - Block comments (/* */)
   - Doc comments
 - **Data Types**
   - ✅ [Numbers](src/reference/numbers.md) — `/reference/numbers/`
@@ -297,7 +298,7 @@ To add a page: add it to the sidebar with an `outline`, then run
     - The boolean type
     - true and false
     - Strict conditional semantics
-  - 📝 [Strings](src/reference/strings.md) — `/reference/strings/`
+  - ✅ [Strings](src/reference/strings.md) — `/reference/strings/`
     - The String type
     - String literals and escapes
     - Template literals and interpolation
@@ -627,4 +628,4 @@ To add a page: add it to the sidebar with an `outline`, then run
 
 ---
 
-40 of 95 pages written; 55 still placeholders.
+42 of 95 pages written; 53 still placeholders.

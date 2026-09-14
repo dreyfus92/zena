@@ -141,6 +141,17 @@ const guide = [
         ],
       },
       {
+        text: 'Strings',
+        link: '/guide/strings/',
+        outline: [
+          'Literals and templates',
+          'Operations and equality',
+          'Slices, views, and copies',
+          'Unicode and safety',
+          'Performance and representations',
+        ],
+      },
+      {
         text: 'Functions',
         link: '/guide/functions/',
         outline: [
@@ -298,16 +309,6 @@ const guide = [
           'What ends up in the binary',
           'Dead code elimination',
           'Measuring and benchmarking',
-        ],
-      },
-      {
-        text: 'Strings and Unicode',
-        link: '/guide/strings/',
-        outline: [
-          'One String type, several representations',
-          'WTF-8 and WTF-16',
-          'Slices, views, and copies',
-          'Building and parsing strings',
         ],
       },
     ],
