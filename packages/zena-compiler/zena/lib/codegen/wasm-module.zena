@@ -14,8 +14,6 @@ import { NodeMap } from '../node-map.zena';
 import {
   ClassType, FunctionType, Type, TypeParameterType,
 } from '../types.zena';
-import { String } from "zena:string";
-import { i32ToString } from "zena:string-convert";
 import { Program, CompilationUnit } from '../program.zena';
 import { stdlibLibraryOf, stdlibLibraryAnswers } from '../stdlib-manifest.zena';
 

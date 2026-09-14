@@ -14,7 +14,6 @@
  */
 
 import { readFile } from 'zena:fs';
-import { HashMap } from 'zena:map';
 import {
   createCompiler, CompilerOptions, checkCompilation, CompilerHost,
   PackageConfig, ModuleExport, ProgramCheckResult, Diagnostic,

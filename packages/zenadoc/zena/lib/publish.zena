@@ -12,7 +12,6 @@
  * not `<name>.zena`, which the compiler loads by a path-shaped id.
  */
 
-import { HashMap } from 'zena:map';
 import {
   DocDeclaration, DocMember, DocPackage, DocTypeParam, TypeRef,
 } from './model.zena';

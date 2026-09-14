@@ -5,7 +5,7 @@
  * Uses the same input/output pattern as echo.zena.
  */
 
-import {String, StringBuilder} from 'zena:core';
+import {StringBuilder} from 'zena:core';
 import {Lexer, LexError} from './lexer.zena';
 import {TokenType, describeToken} from './token.zena';
 

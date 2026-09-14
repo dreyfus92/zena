@@ -13,7 +13,7 @@
  */
 
 import { getArguments } from 'zena:cli';
-import { StringBuilder, parseI64 } from 'zena:core';
+import { StringBuilder } from 'zena:core';
 import { Process, spawn } from 'zena:process';
 
 /** A test whose worker process has been started. */

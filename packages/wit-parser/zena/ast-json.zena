@@ -6,8 +6,6 @@
  */
 
 import {JsonBuilder} from 'zena:json';
-import {GrowableArray, Option, Some, some, none, i32ToString, parseI32} from 'zena:core';
-import {HashMap} from 'zena:map';
 import {HashSet} from 'zena:set';
 import {Ast, AstItem, AstItemTag, PackageName, NestedPackage, Id, Use, UseName, UsePath, UsePathTag, Include, IncludeName, ToplevelUse} from './parser.zena';
 import {InterfaceDef, InterfaceItem, InterfaceItemTag} from './parser.zena';

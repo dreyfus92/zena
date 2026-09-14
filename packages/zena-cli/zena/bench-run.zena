@@ -25,7 +25,7 @@
 
 import { getArguments, exit } from 'zena:cli';
 import { readFile, writeFile } from 'zena:fs';
-import { Box, StringBuilder, parseF64 } from 'zena:core';
+import { StringBuilder } from 'zena:core';
 import { parseJson, JsonObject, JsonArray, JsonValue } from 'zena:json';
 import { runIn } from 'zena:process';
 import {

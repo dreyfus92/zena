@@ -1,5 +1,5 @@
 import {PackageName, Id} from './parser.zena';
-import {GrowableArray, StringReader, Option, some, none} from 'zena:core';
+import {StringReader} from 'zena:core';
 
 /** Normalize an identifier - strip '%' prefix if present (explicit escaping). */
 export let normalizeId = (name: String): String => {

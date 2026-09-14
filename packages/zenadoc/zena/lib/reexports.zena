@@ -15,7 +15,6 @@
  */
 
 import { CompilationResult, Compiler, ProgramCheckResult } from 'zena-compiler:compiler';
-import { HashMap } from 'zena:map';
 import { extractModule, ExtractOptions } from './extract.zena';
 import { Naming } from './ids.zena';
 import { ModelLinker } from './links.zena';

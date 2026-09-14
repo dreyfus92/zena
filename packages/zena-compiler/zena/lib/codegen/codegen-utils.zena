@@ -10,8 +10,6 @@ import {
   AnyRefType, EqRefType, StringLiteralType, NumLiteralType, baseType, ErasedType} from '../types.zena';
 import { SemanticModel } from '../semantic-model.zena';
 import { Symbol, noSymbolId } from '../scope/symbol.zena';
-import { String } from "zena:string";
-import { i32ToString } from "zena:string-convert";
 import { Program, CompilationUnit } from '../program.zena';
 
 export { MixinKey } from '../types.zena';

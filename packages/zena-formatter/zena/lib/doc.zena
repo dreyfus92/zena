@@ -5,7 +5,6 @@
 // Since Zena doesn't have untagged unions as first-class values yet,
 // we use a class hierarchy with a DocKind discriminator.
 
-import { Array, GrowableArray } from 'zena:core';
 
 // ============================================================================
 // Doc Kind Discriminator

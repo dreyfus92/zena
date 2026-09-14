@@ -8,7 +8,7 @@
 import { getArguments, exit } from 'zena:cli';
 import { exists, readFileBytes, writeFile } from 'zena:fs';
 import { run } from 'zena:process';
-import { GrowableArray, StringBuilder, parseI32, i32ToString } from 'zena:core';
+import { StringBuilder } from 'zena:core';
 
 let workloads = [
   'minimal',

@@ -5,7 +5,7 @@
  * (code, type, data, import, export, custom, etc.).
  */
 
-import { ByteArray, GrowableArray, StringBuilder } from 'zena:core';
+import { ByteArray, StringBuilder } from 'zena:core';
 
 export class WasmSectionInfo {
   id: i32;

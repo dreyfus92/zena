@@ -9,7 +9,7 @@
  * https://github.com/bytecodealliance/wasm-tools/blob/main/crates/wit-parser/src/ast.rs
  */
 
-import {String, StringBuilder, Option, parseI32, GrowableArray} from 'zena:core';
+import {StringBuilder} from 'zena:core';
 import {TokenType, Span, Token} from './token.zena';
 import {Lexer, LexError} from './lexer.zena';
 

@@ -1,5 +1,4 @@
 // Sieve of Eratosthenes over a GC-backed array: allocation + repeated indexed reads/writes.
-import { FixedArray } from 'zena:core';
 
 export let main = (): i32 => {
   let n = 300000;

@@ -4,7 +4,7 @@
 // Converts a Doc IR into a formatted string, handling line breaking,
 // indentation, and group flattening.
 
-import { GrowableArray, StringBuilder } from 'zena:core';
+import { StringBuilder } from 'zena:core';
 import {
   Doc,
   DocKind,

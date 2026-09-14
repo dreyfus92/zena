@@ -16,8 +16,7 @@
  * https://github.com/bytecodealliance/wasm-tools/blob/main/crates/wit-parser/src/ast/resolve.rs
  */
 
-import {String, StringBuilder} from 'zena:core';
-import {HashMap} from 'zena:map';
+import {StringBuilder} from 'zena:core';
 import {Span} from './token.zena';
 import {
   Ast, AstItem, AstItemTag, InterfaceDef, WorldDef, TypeDef, TypeDefTag,

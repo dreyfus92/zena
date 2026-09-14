@@ -6,7 +6,7 @@
  * converts to a string.
  */
 
-import { Array, StringBuilder } from 'zena:core';
+import { StringBuilder } from 'zena:core';
 import { parse } from 'zena-compiler:parser';
 import {
   Comment, Node, Module, // Expressions

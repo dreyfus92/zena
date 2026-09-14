@@ -14,8 +14,6 @@ import {
   ValType, ValTypeVoid, ValTypeI32, ValTypeI64, ValTypeF32, ValTypeF64, ValTypeI8, ValTypeI16, ValTypeV128, ValTypeAnyRef, ValTypeStructRef, ValTypeEqRef, ValTypeRefNull, ValTypeRef, valTypeToOpcode, WasmType,
 } from './wasm.zena';
 import { compareStrings, presentWordCount, presentWordName } from './codegen-utils.zena';
-import { String } from "zena:string";
-import { i32ToString } from "zena:string-convert";
 import {
   getMemberRootClass, getClassKey, getClassMethodKey, getInterfaceKey, InterfaceKey, CellKey, ClosureKey,
 } from './codegen-utils.zena';
