@@ -36,6 +36,7 @@
  */
 import { HashSet } from 'zena:set';
 import { IterableUtils } from 'zena:core';
+import { OrderedMap } from 'zena:ordered-map';
 import {
   Type, ClassType, InterfaceType, FunctionType, RecordType, UnionType, TypeId,
 } from './types.zena';
@@ -815,7 +816,14 @@ export final class SemanticModel {
   #interfaceDeclarations = new HashMap<SymbolId, InterfaceDeclaration>();
   #mixinDeclarations = new HashMap<SymbolId, MixinDeclaration>();
   #enumDeclarations = new HashMap<SymbolId, EnumDeclaration>();
-  #globalDeclarations = new HashMap<SymbolId, Node>();
+  // Ordered, and in declaration order: reachability roots a module's
+  // exports by iterating this, and the order decides function indices
+  // in the emitted module. Keyed by symbol id in a hash map, the order
+  // followed the ids' hash buckets, which shift whenever a module
+  // loaded ahead of this one gains or loses a symbol — so two targets
+  // whose preludes differ in size emitted the same program with its
+  // functions permuted.
+  #globalDeclarations = new OrderedMap<SymbolId, Node>();
 
   symbolDependencies: HashMap<SymbolId, SymbolDependencies> {
     get { return this.#symbolDependencies; }
@@ -861,7 +869,7 @@ export final class SemanticModel {
     get { return this.#enumDeclarations; }
   }
 
-  globalDeclarations: HashMap<SymbolId, Node> {
+  globalDeclarations: OrderedMap<SymbolId, Node> {
     get { return this.#globalDeclarations; }
   }
 

@@ -71,13 +71,3 @@ export let knownTargetsDescription = (): String => {
 export let targetEmitsComponent = (target: String): boolean =>
     target == "component";
 
-/**
- * Whether the prelude binds `console` for this target.
- *
- * Listed positively: a new hostless target gets no console until someone
- * writes one for it, which is the right default. A no-op console would be
- * worse than an unresolved name — it compiles and then prints nothing.
- */
-export let targetHasConsole = (target: String): boolean =>
-    target == "js" || target == "host" || target == "wasi" ||
-    target == "zena-cli";

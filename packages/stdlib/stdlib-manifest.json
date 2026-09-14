@@ -35,12 +35,14 @@
     },
     "component-async": {
       "virtual": {
-        "component": "component/async.zena"
+        "component": "component/async.zena",
+        "freestanding": "component/async.zena"
       }
     },
     "component-stream": {
       "virtual": {
-        "component": "component/stream.zena"
+        "component": "component/stream.zena",
+        "freestanding": "component/stream.zena"
       }
     },
     "console": {
@@ -49,7 +51,8 @@
         "js": "console/host.zena",
         "wasi": "console/wasi.zena",
         "zena-cli": "console/wasi.zena",
-        "component": "console/component.zena"
+        "component": "console/component.zena",
+        "freestanding": "console/component.zena"
       }
     },
     "error": {

@@ -27,6 +27,7 @@ import { newByteArray } from 'zena:byte-array';
 import { Error } from 'zena:error';
 import { FixedArray } from 'zena:fixed-array';
 import { Array } from 'zena:array';
+import { GrowableArray } from 'zena:growable-array';
 
 let mem = Memory.default;
 

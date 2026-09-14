@@ -31,7 +31,8 @@
  */
 import { Error } from 'zena:error';
 import { FixedArray } from 'zena:fixed-array';
-import { Completer } from 'zena:async';
+import { GrowableArray } from 'zena:growable-array';
+import { Completer, Future } from 'zena:async';
 
 /** The write capability's entry points, unexported so a `Stream`
  * reference cannot reach them (docs/design/classes.md §9.4). */

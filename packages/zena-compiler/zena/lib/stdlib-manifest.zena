@@ -38,11 +38,10 @@ export let buildStdlibConfig = (stdlibRoot: String): PackageConfig => {
   }
 
   // Virtual module: console → per-target entry file. The implementation
-  // files live under console/ and are not importable by name.
+  // files live under console/ and are not importable by name. Every
+  // target has one, because `console` is in every target's prelude and
+  // code that prints has to be portable.
   //
-  // `freestanding` has no entry on purpose: a target that cannot print
-  // must fail to resolve `zena:console` rather than quietly link a
-  // no-op that compiles and then prints nothing.
   // Virtual module: memory → the linear-memory allocator. One
   // implementation everywhere but the component target, where the
   // memory belongs to the runtime memory module and the allocator
@@ -63,27 +62,31 @@ export let buildStdlibConfig = (stdlibRoot: String): PackageConfig => {
   consoleVirtual["js"] = "console/host.zena";
   consoleVirtual["wasi"] = "console/wasi.zena";
   consoleVirtual["zena-cli"] = "console/wasi.zena";
-  // The component entry prints over p2 stdio. It is importable, not in
-  // the prelude: a prelude module loads with the entry and would shift
-  // symbol ids for every component build, breaking "the component
-  // embeds the same core module a hostless build emits" for programs
-  // that never print. The ordered-globalDeclarations fix is what would
-  // let it join the prelude.
+  // The component console prints over p3 stdio. `freestanding` shares
+  // it: a freestanding build is a component's core module without the
+  // wrapper, and the two must load the same prelude for the wrapper to
+  // embed exactly the module the freestanding build emits.
   consoleVirtual["component"] = "console/component.zena";
+  consoleVirtual["freestanding"] = "console/component.zena";
   exports["console"] = new ModuleExport(consoleVirtual);
 
   // Virtual module: component-async → the async-import driver. Only a
-  // component has the subtask protocol, so only that target resolves
-  // it; the entry/callback the compiler wires live in it.
+  // component has the subtask protocol, so the component target
+  // resolves it, and `freestanding` with it: a freestanding build is a
+  // component's core module without the wrapper, and its prelude's
+  // console is the component's. The entry/callback the compiler wires
+  // live in it.
   let componentAsyncVirtual = new HashMap<String, String>();
   componentAsyncVirtual["component"] = "component/async.zena";
+  componentAsyncVirtual["freestanding"] = "component/async.zena";
   exports["component-async"] = new ModuleExport(componentAsyncVirtual);
 
   // Virtual module: component-stream → the guest side of the canonical
   // stream protocol (pair creation, blocking writes; the Stream<T>
-  // binding as it lands). Component-only for the same reason.
+  // binding as it lands). The same two targets, for the same reason.
   let componentStreamVirtual = new HashMap<String, String>();
   componentStreamVirtual["component"] = "component/stream.zena";
+  componentStreamVirtual["freestanding"] = "component/stream.zena";
   exports["component-stream"] = new ModuleExport(componentStreamVirtual);
 
   // Virtual module: error-stack → the `Error` stack-trace hooks. The host

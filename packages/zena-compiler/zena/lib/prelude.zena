@@ -1,4 +1,4 @@
-import { targetHasConsole, targetEmitsComponent } from './targets.zena';
+import { targetEmitsComponent } from './targets.zena';
 
 // Build the standard prelude map (module specifier → imported names).
 // The compiler injects these into every file automatically.
@@ -6,11 +6,11 @@ import { targetHasConsole, targetEmitsComponent } from './targets.zena';
 // Note: Some primitive types (i32, f64, Array) are injected as language built-ins
 // during scope resolution, so they don't need to be explicitly imported.
 //
-// The prelude is per-target, because it is an import list like any other.
-// `console` is the entry that varies: a target with no host to print to
-// (`freestanding`, `component`) does not bind it, so `console.log` is an
-// unresolved name there rather than a call that compiles and prints
-// nothing. See docs/design/component-emission.md, Part 3.
+// The prelude is per-target because it is an import list like any
+// other, and a virtual module resolves per target — but the list is
+// the same on every target: `console` included, so that code that
+// prints is portable. A target with no host to print to gets the
+// component's console. See docs/design/component-emission.md, Part 3.
 export let getStandardPrelude = (target: String): HashMap<String, FixedArray<String>> => {
   let prelude = new HashMap<String, FixedArray<String>>();
 
@@ -23,9 +23,10 @@ export let getStandardPrelude = (target: String): HashMap<String, FixedArray<Str
   prelude["zena:immutable-array"] = ["ImmutableArray"];
   prelude["zena:fixed-array"] = ["FixedArray"];
   prelude["zena:growable-array"] = ["GrowableArray"];
-  if (targetHasConsole(target)) {
-    prelude["zena:console"] = ["console"];
-  }
+  // On every target, so that code that prints is portable. A target
+  // with no host to print to gets the component's console, which is
+  // what a hostless core module is once wrapped.
+  prelude["zena:console"] = ["console"];
   prelude["zena:hashable"] = ["Hashable"];
   prelude["zena:map"] = ["Map", "HashMap"];
   prelude["zena:box"] = ["Box"];
@@ -47,14 +48,14 @@ export let getStandardPrelude = (target: String): HashMap<String, FixedArray<Str
  * decides whether any of it is emitted — a component that moves no
  * strings links none of `zena:component-abi`.
  *
- * Loaded **after** the entry point, and that ordering is load-bearing.
- * RTA roots a module's exports by iterating `globalDeclarations`, a map
- * keyed by symbol id, and symbol ids are handed out as modules are
- * loaded. A module loaded before the entry shifts the entry's ids and
- * so permutes the order its exports are discovered in, which permutes
- * the emitted type section. Loading afterwards leaves the program's own
- * bytes exactly as they were — which is what lets the component target
- * embed the same core module a hostless build emits.
+ * Loaded **after** the entry point. Reachability roots a module's
+ * exports by iterating `globalDeclarations`, which is in declaration
+ * order, so a module loaded ahead of the entry no longer permutes what
+ * the entry emits — it used to, when that map iterated in symbol-id
+ * hash order. Loading afterwards is still the tidier shape: the
+ * entry's symbol ids are the same with or without the runtime
+ * modules, which keeps the component target's core module identical
+ * to a hostless build's for one more reason than the ordered map.
  */
 export let getTargetRuntimeModules = (target: String): FixedArray<String> => {
   if (targetEmitsComponent(target)) {

@@ -33,7 +33,7 @@
 
 import { HashMap } from 'zena:map';
 import { Error } from 'zena:error';
-import { Completer, drainMicrotasks } from 'zena:async';
+import { Completer, Future, drainMicrotasks } from 'zena:async';
 
 
 // ============================================================================
