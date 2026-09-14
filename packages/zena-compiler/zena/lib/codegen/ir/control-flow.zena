@@ -8,11 +8,9 @@
  * interface-call and optional-chain machinery became core methods
  * and seams. Bodies are streaming's shapes.
  */
-import { Array, GrowableArray, String } from 'zena:core';
 import {
   getClassKey, getClassMethodKey, getClassPrivateFieldKey, unwrapAliases,
 } from '../codegen-utils.zena';
-import { HashMap } from 'zena:map';
 import {
   BindingPattern, BlockStatement, BooleanLiteral, CatchClause, ClassDeclaration, Expression, FieldDefinition, ForStatement, Identifier, IfExpression, IfStatement, LetPatternCondition, LiteralPattern, MatchExpression, Node, Statement, ThrowExpression, TryExpression, TuplePattern, UsingStatement, ShieldedStatement, VariableDeclaration, WhileStatement, ExpressionStatement, NullLiteral, NumberLiteral, StringLiteral, BinaryExpression, CallExpression, ForInStatement, IdentifierPattern, IndexExpression, MemberExpression,
 } from '../../ast.zena';

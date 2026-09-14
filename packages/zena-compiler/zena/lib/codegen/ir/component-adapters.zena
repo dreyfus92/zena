@@ -51,8 +51,6 @@
  * See docs/design/component-emission.md, Parts 4 and 5.
  */
 
-import { HashMap } from 'zena:map';
-import { Array, Error, String } from 'zena:core';
 import {
   WasmModule, WasmFunction, ComponentAsyncExport
 } from '../wasm-module.zena';

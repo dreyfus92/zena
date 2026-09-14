@@ -8,7 +8,6 @@
  * calls in here for everything per-pattern. Each function takes the
  * shared LoweringContext; bodies are streaming's shapes exactly.
  */
-import { Array, GrowableArray, String, i32ToString, parseF64 } from 'zena:core';
 import {
   AbsencePattern, AsPattern, AssignmentPattern, BindingPattern,
   BindingProperty, BooleanLiteral, ClassPattern, Expression, Identifier,

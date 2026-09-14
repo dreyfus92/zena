@@ -1,4 +1,3 @@
-import { Array } from 'zena:core';
 import { HashSet } from 'zena:set';
 import {
   Node, Identifier, ThisExpression, AssignmentExpression, FunctionExpression, Parameter, VariableDeclaration, IdentifierPattern, Module, ClassDeclaration, InterfaceDeclaration, EnumDeclaration, MixinDeclaration, MethodDefinition, BlockStatement,

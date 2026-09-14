@@ -6,7 +6,6 @@
 // loader. Nothing here needs either, so files as low in the import graph as
 // `types.zena` can reach the stdlib layout without a cycle.
 
-import { HashMap } from 'zena:map';
 import { PackageConfig, ModuleExport } from './module-resolver.zena';
 
 // Build the standard library PackageConfig.

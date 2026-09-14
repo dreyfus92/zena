@@ -23,7 +23,6 @@
 import { suite, test, TestContext } from 'zena:test';
 import { isTrue, isFalse, equal } from 'zena:assert';
 import { readFile, writeFile, exists, mkdir } from 'zena:fs';
-import { Array, i32ToString } from 'zena:core';
 import { CompilerHost } from '../lib/library-loader.zena';
 import {
   createCompiler, CompilerOptions, checkCompilation,

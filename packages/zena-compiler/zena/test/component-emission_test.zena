@@ -13,8 +13,7 @@
 import { suite, test, TestContext } from 'zena:test';
 import { isTrue, equal, throws } from 'zena:assert';
 import { readFile } from 'zena:fs';
-import { newByteArray, Array, ImmutableArray, i32ToString } from 'zena:core';
-import { HashMap } from 'zena:map';
+import { newByteArray } from 'zena:core';
 import { CompilerHost } from '../lib/library-loader.zena';
 import {
   createCompiler, CompilerOptions, checkCompilation

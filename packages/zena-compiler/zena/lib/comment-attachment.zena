@@ -15,7 +15,6 @@
  * The result is a CommentMap keyed by Node reference that any tool can query.
  */
 
-import { Array } from 'zena:core';
 import { NodeMap } from './node-map.zena';
 import {
   Comment, Node, Module, Statement, Expression, BlockStatement, ClassDeclaration, InterfaceDeclaration, MixinDeclaration, EnumDeclaration, EnumMember, VariableDeclaration, FunctionDeclaration, FunctionExpression, BinaryExpression, UnaryExpression, AssignmentExpression, CallExpression, MemberExpression, IndexExpression, NewExpression, ArrayLiteral, IfExpression, MatchExpression, AsExpression, IsExpression, SpreadElement,

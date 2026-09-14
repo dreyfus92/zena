@@ -1,5 +1,5 @@
 import { ValTypeRef, ValTypeRefNull } from './wasm.zena';
-import { ByteBuffer, i32ToString } from 'zena:core';
+import { ByteBuffer } from 'zena:core';
 import { WasmEmitter } from './wasm-emitter.zena';
 import {
   WasmSignature, WasmFunction, WasmStruct, WasmArray,

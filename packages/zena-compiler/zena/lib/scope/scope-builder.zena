@@ -1,5 +1,3 @@
-import { Array, GrowableArray, Iterator } from 'zena:core';
-import { HashMap } from 'zena:map';
 import { HashSet } from 'zena:set';
 import { NodeMap } from '../node-map.zena';
 import {

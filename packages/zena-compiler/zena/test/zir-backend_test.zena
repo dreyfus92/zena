@@ -1,7 +1,6 @@
 import { suite, test, TestContext } from 'zena:test';
 import { equal, isTrue } from 'zena:assert';
 import { WatGenerator } from '../lib/codegen/wat-generator.zena';
-import { Array, String } from 'zena:core';
 import { Program, CompilationUnit } from '../lib/program.zena';
 import { readFile, writeFile, exists, mkdir } from 'zena:fs';
 import { makeCompiler, MockHost } from './test-utils.zena';

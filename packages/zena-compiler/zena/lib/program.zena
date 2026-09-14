@@ -1,8 +1,6 @@
 import {
   Module, VariableDeclaration, FunctionDeclaration, MixinDeclaration, DeclareFunction, IdentifierPattern,
 } from './ast.zena';
-import { Array } from 'zena:core';
-import { HashMap } from 'zena:map';
 import { SemanticModel, ModelIndex } from './semantic-model.zena';
 import { Symbol } from './scope/symbol.zena';
 import { stdlibModuleNameForEntryPath } from './stdlib-manifest.zena';

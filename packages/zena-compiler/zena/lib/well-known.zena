@@ -18,8 +18,6 @@
 // a row to `buildLocations`. Those are the only two places a well-known
 // declaration is written down.
 
-import { HashMap } from 'zena:map';
-import { Error, i32ToString } from 'zena:core';
 import { stdlibLibraryOf } from './stdlib-manifest.zena';
 
 /** A standard library declaration the compiler treats specially. */

@@ -11,9 +11,7 @@ import {
   ValType, ValTypeVoid, ValTypeI32, ValTypeRefNull, ValTypeAnyRef, ValTypeRef, ValTypeStructRef, ValTypeFuncRef,
 } from '../wasm.zena';
 import { SymbolId, noSymbolId } from '../../scope/symbol.zena';
-import { HashMap } from 'zena:map';
 import { HashSet } from 'zena:set';
-import { Array, GrowableArray, String, i32ToString } from 'zena:core';
 import { getClassKey, getInterfaceKey, getClassMethodKey, getClassInterfaceKey, getSignatureKey, matchOverload, collectMixinMembers, getMemberRootClass, getClassPrivateFieldKey, getSpecializedFunctionKey, getSpecializedName, isConcrete, MixinKey, containsErasedType } from '../codegen-utils.zena';
 import { typeToValType, mapReturnTypeToWasmResults, mapParamTypeToWasmParams, substituteTypeParamsInCodegen, substituteTypeParamsInClassContext, getClassTypeParameters, getInterfaceTypeParameters, getInterfaceMemberSignature } from '../type-mapping.zena';
 

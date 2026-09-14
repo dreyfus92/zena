@@ -52,7 +52,7 @@
  * and importing it reports a missing export.
  */
 
-import { String, Array, StringBuilder, Error, i32ToString } from 'zena:core';
+import { StringBuilder } from 'zena:core';
 import { parse } from 'wit-parser:wit';
 import {
   readWitSource, findInterface, findInterfaceOrNull, FoundInterface

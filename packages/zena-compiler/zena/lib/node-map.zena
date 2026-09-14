@@ -1,4 +1,3 @@
-import { HashMap } from 'zena:map';
 import { Node, NodeId } from './ast.zena';
 
 export final class NodeMap<V> {

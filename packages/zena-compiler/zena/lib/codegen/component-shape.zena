@@ -16,7 +16,6 @@
 // throwing away the Zena type and re-deriving it from the lowered form
 // would be a guess. See docs/design/component-emission.md, Part 4.
 
-import { Array, Error, String, i32ToString } from 'zena:core';
 import { WasmModule, WasmFunction } from './wasm-module.zena';
 import {
   Type, FunctionType, TypeAliasType, ClassType, I32Type, U32Type, I64Type,

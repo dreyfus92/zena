@@ -19,8 +19,6 @@
  *    residual moves are ordered so no source is clobbered before it is
  *    read, with a per-param temp breaking genuine cycles (param swaps).
  */
-import { Array, Error, i32ToString } from 'zena:core';
-import { HashMap } from 'zena:map';
 import { ValType, ValTypeVoid, ValTypeRef, ValTypeRefNull, ValTypeAnyRef, ValTypeEqRef, ValTypeStructRef, WasmType, heapTypeToSigned, HeapType, valTypeEquals } from '../wasm.zena';
 import { WasmModule, WasmFunction, WasmSignature, WasmArray } from '../wasm-module.zena';
 import { WasmEmitter } from '../wasm-emitter.zena';

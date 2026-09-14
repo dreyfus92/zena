@@ -16,8 +16,6 @@
  *   }
  */
 
-import { Array, GrowableArray } from 'zena:core';
-import { HashMap, Map } from 'zena:map';
 import { HashSet } from 'zena:set';
 import {
   PackageConfig, ModuleResolver, ResolvedModule,

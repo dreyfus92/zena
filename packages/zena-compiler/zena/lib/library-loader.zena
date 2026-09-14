@@ -10,8 +10,6 @@
  * for file I/O.
  */
 
-import { Array, GrowableArray } from 'zena:core';
-import { HashMap } from 'zena:map';
 import { HashSet } from 'zena:set';
 import {
   Module, ImportDeclaration, ExportAllDeclaration, ExportFromDeclaration, makeNodeIdGenerator,

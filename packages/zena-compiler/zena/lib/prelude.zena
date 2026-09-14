@@ -1,4 +1,3 @@
-import { HashMap } from 'zena:map';
 import { targetHasConsole, targetEmitsComponent } from './targets.zena';
 
 // Build the standard prelude map (module specifier → imported names).

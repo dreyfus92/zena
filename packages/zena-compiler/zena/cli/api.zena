@@ -11,8 +11,7 @@
  * read getErrors()); call compileSource(...), then on 0 read the bytes
  * back through getOutputLength()/getOutputByte().
  */
-import { HashMap } from 'zena:map';
-import { Array, StringBuilder, i32ToString } from 'zena:core';
+import { StringBuilder } from 'zena:core';
 import { CompilerHost } from '../lib/library-loader.zena';
 import { PackageConfig, stdlibIdToRelativeFile } from '../lib/module-resolver.zena';
 import { createCompiler, CompilerOptions, checkCompilation } from '../lib/compiler.zena';

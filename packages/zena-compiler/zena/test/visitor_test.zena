@@ -2,7 +2,6 @@
 
 import { suite, test, TestContext } from 'zena:test';
 import { equal, isTrue } from 'zena:assert';
-import { Array } from 'zena:core';
 import { parse } from '../lib/parser.zena';
 import {
   Identifier, NumberLiteral, StringLiteral, BinaryExpression, VariableDeclaration, FieldDefinition, MethodDefinition, NamedTypeAnnotation, RecordLiteral, PropertyAssignment, TupleLiteral, ArrayLiteral, Parameter,

@@ -7,7 +7,6 @@
  * exist in EVERY module, so they were the structural blocker keeping
  * zir-strict red before any real construct was measured.
  */
-import { Array, String, Error } from 'zena:core';
 import {
   ValType, ValTypeI32, ValTypeRef, ValTypeRefNull, ValTypeAnyRef, ValTypeExternRef,
 } from '../wasm.zena';

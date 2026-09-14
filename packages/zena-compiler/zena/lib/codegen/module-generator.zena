@@ -4,7 +4,7 @@ import { simdInstruction } from '../simd.zena';
 import {
   WasmModule, WasmFunction, WasmSignature, WasmExport, WasmGlobal, WasmStruct, VTableInit, WasmArray, StringLiteralLocation,
 } from './wasm-module.zena';
-import { ByteBuffer, String } from 'zena:core';
+import { ByteBuffer } from 'zena:core';
 import { ReachabilityAnalysis } from './reachability/analysis.zena';
 import { prepareGenerators } from './ir/generators.zena';
 import { prepareAsyncFunctions } from './ir/async.zena';

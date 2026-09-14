@@ -1,6 +1,4 @@
-import { Array } from 'zena:core';
 import { HashSet } from 'zena:set';
-import { HashMap } from 'zena:map';
 import { Type } from '../types.zena';
 import { SymbolId } from '../scope/symbol.zena';
 import { Node, SourceLocation } from '../ast.zena';

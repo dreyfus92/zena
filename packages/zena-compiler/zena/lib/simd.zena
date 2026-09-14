@@ -14,8 +14,6 @@
  * non-deterministic by design and off by default in the engines Zena
  * targets, so they need their own decision rather than a row here.
  */
-import { HashMap } from 'zena:map';
-import { String, i32ToString } from 'zena:core';
 
 /**
  * How an instruction's operands and immediates are laid out. The shape

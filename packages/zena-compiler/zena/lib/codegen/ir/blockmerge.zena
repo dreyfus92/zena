@@ -15,7 +15,6 @@
  * Straight-line block fusion and block-parameter pruning belong here
  * too, later; the pass counters decide when they are worth adding.
  */
-import { HashMap } from 'zena:map';
 import { IrBlock, IrBody, IrOp } from './ir.zena';
 
 /** Runs the pass; returns the number of blocks removed. */

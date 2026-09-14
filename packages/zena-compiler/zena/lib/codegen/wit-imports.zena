@@ -19,7 +19,7 @@
  * will be substituted for the derived one.
  */
 
-import { String, Array, StringBuilder, Error, i32ToString } from 'zena:core';
+import { StringBuilder } from 'zena:core';
 import { parse } from 'wit-parser:wit';
 import {
   ComponentTypeEncoder, EncodedWorld, funcFlatMeta, worldFuncFlatMeta,

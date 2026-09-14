@@ -17,7 +17,7 @@
  * not depend on codegen.
  */
 
-import { String, Array, ByteBuffer, Error } from 'zena:core';
+import { ByteBuffer } from 'zena:core';
 import { CompilerHost } from '../library-loader.zena';
 import { PackageConfig } from '../module-resolver.zena';
 import {
@@ -26,7 +26,6 @@ import {
 import { DiagnosticSeverity } from '../diagnostics.zena';
 import { Program, CompilationUnit } from '../program.zena';
 import { BinaryGenerator } from './binary-generator.zena';
-import { HashMap } from 'zena:map';
 
 /** The runtime module's entry, relative to the standard library root. */
 let runtimeEntry = "component/memory.zena";

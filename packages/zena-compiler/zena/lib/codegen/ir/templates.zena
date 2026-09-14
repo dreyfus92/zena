@@ -3,7 +3,6 @@
  * split out of lowering.zena. Each function takes the shared LoweringContext;
  * bodies are streaming's shapes exactly (see the per-function docs).
  */
-import { Array, GrowableArray, String, Error, i32ToString } from 'zena:core';
 import {
   Expression, Identifier, StringLiteral, TaggedTemplateExpression,
   TemplateLiteral,

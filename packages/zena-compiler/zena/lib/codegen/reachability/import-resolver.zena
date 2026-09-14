@@ -4,7 +4,6 @@ import { ImportSpecifier, ImportDeclaration, Module } from '../../ast.zena';
 import { Type, FunctionType } from '../../types.zena';
 import { Symbol, SymbolId, noSymbolId } from '../../scope/symbol.zena';
 import { dirName, normalizePath } from '../../module-resolver.zena';
-import { Array, GrowableArray } from 'zena:core';
 
 let matchOverloadForImport = (fnType: Type, expectedType: Type): boolean => {
   if (!(fnType is FunctionType) || !(expectedType is FunctionType)) {

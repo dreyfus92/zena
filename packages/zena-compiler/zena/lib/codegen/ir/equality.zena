@@ -6,7 +6,6 @@
  * helpers only they use. Each function takes the shared LoweringContext;
  * bodies are streaming's shapes exactly (see the per-function docs).
  */
-import { Array, String } from 'zena:core';
 import { CallExpression } from '../../ast.zena';
 import {
   BooleanType, ClassType, F32Type, F64Type, I32Type, I64Type, Type,

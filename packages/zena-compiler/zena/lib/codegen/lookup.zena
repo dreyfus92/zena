@@ -4,7 +4,6 @@
  * out of codegen-utils to avoid an import cycle (wasm-module imports
  * codegen-utils).
  */
-import { String, Array, GrowableArray } from 'zena:core';
 import {
   ClassDeclaration, DeclareFunction, EnumDeclaration, ExportAllDeclaration, ExportFromDeclaration, IdentifierPattern, Node, VariableDeclaration, FunctionDeclaration,
 } from '../ast.zena';

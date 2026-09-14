@@ -1,5 +1,4 @@
-import { Array, StringReader, StringBuilder } from 'zena:core';
-import { Map } from 'zena:map';
+import { StringReader, StringBuilder } from 'zena:core';
 import { Comment } from './ast.zena';
 
 // ============================================================================

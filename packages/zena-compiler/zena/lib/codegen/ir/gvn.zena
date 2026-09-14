@@ -18,8 +18,6 @@
  * emission already skips nops, and every consumer was rewritten to
  * the canonical id via IrBody.rewriteValueOperands.
  */
-import { Array, String, i32ToString } from 'zena:core';
-import { HashMap } from 'zena:map';
 import {
   IrBody, IrOp, IrRefField, IrRefGlobal, isBinaryNumericOp,
   isUnaryNumericOp,

@@ -1,5 +1,4 @@
 import { Memory, defaultAllocator } from 'zena:memory';
-import { HashMap } from 'zena:map';
 
 @external("wasi_snapshot_preview1", "clock_time_get")
 declare function __wasi_clock_time_get(

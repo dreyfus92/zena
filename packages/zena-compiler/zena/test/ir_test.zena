@@ -1,6 +1,5 @@
 import { suite, test, TestContext } from 'zena:test';
 import { equal, greater, throws } from 'zena:assert';
-import { Array } from 'zena:core';
 import { ValType, ValTypeI32 } from '../lib/codegen/wasm.zena';
 import { IrOp } from '../lib/codegen/ir/ir.zena';
 import { IrBuilder } from '../lib/codegen/ir/builder.zena';

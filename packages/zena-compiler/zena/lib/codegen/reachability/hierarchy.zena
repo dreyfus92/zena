@@ -3,9 +3,7 @@ import { ClassType, FunctionType, MixinType, InterfaceType, TypeId } from '../..
 import {
   Node, NodeId, ClassDeclaration, MethodDefinition, FieldDefinition, AccessorDeclaration, TypeAnnotation, Identifier, SymbolPropertyName, MemberExpression,
 } from '../../ast.zena';
-import { HashMap } from 'zena:map';
 import { HashSet } from 'zena:set';
-import { Array, GrowableArray, String } from 'zena:core';
 import { SymbolId } from '../../scope/symbol.zena';
 import { SemanticModel } from '../../semantic-model.zena';
 import {

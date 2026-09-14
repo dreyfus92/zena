@@ -14,7 +14,6 @@
  * whatever else reachability pulled in, so a module-wide `contains`
  * proves close to nothing.
  */
-import { String, Array, i32ToString } from 'zena:core';
 import { isTrue, fail } from 'zena:assert';
 
 /**
