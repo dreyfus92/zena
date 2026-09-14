@@ -164,6 +164,7 @@ support in the compiler is an ongoing effort.
   back to pointer equality (`ref.eq`) on the underlying GC struct. Consequently, two
   distinct allocations with identical fields do not yet evaluate to `true` with `==` at
   runtime unless they refer to the same instance:
+
   ```zena
   let a = {x: 1, y: 2};
   let b = a;
@@ -173,6 +174,7 @@ support in the compiler is an ongoing effort.
   // Currently false at runtime until synthesized structural equality lands:
   // a == c;
   ```
+
 - **Unboxed inline tuples**: Zero-allocation unboxed tuples are currently limited to
   `inline (T1, T2)` function return types (multi-value returns).
 
@@ -291,9 +293,9 @@ Bitwise operators manipulate integer bits (`i32`, `u32`, `i64`, `u64`):
 | `>>>`    | Unsigned right shift | Logical shift (always zero-fills)                           |
 
 ```zena
-let mask = 0b1111 & 0b1010; // 0b1010 (10)
-let flags = 0b1100 | 0b0011; // 0b1111 (15)
-let diff = 0b1100 ^ 0b1010; // 0b0110 (6)
+let mask = 0x0f & 0x0a; // 0x0a (10)
+let flags = 0x0c | 0x03; // 0x0f (15)
+let diff = 0x0c ^ 0x0a; // 0x06 (6)
 
 let shifted = 5 << 1; // 10
 let halved = 10 >> 1; // 5

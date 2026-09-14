@@ -285,7 +285,7 @@ To add a page: add it to the sidebar with an `outline`, then run
   - Block comments (/\* \*/)
   - Doc comments
 - **Data Types**
-  - 📝 [Numbers](src/reference/numbers.md) — `/reference/numbers/`
+  - ✅ [Numbers](src/reference/numbers.md) — `/reference/numbers/`
     - Integers
     - Narrow integers
     - Floats
@@ -293,7 +293,7 @@ To add a page: add it to the sidebar with an `outline`, then run
     - Unsigned semantics
     - Overflow and special values
     - Numeric conversions
-  - 📝 [Booleans](src/reference/booleans.md) — `/reference/booleans/`
+  - ✅ [Booleans](src/reference/booleans.md) — `/reference/booleans/`
     - The boolean type
     - true and false
     - Strict conditional semantics
@@ -627,4 +627,4 @@ To add a page: add it to the sidebar with an `outline`, then run
 
 ---
 
-38 of 95 pages written; 57 still placeholders.
+40 of 95 pages written; 55 still placeholders.
