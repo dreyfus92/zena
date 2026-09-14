@@ -441,11 +441,15 @@ for (const fixture of FIXTURES) {
     const fetched = spawnSync('node', ['-e', client], {encoding: 'utf8'});
     served.kill();
     if (fetched.status !== 0) {
-      fail(`GET ${path} failed: ${fetched.stderr ?? fetched.error}\n${servedErr}`);
+      fail(
+        `GET ${path} failed: ${fetched.stderr ?? fetched.error}\n${servedErr}`,
+      );
       continue;
     }
     if (fetched.stdout !== body) {
-      fail(`GET ${path} returned '${fetched.stdout}', expected '${body}'\n${servedErr}`);
+      fail(
+        `GET ${path} returned '${fetched.stdout}', expected '${body}'\n${servedErr}`,
+      );
       continue;
     }
     console.log(`  ${GREEN}✓${NC} GET ${path} => '${body}'`);

@@ -27,26 +27,26 @@ multiplies the tasks, and those are separate problems.
 An exported `handle` receives what an imported `send` passes, so every
 conversion runs in the opposite direction:
 
-| position           | import side (built)              | export side (needed)            |
-| ------------------ | -------------------------------- | ------------------------------- |
-| parameter          | lower (Zena value → wire)        | lift (wire → Zena value)        |
-| result             | lift from the return area        | lower through `task.return`     |
-| resource parameter | pass handle, mark moved          | wrap received handle            |
-| stream/future      | `lowerByteStream`/`lowerFutureK` | `liftByteStream`/`liftFutureK`  |
+| position           | import side (built)              | export side (needed)           |
+| ------------------ | -------------------------------- | ------------------------------ |
+| parameter          | lower (Zena value → wire)        | lift (wire → Zena value)       |
+| result             | lift from the return area        | lower through `task.return`    |
+| resource parameter | pass handle, mark moved          | wrap received handle           |
+| stream/future      | `lowerByteStream`/`lowerFutureK` | `liftByteStream`/`liftFutureK` |
 
 None of that is new machinery — `wit-module-synth` already generates
 both directions for values, and the pumps and future helpers are
 direction-agnostic (a lift helper does not care whether the end
 arrived from an import's result or an export's parameter). What is new
-is *where the generated code lives*. Import wrappers are synthesized
+is _where the generated code lives_. Import wrappers are synthesized
 source in a WIT-typed module the program imports. An export wrapper
-wraps the *program's own* function, which no stdlib or synthesized
+wraps the _program's own_ function, which no stdlib or synthesized
 module can name — the same reason the entry is built in
 `component-adapters` as IR.
 
 Building rich marshaling in `IrBuilder` would rebuild everything the
 synthesizer says in Zena, badly. The alternative that keeps the
-generated code as source is a *wrapper module* the compiler writes and
+generated code as source is a _wrapper module_ the compiler writes and
 loads beside the entry: source, like a WIT-typed module, importing the
 program's function and any types module it needs, whose exported
 wrapper is what gets lifted. The host-facing wrapper is then ordinary
@@ -56,7 +56,7 @@ Zena: lift the request handle into `Request`, call the program's
 **The mechanism is in place**, with the async entry as its first user
 (`lib/component-entry.zena`). `Compiler.compile` decides from the
 entry's syntax alone whether a wrapper is needed, writes its source,
-and hands it to the loader with the import of the entry *pinned* to
+and hands it to the loader with the import of the entry _pinned_ to
 the entry's already-loaded path (`LibraryLoader.loadSynthesized`), so
 the wrapper joins the same compile and the entry is never loaded twice
 under two spellings of its path. Codegen finds the wrapper's function
@@ -116,7 +116,7 @@ With concurrent `handle` calls that breaks in three places:
    JS has no notion of "which request is running" and does not care;
    the component model does — B's `task.return` must be issued from
    one of B's own entries, and B is only re-entered when something in
-   *B's* set fires. If B's last host-owed event was already consumed,
+   _B's_ set fires. If B's last host-owed event was already consumed,
    nothing ever fires.
 
 Problem 3 is the real design problem. Per-task microtask queues would
@@ -131,7 +131,7 @@ nothing triggers. The fix is a self-wake channel:
   `future<u8>` written with a byte if bare futures stay refused).
 - Whoever's drain completes the program's work thereby fires B's wake
   future — the host delivers B's FUTURE_READ event, B's callback runs
-  *as B*, finds the stored result, lowers it through `task.return`,
+  _as B_, finds the stored result, lowers it through `task.return`,
   and returns EXIT.
 
 A task that completes without ever suspending skips all of this: the
@@ -181,8 +181,8 @@ final class TaskContext {
 
 - The callback routes by owner: every waitable is registered with the
   task context that joined it, so `componentResume(event, waitable,
-  code)` finds the context, runs the completion, drains, and answers
-  for *that* task — `EXIT` after its `task.return`, or
+code)` finds the context, runs the completion, drains, and answers
+  for _that_ task — `EXIT` after its `task.return`, or
   `WAIT | (ctx.waitableSet << 4)`.
 - `pending` and `pendingCopies` stay global maps (a waitable index is
   instance-global); the `owners` map says whose each one is, so the
@@ -209,7 +209,7 @@ of the three are already answered:
   existing entry does exactly this. `componentResume` calls
   `task.return` from a callback re-entry whenever the drain empties
   the registries, and the timer fixture exercises it in CI.
-- whether a subtask or stream end may be *created* by task A and its
+- whether a subtask or stream end may be _created_ by task A and its
   completion consumed while task B is the running task (cross-task
   awaits make this reachable) — genuinely open; needs two live
   tasks, so it becomes the first increment of the export work rather
@@ -226,7 +226,7 @@ of the three are already answered:
 ## Part 3: What this unlocks beyond http
 
 An exported interface with rich types is the missing half of
-*composition testing*: a Zena provider component implementing
+_composition testing_: a Zena provider component implementing
 `wasi:geo`/`wasi:store` composed (`wasm-tools compose`) with the
 existing consumer fixtures would execute the whole type matrix —
 records, variants, enums, borrows — with both sides generated, no
@@ -247,7 +247,7 @@ yet and composition needs.
    e2e). Remaining: the `return:<iface>#<type>` aliasing for rich
    results, which arrives with its first user in 4.
 4. Export wrapper synthesis for async exports with rich types, and the
-   world plumbing to declare them — landed for a world's *function*
+   world plumbing to declare them — landed for a world's _function_
    exports (`service.wit` / `service.zena`, e2e): `wit-module-synth`'s
    `synthesizeExportWrapper` writes one `<name>_export` wrapper per
    async export, injected into `compile` through
@@ -262,11 +262,11 @@ yet and composition needs.
    world-level `use`, and the http world's come through its exported
    interface.
 5. Instance-grouped exports — landed: a world's `export
-   wasi:http/handler@0.3.0;` gathers the interface's functions into a
+wasi:http/handler@0.3.0;` gathers the interface's functions into a
    component instance exported under that name (emitter: an instance
    from inline exports, then an instance export). The functions' named
    types come through the interface's `use`s: the encoder follows a
-   `use` to the imported source and aliases the type out of *that*
+   `use` to the imported source and aliases the type out of _that_
    instance (`#useSourceOf`), both for the lift's type
    (`encodeExportedInterfaceFuncType`) and for the typed return's
    (`return:wasi:http/handler@0.3.0#result<response, error-code>`). A
@@ -277,7 +277,7 @@ yet and composition needs.
    also gets the manifest's WIT-backed packages spliced in, so
    `import wasi:http/types@0.3.0;` needs no vendoring.
 6. The http `service` world end to end — landed through `wasmtime
-   serve`: `http-service.zena` implements `handle`, builds a
+serve`: `http-service.zena` implements `handle`, builds a
    `Response` around a `Stream<u8>` a background task writes, and the
    e2e fetches a path and reads the body back (the stream is pumped
    after `task.return`, from callback re-entries). Remaining: provider

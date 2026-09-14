@@ -239,7 +239,7 @@ splits them and iterates the result (5,788 to 5,821) — constant rather
 than proportional, which said the cost was structural rather than code.
 
 All of it was one class. `TemplateStringsArray` was instantiated because
-the class was *visible*, not because anything built one:
+the class was _visible_, not because anything built one:
 
 ```zena
 let {templateStringsArrayClass} = this.wasm;
@@ -248,7 +248,7 @@ if (templateStringsArrayClass != null) {
 }
 ```
 
-That sat directly below the comment explaining why `String` is *not*
+That sat directly below the comment explaining why `String` is _not_
 instantiated on discovery — "discovering the class is not evidence that a
 String value exists" — with the same reasoning never applied to the line
 under it. The 32 bytes were its struct, the two `String` arrays its
