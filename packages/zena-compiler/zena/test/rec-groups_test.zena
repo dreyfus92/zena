@@ -11,12 +11,10 @@
 import { suite, test, TestContext } from 'zena:test';
 import { isTrue, equal } from 'zena:assert';
 import { WatGenerator } from '../lib/codegen/wat-generator.zena';
-import { Array } from 'zena:array';
+import { Array, String, i32ToString } from 'zena:core';
 import { Program, CompilationUnit } from '../lib/program.zena';
-import { String } from 'zena:string';
 import { makeCompiler, MockHost } from './test-utils.zena';
 import { checkCompilation } from '../lib/compiler.zena';
-import { i32ToString } from 'zena:string-convert';
 
 let compileToWat = (source: String): String => {
   let host = new MockHost();

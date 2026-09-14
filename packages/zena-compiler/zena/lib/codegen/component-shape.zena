@@ -16,16 +16,13 @@
 // throwing away the Zena type and re-deriving it from the lowered form
 // would be a guess. See docs/design/component-emission.md, Part 4.
 
-import { Array } from 'zena:array';
-import { Error } from 'zena:error';
-import { String } from 'zena:string';
+import { Array, Error, String, i32ToString } from 'zena:core';
 import { WasmModule, WasmFunction } from './wasm-module.zena';
 import {
   Type, FunctionType, TypeAliasType, ClassType, I32Type, U32Type, I64Type,
   U64Type, F32Type, F64Type, U8Type, U16Type, I8Type, I16Type, BooleanType,
   VoidType, typeToString
 } from '../types.zena';
-import { i32ToString } from 'zena:string-convert';
 import {
   ComponentShape, ComponentImportFunc, ComponentExportFunc, ComponentFuncType,
   ComponentCanonBuiltin, ComponentValType, noComponentResult, isKebabName,

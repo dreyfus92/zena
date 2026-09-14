@@ -1,9 +1,7 @@
 import { ValType } from "./wasm.zena";
 
 import { WasmFunction } from './wasm-module.zena';
-import { String } from 'zena:string';
-import { Array } from 'zena:array';
-import { ByteBuffer } from 'zena:byte-buffer';
+import { String, Array, ByteBuffer } from 'zena:core';
 
 export interface WasmEmitter {
   emitModuleStart(): void;

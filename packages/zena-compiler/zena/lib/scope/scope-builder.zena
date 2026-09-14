@@ -1,8 +1,6 @@
-import { Array } from 'zena:array';
-import { GrowableArray } from 'zena:growable-array';
+import { Array, GrowableArray, Iterator } from 'zena:core';
 import { HashMap } from 'zena:map';
 import { HashSet } from 'zena:set';
-import { Iterator } from 'zena:iterator';
 import { NodeMap } from '../node-map.zena';
 import {
   Node, NodeId, Module, SourceLocation, IdGenerator,

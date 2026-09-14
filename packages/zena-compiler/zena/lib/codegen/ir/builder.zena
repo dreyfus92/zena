@@ -1,6 +1,4 @@
-import { Array } from 'zena:array';
-import { GrowableArray } from 'zena:growable-array';
-import { Error } from 'zena:error';
+import { Array, GrowableArray, Error } from 'zena:core';
 import {
   ValType, ValTypeRef, ValTypeRefNull, valTypeToOpcode,
 } from '../wasm.zena';

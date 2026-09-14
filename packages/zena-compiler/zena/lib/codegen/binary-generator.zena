@@ -1,5 +1,5 @@
 import { CodeGenerator } from './code-generator.zena';
-import { ByteBuffer } from 'zena:byte-buffer';
+import { ByteBuffer } from 'zena:core';
 import { Program } from '../program.zena';
 import { BinaryEmitter } from './binary-emitter.zena';
 import { ModuleGenerator } from './module-generator.zena';

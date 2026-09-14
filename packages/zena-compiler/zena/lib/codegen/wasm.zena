@@ -1,7 +1,4 @@
-import { Hashable } from 'zena:hashable';
-import { Error } from 'zena:error';
-import { String } from 'zena:string';
-import { i32ToString } from 'zena:string-convert';
+import { Hashable, Error, String, i32ToString } from 'zena:core';
 export enum SectionId {
   Type = 1,
   Import = 2,

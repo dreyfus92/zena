@@ -24,10 +24,7 @@
 // The binary format is the Component Model's `Binary.md`. Section ids
 // differ from core wasm's and are listed in `ComponentSectionId` below.
 
-import { ByteBuffer } from 'zena:byte-buffer';
-import { Array } from 'zena:array';
-import { Error } from 'zena:error';
-import { String } from 'zena:string';
+import { ByteBuffer, Array, Error, String } from 'zena:core';
 import { HashMap } from 'zena:map';
 
 /**

@@ -28,11 +28,9 @@
  * land on it. The design calls for throwing an Error there; v1 traps
  * (unreachable) — loud either way, revisit with the async runtime.
  */
-import { Array } from 'zena:array';
+import { Array, Error, i32ToString } from 'zena:core';
 import { HashMap } from 'zena:map';
 import { HashSet } from 'zena:set';
-import { Error } from 'zena:error';
-import { i32ToString } from 'zena:string-convert';
 import {
   ValType, ValTypeI32, ValTypeI64, ValTypeF32, ValTypeF64, ValTypeRef,
   ValTypeRefNull,

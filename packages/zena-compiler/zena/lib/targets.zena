@@ -22,7 +22,7 @@
 // matter of discipline — nothing can supply a host import behind the
 // program's back.
 
-import { String } from 'zena:string';
+import { String } from 'zena:core';
 
 /** The targets a program can be built for, in `--target`'s own spelling. */
 export let targetNames = (): FixedArray<String> =>

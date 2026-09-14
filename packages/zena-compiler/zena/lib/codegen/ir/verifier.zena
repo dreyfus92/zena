@@ -15,8 +15,7 @@
  *   - every value operand is defined by a value-producing instruction that
  *     dominates the use (same-block uses must come after the definition)
  */
-import { Array } from 'zena:array';
-import { i32ToString } from 'zena:string-convert';
+import { Array, i32ToString } from 'zena:core';
 import {
   ValType, ValTypeI32, ValTypeI64, ValTypeF32, ValTypeF64, ValTypeAnyRef, ValTypeEqRef, ValTypeStructRef, ValTypeRef, ValTypeRefNull,
 } from '../wasm.zena';

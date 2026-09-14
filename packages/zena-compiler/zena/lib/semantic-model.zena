@@ -35,8 +35,7 @@
  * needed for single-module checking.
  */
 import { HashSet } from 'zena:set';
-import { Iterable, Iterator } from 'zena:iterator';
-import { IterableUtils } from 'zena:iterable-utils';
+import { Iterable, Iterator, IterableUtils } from 'zena:core';
 import {
   Type, ClassType, InterfaceType, FunctionType, RecordType, UnionType, TypeId,
 } from './types.zena';

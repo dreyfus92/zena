@@ -30,7 +30,7 @@
 import { suite, test, TestContext } from 'zena:test';
 import { isTrue } from 'zena:assert';
 import { readFile } from 'zena:fs';
-import { Array } from 'zena:array';
+import { Array } from 'zena:core';
 import { CompilerHost } from '../lib/library-loader.zena';
 import {
   Compiler, createCompiler, CompilerOptions, checkCompilation

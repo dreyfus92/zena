@@ -29,8 +29,7 @@
  * See docs/design/component-async-exports.md.
  */
 
-import { String } from 'zena:string';
-import { StringBuilder } from 'zena:string-builder';
+import { String, StringBuilder } from 'zena:core';
 import {
   Module, FunctionDeclaration, VariableDeclaration, FunctionExpression,
   IdentifierPattern, NamedTypeAnnotation

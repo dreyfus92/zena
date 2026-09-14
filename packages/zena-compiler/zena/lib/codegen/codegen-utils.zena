@@ -12,12 +12,9 @@ import { SemanticModel } from '../semantic-model.zena';
 import { Symbol, noSymbolId } from '../scope/symbol.zena';
 import { String } from "zena:string";
 import { i32ToString } from "zena:string-convert";
-import { Array } from 'zena:array';
-import { FixedArray } from 'zena:fixed-array';
-import { GrowableArray } from 'zena:growable-array';
+import { Array, FixedArray, GrowableArray, Hashable } from 'zena:core';
 import { HashMap } from 'zena:map';
 import { Program, CompilationUnit } from '../program.zena';
-import { Hashable } from 'zena:hashable';
 
 export { MixinKey } from '../types.zena';
 

@@ -1,10 +1,9 @@
 import { suite, test, TestContext } from 'zena:test';
 import { equal, isTrue } from 'zena:assert';
 import { WatGenerator } from '../lib/codegen/wat-generator.zena';
-import { Array } from 'zena:array';
+import { Array, String } from 'zena:core';
 import { Program, CompilationUnit } from '../lib/program.zena';
 import { readFile, writeFile, exists, mkdir } from 'zena:fs';
-import { String } from 'zena:string';
 import { makeCompiler, MockHost } from './test-utils.zena';
 import {
   assertFunctionOmits, assertFunctionUses, assertFunctionUsesTimes,

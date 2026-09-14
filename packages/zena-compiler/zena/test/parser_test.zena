@@ -1,6 +1,6 @@
 import { suite, test, TestContext } from 'zena:test';
 import { equal, isTrue, isFalse, throws, greater } from 'zena:assert';
-import { Array } from 'zena:array';
+import { Array } from 'zena:core';
 import { parse, parseRecovering } from '../lib/parser.zena';
 import { SourceSpan } from '../lib/diagnostics.zena';
 import {

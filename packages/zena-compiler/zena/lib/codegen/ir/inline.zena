@@ -25,7 +25,7 @@
  * over hash containers.
  */
 import { HashMap } from 'zena:map';
-import { String } from 'zena:string';
+import { String } from 'zena:core';
 import { IrBody, IrOp, IrRefFunc } from './ir.zena';
 import { WasmModule, WasmFunction } from '../wasm-module.zena';
 

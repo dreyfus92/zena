@@ -11,9 +11,7 @@
  */
 
 import { suite, test, TestContext } from 'zena:test';
-import { Array } from 'zena:array';
-import { StringReader } from 'zena:string-reader';
-import { StringBuilder } from 'zena:string-builder';
+import { Array, StringReader, StringBuilder } from 'zena:core';
 import { readFile, listDir, DirEntry, FileType } from 'zena:fs';
 
 /** One `// @name: value` comment directive and the line it was found on. */

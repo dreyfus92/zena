@@ -1,7 +1,5 @@
-import { Array } from 'zena:array';
+import { Array, StringReader, StringBuilder } from 'zena:core';
 import { Map } from 'zena:map';
-import { StringReader } from 'zena:string-reader';
-import { StringBuilder } from 'zena:string-builder';
 import { Comment } from './ast.zena';
 
 // ============================================================================

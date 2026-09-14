@@ -13,9 +13,7 @@
 import { suite, test, TestContext } from 'zena:test';
 import { isTrue, equal, throws } from 'zena:assert';
 import { readFile } from 'zena:fs';
-import { newByteArray } from 'zena:byte-array';
-import { Array } from 'zena:array';
-import { ImmutableArray } from 'zena:immutable-array';
+import { newByteArray, Array, ImmutableArray, i32ToString } from 'zena:core';
 import { HashMap } from 'zena:map';
 import { CompilerHost } from '../lib/library-loader.zena';
 import {
@@ -28,7 +26,6 @@ import { BinaryGenerator } from '../lib/codegen/binary-generator.zena';
 import { compileComponentRuntimeModule } from '../lib/codegen/component-runtime.zena';
 import { WatGenerator } from '../lib/codegen/wat-generator.zena';
 import { Program, CompilationUnit } from '../lib/program.zena';
-import { i32ToString } from 'zena:string-convert';
 import {
   isKebabName, toKebabName, ComponentShape, ComponentImportFunc,
   ComponentFuncType

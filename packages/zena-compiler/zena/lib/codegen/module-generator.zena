@@ -4,7 +4,7 @@ import { simdInstruction } from '../simd.zena';
 import {
   WasmModule, WasmFunction, WasmSignature, WasmExport, WasmGlobal, WasmStruct, VTableInit, WasmArray, StringLiteralLocation,
 } from './wasm-module.zena';
-import { ByteBuffer } from 'zena:byte-buffer';
+import { ByteBuffer, String } from 'zena:core';
 import { ReachabilityAnalysis } from './reachability/analysis.zena';
 import { prepareGenerators } from './ir/generators.zena';
 import { prepareAsyncFunctions } from './ir/async.zena';
@@ -18,7 +18,6 @@ import {
   NumberLiteral, StringLiteral, BooleanLiteral, EnumDeclaration, ImportDeclaration, Module,
 } from '../ast.zena';
 import { Symbol } from '../scope/symbol.zena';
-import { String } from 'zena:string';
 import { ValType, resetWasmTypeUids } from './wasm.zena';
 import { WasmEmitter } from './wasm-emitter.zena';
 import { performance } from '../time.zena';

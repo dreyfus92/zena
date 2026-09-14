@@ -7,11 +7,9 @@
  * closures rather than minting its own context (ir/intrinsics.zena
  * predates this and keeps its narrower IntrinsicCx).
  */
-import { Array } from 'zena:array';
+import { Array, String, Error } from 'zena:core';
 import { HashMap } from 'zena:map';
 import { HashSet } from 'zena:set';
-import { String } from 'zena:string';
-import { Error } from 'zena:error';
 import {
   AssignmentExpression, BindingPattern, CallExpression, Expression, FunctionExpression, Identifier, IdentifierPattern, IndexExpression, MemberExpression, Node, Statement, VariableDeclaration,
 } from '../../ast.zena';

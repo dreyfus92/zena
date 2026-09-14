@@ -14,7 +14,7 @@
 
 import { suite, test, TestContext } from 'zena:test';
 import { equal, isTrue } from 'zena:assert';
-import { Array } from 'zena:array';
+import { Array } from 'zena:core';
 import { parse } from '../lib/parser.zena';
 import { Symbol, noSymbolId } from '../lib/scope/symbol.zena';
 import { ScopeBuilder } from '../lib/scope/scope-builder.zena';

@@ -12,12 +12,9 @@ import { findDeclaration, collectValueExports, isArrayIntrinsic } from '../looku
  * (computed by a pre-scan), and loop headers carry parameters for every
  * variable assigned anywhere in the loop.
  */
-import { Array } from 'zena:array';
-import { GrowableArray } from 'zena:growable-array';
+import { Array, GrowableArray, Error, parseF64, parseI32, i32ToString } from 'zena:core';
 import { HashMap } from 'zena:map';
 import { HashSet } from 'zena:set';
-import { Error } from 'zena:error';
-import { parseF64, parseI32, i32ToString } from 'zena:string-convert';
 import {
   Node, Statement, Expression, FunctionExpression, BlockStatement, UsingStatement, ShieldedStatement, ReturnStatement, YieldStatement, BreakStatement, ContinueStatement, IfStatement, WhileStatement, ExpressionStatement, VariableDeclaration, BinaryExpression, UnaryExpression, AssignmentExpression, Identifier, NumberLiteral, BooleanLiteral, IdentifierPattern, BindingPattern, CallExpression, IfExpression, AsExpression, ForStatement, ForInStatement, IndexExpression, TemplateLiteral, NullLiteral, StringLiteral, NewExpression, MemberExpression, MethodDefinition, ThisExpression, Parameter, ClassDeclaration, MixinDeclaration, FieldDefinition, FieldInitializer, SuperInitializer, TypeAnnotation, AccessorDeclaration, SetterInfo, MatchExpression, LiteralPattern, TupleLiteral, EnumDeclaration, getMemberPropertyName, IsExpression, RangeExpression, PipelineExpression, PipePlaceholder, SuperExpression, ArrayLiteral, RecordLiteral, MapLiteral, ThrowExpression, TryExpression, TaggedTemplateExpression, ImportDeclaration, ImportSpecifier, Module, SpreadElement, LetPatternCondition, TuplePattern, ArrayPattern, RestPattern, PropertyAssignment, SealedVariant, RecordPattern, BindingProperty, AwaitExpression,
 } from '../../ast.zena';

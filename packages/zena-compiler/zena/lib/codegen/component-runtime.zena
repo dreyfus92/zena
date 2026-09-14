@@ -17,10 +17,7 @@
  * not depend on codegen.
  */
 
-import { String } from 'zena:string';
-import { Array } from 'zena:array';
-import { ByteBuffer } from 'zena:byte-buffer';
-import { Error } from 'zena:error';
+import { String, Array, ByteBuffer, Error } from 'zena:core';
 import { CompilerHost } from '../library-loader.zena';
 import { PackageConfig } from '../module-resolver.zena';
 import {

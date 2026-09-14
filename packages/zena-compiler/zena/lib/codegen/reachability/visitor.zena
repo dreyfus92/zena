@@ -19,10 +19,7 @@ import {
 import { SymbolId, Symbol, noSymbolId } from '../../scope/symbol.zena';
 import { HashMap } from 'zena:map';
 import { HashSet } from 'zena:set';
-import { Array } from 'zena:array';
-import { GrowableArray } from 'zena:growable-array';
-import { String } from 'zena:string';
-import { i32ToString } from 'zena:string-convert';
+import { Array, GrowableArray, String, i32ToString } from 'zena:core';
 import {
   getClassKey, getClassMethodKey, getInterfaceKey, getClassInterfaceKey, getInterfaceMemberKey, getMixinKeyFromSymbol, getSpecializedFunctionKey, getSpecializedName, getFunctionValueWrapperKey, getSignatureKey, collectMixinMembers, mixinScopeOfNode, MixinKey, isConcrete, ExportKey, ExportGlobalKey, getTypeUniqueKey, templateConvertHelperName, containsErasedType,
 } from '../codegen-utils.zena';

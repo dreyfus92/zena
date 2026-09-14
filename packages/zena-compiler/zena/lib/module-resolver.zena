@@ -9,9 +9,8 @@
 // Resolution is a pure function of configuration (packages + target).
 // No I/O is performed.
 
-import { Array } from 'zena:array';
+import { Array, Error } from 'zena:core';
 import { HashMap } from 'zena:map';
-import { Error } from 'zena:error';
 
 // ============================================================================
 // Package Configuration

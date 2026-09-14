@@ -24,7 +24,7 @@
 import { suite, test, TestContext } from 'zena:test';
 import { isTrue } from 'zena:assert';
 import { readFile } from 'zena:fs';
-import { Array } from 'zena:array';
+import { Array } from 'zena:core';
 import { HashMap } from 'zena:map';
 import { CompilerHost } from '../lib/library-loader.zena';
 import { createCompiler, CompilerOptions, checkCompilation } from '../lib/compiler.zena';

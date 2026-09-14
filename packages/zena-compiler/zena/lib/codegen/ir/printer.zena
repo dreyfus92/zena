@@ -9,8 +9,7 @@
  *       ret %2
  *   }
  */
-import { StringBuilder } from 'zena:string-builder';
-import { i32ToString, i64ToString, f64ToString } from 'zena:string-convert';
+import { StringBuilder, i32ToString, i64ToString, f64ToString } from 'zena:core';
 import { ValType, ValTypeVoid, ValTypeFunc, ValTypeI32, ValTypeI64, ValTypeF32, ValTypeF64, ValTypeV128, ValTypeFuncRef, ValTypeExternRef, ValTypeAnyRef, ValTypeEqRef, ValTypeStructRef, ValTypeOptRef, ValTypeRef, ValTypeRefNull, ValTypeI8, ValTypeI16 } from '../wasm.zena';
 import { WasmType } from '../wasm.zena';
 import { WasmStruct } from '../wasm-module.zena';

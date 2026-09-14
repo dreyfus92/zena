@@ -5,9 +5,7 @@ import {
 } from '../../ast.zena';
 import { HashMap } from 'zena:map';
 import { HashSet } from 'zena:set';
-import { Array } from 'zena:array';
-import { GrowableArray } from 'zena:growable-array';
-import { String } from 'zena:string';
+import { Array, GrowableArray, String } from 'zena:core';
 import { SymbolId } from '../../scope/symbol.zena';
 import { SemanticModel } from '../../semantic-model.zena';
 import {

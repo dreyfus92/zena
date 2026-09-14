@@ -1,13 +1,12 @@
 import { suite, test, TestContext } from 'zena:test';
 import { isTrue } from 'zena:assert';
 import { BinaryGenerator } from '../lib/codegen/binary-generator.zena';
-import { Array } from 'zena:array';
+import { Array, ByteBuffer } from 'zena:core';
 import { Program, CompilationUnit } from '../lib/program.zena';
 import { MockHost } from './test-utils.zena';
 import { checkCompilation, createCompiler, CompilerOptions } from '../lib/compiler.zena';
 import { HashMap } from 'zena:map';
 import { PackageConfig } from '../lib/module-resolver.zena';
-import { ByteBuffer } from 'zena:byte-buffer';
 
 let compileToBinary = (source: String): ByteBuffer => {
   let host = new MockHost();

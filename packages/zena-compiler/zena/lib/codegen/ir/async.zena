@@ -54,11 +54,9 @@
  * and layout through RTA; the extra allocation buys that complexity
  * back, and the observable semantics are identical.
  */
-import { Array } from 'zena:array';
+import { Array, Error, i32ToString } from 'zena:core';
 import { HashMap } from 'zena:map';
 import { HashSet } from 'zena:set';
-import { Error } from 'zena:error';
-import { i32ToString } from 'zena:string-convert';
 import {
   ValType, ValTypeI32, ValTypeRef, ValTypeRefNull, WasmType, refTargetOf,
 } from '../wasm.zena';

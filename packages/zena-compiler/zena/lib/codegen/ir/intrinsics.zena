@@ -10,8 +10,7 @@
  * lowerer-side for now — they share the primitive cluster with the
  * case-class ==/hashCode synthesizers — and arrive here as closures.
  */
-import { Array } from 'zena:array';
-import { String } from 'zena:string';
+import { Array, String, i32ToString } from 'zena:core';
 import { CallExpression, Expression, NumberLiteral, UnaryExpression } from '../../ast.zena';
 import { ValType, ValTypeI32, ValTypeI8, ValTypeI16, ValTypeV128, ValTypeVoid } from '../wasm.zena';
 import {
@@ -19,7 +18,6 @@ import {
   simdLaneCount,
 } from '../../simd.zena';
 import { parseI32WithHex } from '../codegen-utils.zena';
-import { i32ToString } from 'zena:string-convert';
 import { arrayElementType, isSignedNarrowIntType, isVoidOrNeverType } from '../../types.zena';
 import {
   WasmFunction, WasmArray, WasmTag, isValSubtype, asWasmArray,

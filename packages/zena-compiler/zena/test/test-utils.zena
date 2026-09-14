@@ -2,7 +2,7 @@
  * Shared test utilities for the self-hosted compiler test suite.
  */
 
-import { Array } from 'zena:array';
+import { Array } from 'zena:core';
 import { HashMap } from 'zena:map';
 import { CompilerHost } from '../lib/library-loader.zena';
 import { PackageConfig } from '../lib/module-resolver.zena';

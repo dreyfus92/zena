@@ -3,15 +3,12 @@ import {
 } from '../ast.zena';
 import { SemanticModel } from '../semantic-model.zena';
 import { SymbolId, noSymbolId } from '../scope/symbol.zena';
-import { Error } from 'zena:error';
-import { Hashable } from 'zena:hashable';
+import { Error, Hashable, Array, MutableArray, GrowableArray, ByteBuffer } from 'zena:core';
 import {
   ValType, ValTypeVoid, ValTypeStructRef, ValTypeRefNull, ValTypeRef, ValTypeEqRef,
   ValTypeAnyRef, ValTypeI8, WasmType, valTypeEquals, ValTypeExternRef, ValTypeI32,
   valTypeToOpcode, nextWasmTypeUid, refTargetOf, sameHeapType
 } from './wasm.zena';
-import { Array, MutableArray } from 'zena:array';
-import { GrowableArray } from 'zena:growable-array';
 import { HashMap } from 'zena:map';
 import { HashSet } from 'zena:set';
 import { NodeMap } from '../node-map.zena';
@@ -20,7 +17,6 @@ import {
 } from '../types.zena';
 import { String } from "zena:string";
 import { i32ToString } from "zena:string-convert";
-import { ByteBuffer } from 'zena:byte-buffer';
 import { Program, CompilationUnit } from '../program.zena';
 import { stdlibLibraryOf, stdlibLibraryAnswers } from '../stdlib-manifest.zena';
 

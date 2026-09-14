@@ -52,8 +52,7 @@
  */
 
 import { HashMap } from 'zena:map';
-import { Array } from 'zena:array';
-import { Error } from 'zena:error';
+import { Array, Error, String } from 'zena:core';
 import {
   WasmModule, WasmFunction, ComponentAsyncExport
 } from '../wasm-module.zena';
@@ -64,7 +63,6 @@ import { IrBuilder } from './builder.zena';
 import { IrRefFunc } from './ir.zena';
 import { ReachabilityAnalysis } from '../reachability/analysis.zena';
 import { ExportKey } from '../codegen-utils.zena';
-import { String } from 'zena:string';
 import {
   componentAbiModule, ComponentValType, toKebabName
 } from '../component-emitter.zena';

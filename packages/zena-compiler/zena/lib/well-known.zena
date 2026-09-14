@@ -19,8 +19,7 @@
 // declaration is written down.
 
 import { HashMap } from 'zena:map';
-import { Error } from 'zena:error';
-import { i32ToString } from 'zena:string-convert';
+import { Error, i32ToString } from 'zena:core';
 import { stdlibLibraryOf } from './stdlib-manifest.zena';
 
 /** A standard library declaration the compiler treats specially. */

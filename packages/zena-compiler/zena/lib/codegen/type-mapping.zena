@@ -17,8 +17,7 @@ import { compareStrings, presentWordCount, presentWordName } from './codegen-uti
 import { String } from "zena:string";
 import { i32ToString } from "zena:string-convert";
 import { HashMap } from 'zena:map';
-import { Array } from 'zena:array';
-import { GrowableArray } from 'zena:growable-array';
+import { Array, GrowableArray } from 'zena:core';
 import {
   getMemberRootClass, getClassKey, getClassMethodKey, getInterfaceKey, InterfaceKey, CellKey, ClosureKey,
 } from './codegen-utils.zena';

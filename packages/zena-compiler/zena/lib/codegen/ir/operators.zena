@@ -8,9 +8,7 @@
  * member calls, and fat-pointer unwrapping. Bodies are streaming's
  * shapes exactly.
  */
-import { String } from 'zena:string';
-import { GrowableArray } from 'zena:growable-array';
-import { parseF64 } from 'zena:string-convert';
+import { String, GrowableArray, parseF64 } from 'zena:core';
 import {
   AsExpression, BinaryExpression, Expression, NullLiteral,
   NumberLiteral, UnaryExpression,

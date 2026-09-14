@@ -1,6 +1,6 @@
 import { suite, test, TestContext } from 'zena:test';
 import { isTrue } from 'zena:assert';
-import { Error } from 'zena:error';
+import { Error } from 'zena:core';
 
 let helperFunction = (): Error => {
   return new Error('test error');

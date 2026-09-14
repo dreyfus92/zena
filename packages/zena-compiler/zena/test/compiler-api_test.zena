@@ -2,7 +2,7 @@
 
 import { suite, test, TestContext } from 'zena:test';
 import { equal, isTrue } from 'zena:assert';
-import { Array } from 'zena:array';
+import { Array } from 'zena:core';
 import { checkSource, findNodeAtOffset } from '../lib/compiler.zena';
 import { Diagnostic, DiagnosticSeverity, SourceSpan } from '../lib/diagnostics.zena';
 import {

@@ -1,4 +1,4 @@
-import { StringBuilder } from 'zena:string-builder';
+import { StringBuilder } from 'zena:core';
 import { Program } from '../program.zena';
 import { CodeGenerator } from './code-generator.zena';
 import { ModuleGenerator } from './module-generator.zena';

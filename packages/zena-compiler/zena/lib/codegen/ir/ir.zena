@@ -87,8 +87,7 @@
  * A result type of -1 in `typeId` means the instruction produces no value.
  * Instruction and block ids are plain i32 indices for now; -1 means "none".
  */
-import { Array } from 'zena:array';
-import { Error } from 'zena:error';
+import { Array, Error } from 'zena:core';
 import { HashMap } from 'zena:map';
 import { HashSet } from 'zena:set';
 import { ValType, WasmType, WideArithOpcode } from '../wasm.zena';

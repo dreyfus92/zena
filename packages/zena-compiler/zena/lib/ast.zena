@@ -2,8 +2,7 @@
  * Abstract Syntax Tree types for the Zena language
  */
 
-import { Array } from 'zena:array';
-import { GrowableArray } from 'zena:growable-array';
+import { Array, GrowableArray } from 'zena:core';
 
 /**
  * Distinct type for Node identity keys.

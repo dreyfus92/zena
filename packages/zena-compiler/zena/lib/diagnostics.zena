@@ -6,7 +6,7 @@
  * to the user.
  */
 
-import { Array } from 'zena:array';
+import { Array } from 'zena:core';
 import { SourceLocation } from './ast.zena';
 
 export enum DiagnosticSeverity {

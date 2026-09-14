@@ -4,7 +4,7 @@
  * emitter. Computed once per body on demand; bodies are not mutated
  * between construction and use in the current pipeline.
  */
-import { Array } from 'zena:array';
+import { Array } from 'zena:core';
 import { IrBody } from './ir.zena';
 
 export final class IrCfg {

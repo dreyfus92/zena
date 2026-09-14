@@ -23,7 +23,7 @@
 import { suite, test, TestContext } from 'zena:test';
 import { isTrue, isFalse, equal } from 'zena:assert';
 import { readFile, writeFile, exists, mkdir } from 'zena:fs';
-import { Array } from 'zena:array';
+import { Array, i32ToString } from 'zena:core';
 import { CompilerHost } from '../lib/library-loader.zena';
 import {
   createCompiler, CompilerOptions, checkCompilation,
@@ -34,7 +34,6 @@ import { DiagnosticSeverity } from '../lib/diagnostics.zena';
 import { BinaryGenerator } from '../lib/codegen/binary-generator.zena';
 import { WatGenerator } from '../lib/codegen/wat-generator.zena';
 import { Program, CompilationUnit } from '../lib/program.zena';
-import { i32ToString } from 'zena:string-convert';
 import { getEnv } from 'zena:cli';
 
 /** Mirrors codegen-wat_test's helper; UPDATE_SNAPSHOTS=1 regenerates. */

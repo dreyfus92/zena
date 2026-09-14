@@ -12,9 +12,7 @@
  * back through getOutputLength()/getOutputByte().
  */
 import { HashMap } from 'zena:map';
-import { Array } from 'zena:array';
-import { StringBuilder } from 'zena:string-builder';
-import { i32ToString } from 'zena:string-convert';
+import { Array, StringBuilder, i32ToString } from 'zena:core';
 import { CompilerHost } from '../lib/library-loader.zena';
 import { PackageConfig, stdlibIdToRelativeFile } from '../lib/module-resolver.zena';
 import { createCompiler, CompilerOptions, checkCompilation } from '../lib/compiler.zena';

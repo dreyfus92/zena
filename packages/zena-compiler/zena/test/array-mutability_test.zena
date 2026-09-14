@@ -1,6 +1,6 @@
 import { suite, test, TestContext } from 'zena:test';
 import { equal, isTrue, isFalse } from 'zena:assert';
-import { ByteBuffer } from 'zena:byte-buffer';
+import { ByteBuffer } from 'zena:core';
 import { ArrayType, I32Type, Type } from '../lib/types.zena';
 import { WasmModule, WasmArray, asWasmArray } from '../lib/codegen/wasm-module.zena';
 import { ValTypeI32 } from '../lib/codegen/wasm.zena';

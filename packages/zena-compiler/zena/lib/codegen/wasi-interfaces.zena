@@ -38,7 +38,7 @@
  * stay as short as the standard library allows.
  */
 
-import { String } from 'zena:string';
+import { String } from 'zena:core';
 
 /**
  * The package blocks for every known interface, spliced into the
