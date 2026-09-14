@@ -16,7 +16,7 @@ import { readFile } from 'zena:fs';
 import { newByteArray } from 'zena:core';
 import { CompilerHost } from '../lib/library-loader.zena';
 import {
-  createCompiler, CompilerOptions, checkCompilation
+  createCompiler, CompilerOptions, checkCompilation, withBuiltinPackages
 } from '../lib/compiler.zena';
 import { loadPackageMap } from '../lib/package-manifest.zena';
 import { stdlibIdToRelativeFile } from '../lib/module-resolver.zena';
@@ -399,6 +399,30 @@ export let tests = suite('Component emission', (): void => {
       "count's typed return canon entry is missing");
   });
 
+  test('the stdlib\'s wasi WIT is a built-in package', (ctx: TestContext): void => {
+    // The compiler registers `wasi` itself, rooted at the WIT shipped
+    // under the stdlib, so a program — or a stdlib module such as
+    // `zena:fetch` — imports `wasi:http/client` with no manifest. A
+    // manifest that declares `wasi` keeps its own: the tests here
+    // point it at their fixture package.
+    let none = new HashMap<String, PackageConfig>();
+    let builtin = withBuiltinPackages(stdlibRoot, none);
+    isTrue(builtin.has('wasi'), 'no built-in wasi package');
+    equal(builtin['wasi'].witRoot as String, `${stdlibRoot}/wit`,
+      'the built-in wasi package is not rooted at the stdlib\'s WIT');
+    let own = new PackageConfig('', null);
+    own.witRoot = `${fixtures}/wit-pkg`;
+    let declared = new HashMap<String, PackageConfig>();
+    declared['wasi'] = own;
+    let kept = withBuiltinPackages(stdlibRoot, declared);
+    equal(kept['wasi'].witRoot as String, `${fixtures}/wit-pkg`,
+      'a declared wasi package was replaced by the built-in one');
+    // And the shipped WIT really is there, with the interfaces the
+    // fetch module speaks.
+    isTrue(readWitSource(`${stdlibRoot}/wit`).contains('interface client'),
+      'the stdlib\'s wasi WIT does not declare wasi:http/client');
+  });
+
   test('an exported interface\'s async function wraps with its used types',
       (ctx: TestContext): void => {
     // The wasi:http service world exports the `handler` interface,
@@ -408,7 +432,7 @@ export let tests = suite('Component emission', (): void => {
     // types module, and declares its return at the WIT's result under
     // the exporting interface, whose `use`s the encoder follows.
     let wit = readFile(`${fixtures}/http-service.wit`);
-    let http = readFile('packages/stdlib/wit/http.wit');
+    let http = readFile('packages/stdlib/zena/wit/http.wit');
     let entry = `${fixtures}/http-service.zena`;
     let wrapperOpt = synthesizeExportWrapper(wit, 'http-service', entry,
         parse(readFile(entry), entry), http);

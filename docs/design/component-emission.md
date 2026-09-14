@@ -1247,10 +1247,15 @@ source into the derived document (so their instance types are the
 interface's own, and the flattening metadata sees the true types —
 deriving from the synthesized declarations would have declared the
 flattening as the interface), and the first real WASI WIT is vendored
-at `packages/stdlib/wit/` (`wasi:random@0.3.0`, versions pinned to
+at `packages/stdlib/zena/wit/` (`wasi:random@0.3.0`, versions pinned to
 what wasmtime registers), where the baked stdio blocks will eventually
-join it. End-to-end: `get-random-bytes` lifts its spilled `list<u8>`
-under stock `wasmtime -S p3=y`.
+join it. That directory ships with the stdlib, and the compiler
+registers it as the `wasi` package itself (`withBuiltinPackages`), so
+`import { send } from 'wasi:http/client'` needs no manifest entry —
+and the stdlib's own modules can import it, which is how `zena:fetch`
+on the component target speaks `wasi:http`. A manifest that declares
+`wasi` keeps its own. End-to-end: `get-random-bytes` lifts its spilled
+`list<u8>` under stock `wasmtime -S p3=y`.
 
 Enums and flags are synthesized too — the first named types a
 WIT-typed module declares. A WIT `enum` becomes a Zena enum whose

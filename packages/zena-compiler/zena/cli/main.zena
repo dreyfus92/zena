@@ -4,7 +4,9 @@ import { readFile, writeFileBytes, writeFile, exists } from 'zena:fs';
 import { CompilerHost } from '../lib/library-loader.zena';
 import { PackageConfig, stdlibIdToRelativeFile } from '../lib/module-resolver.zena';
 import { loadPackageMap } from '../lib/package-manifest.zena';
-import { createCompiler, CompilerOptions, checkCompilation } from '../lib/compiler.zena';
+import {
+  createCompiler, CompilerOptions, checkCompilation, withBuiltinPackages
+} from '../lib/compiler.zena';
 import { DiagnosticSeverity, SourceSpan } from '../lib/diagnostics.zena';
 import { BinaryGenerator } from '../lib/codegen/binary-generator.zena';
 import { WatGenerator } from '../lib/codegen/wat-generator.zena';
@@ -192,10 +194,13 @@ export let main = (): i32 => {
   // did earlier, and emitted bytes must not.
   var packagesWit = "";
   if (targetEmitsComponent(target)) {
+    // Including the packages the stdlib carries (`wasi`), the same
+    // set the resolver sees.
+    let allPackages = withBuiltinPackages("/stdlib", packages);
     let witPackages = new GrowableArray<String>();
-    let packageNames = packages.keys();
+    let packageNames = allPackages.keys();
     while (let (true, packageName) = packageNames.next()) {
-      if (packages[packageName].witRoot != null) {
+      if (allPackages[packageName].witRoot != null) {
         witPackages.push(packageName);
       }
     }
@@ -219,7 +224,7 @@ export let main = (): i32 => {
     }
     for (let packageName in witPackages) {
       packagesWit = packagesWit +
-          readWitSource(packages[packageName].witRoot as String) + "\n";
+          readWitSource(allPackages[packageName].witRoot as String) + "\n";
     }
   }
   if (witSource != "") {

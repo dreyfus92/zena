@@ -211,14 +211,34 @@ export final class ProgramCheckResult {
  * to configure user packages and provide the stdlib root path.
  */
 let buildResolver = (options: CompilerOptions): ModuleResolver => {
-  let allPackages = new HashMap<String, PackageConfig>();
-  let stdlibConfig = buildStdlibConfig(options.stdlibRoot);
-  allPackages["zena"] = stdlibConfig;
-  let userPkgIter = options.packages.keys();
-  while (let (true, name) = userPkgIter.next()) {
-    allPackages[name] = options.packages[name];
-  }
+  let allPackages = withBuiltinPackages(options.stdlibRoot, options.packages);
+  allPackages["zena"] = buildStdlibConfig(options.stdlibRoot);
   return new ModuleResolver(allPackages, options.target);
+};
+
+/**
+ * The user's packages plus the ones the stdlib carries: `wasi`, the
+ * WIT-backed package whose interfaces the stdlib itself imports
+ * (`zena:fetch` on the component target speaks `wasi:http`), rooted
+ * at the WIT shipped under the stdlib. A user manifest that declares
+ * `wasi` keeps its own — a test's fixture package, say. The `zena`
+ * package is not here: it is built from the manifest, not a path.
+ */
+export let withBuiltinPackages = (
+  stdlibRoot: String,
+  packages: HashMap<String, PackageConfig>
+): HashMap<String, PackageConfig> => {
+  let all = new HashMap<String, PackageConfig>();
+  let userPkgIter = packages.keys();
+  while (let (true, name) = userPkgIter.next()) {
+    all[name] = packages[name];
+  }
+  if (!all.has("wasi")) {
+    let wasi = new PackageConfig("", null);
+    wasi.witRoot = stdlibRoot + "/wit";
+    all["wasi"] = wasi;
+  }
+  return all;
 };
 
 export final class Compiler {
