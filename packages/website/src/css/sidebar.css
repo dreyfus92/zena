@@ -88,6 +88,15 @@
   padding-bottom: 24px;
 }
 
+.sidebar-item.level-0.is-link {
+  padding-bottom: 6px;
+}
+
+.sidebar-item.level-0.is-link + .sidebar-item.level-0.collapsible,
+.sidebar-item.level-0.is-link + .sidebar-item.level-0:not(.is-link) {
+  margin-top: 18px;
+}
+
 .sidebar-item.collapsed.level-0 {
   padding-bottom: 10px;
 }

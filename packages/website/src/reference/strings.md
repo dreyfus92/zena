@@ -14,9 +14,21 @@ see `src/_data/sidebar.js` for the full content plan.
 
 <!-- TODO: the string type -->
 
-## Literals and escapes
+## String literals and escapes
 
-<!-- TODO: literals and escapes -->
+<!-- TODO: string literals and escapes -->
+
+## Template literals and interpolation
+
+<!-- TODO: template literals and interpolation -->
+
+## Multi-line strings
+
+<!-- TODO: multi-line strings -->
+
+## Tagged templates
+
+<!-- TODO: tagged templates -->
 
 ## Indexing and slicing
 
@@ -26,6 +38,6 @@ see `src/_data/sidebar.js` for the full content plan.
 
 <!-- TODO: comparison and equality -->
 
-## Encodings
+## Encodings and representation
 
-<!-- TODO: encodings -->
+<!-- TODO: encodings and representation -->

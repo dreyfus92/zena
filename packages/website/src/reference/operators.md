@@ -30,6 +30,14 @@ see `src/_data/sidebar.js` for the full content plan.
 
 <!-- TODO: assignment and compound assignment -->
 
-## Type operators
+## The pipeline operator (|>)
 
-<!-- TODO: type operators -->
+<!-- TODO: the pipeline operator (|>) -->
+
+## Placeholders (\_)
+
+<!-- TODO: placeholders (_) -->
+
+## Operator precedence and associativity
+
+<!-- TODO: operator precedence and associativity -->

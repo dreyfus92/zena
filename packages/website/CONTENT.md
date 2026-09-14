@@ -237,66 +237,125 @@ To add a page: add it to the sidebar with an `outline`, then run
 
 ## Reference
 
-- **Overview**
-  - ✅ [Introduction](src/reference/index.md) — `/reference/`
-    - How to read this reference
-    - Conventions
-    - Feature status
-  - ✅ [Quick Reference](src/reference/quick-reference.md) — `/reference/quick-reference/`
-  - 📝 [Lexical Structure](src/reference/lexical-structure.md) — `/reference/lexical-structure/`
-    - Source encoding
-    - Comments
-    - Identifiers
-    - Keywords
+- ✅ [Introduction](src/reference/index.md) — `/reference/`
+  - How to read this reference
+  - Conventions
+  - Feature status
+- 📝 [Libraries](src/reference/libraries.md) — `/reference/libraries/`
+  - Library directories and files
+  - Top-level declarations
+  - Entry points and main()
+  - Imports and exports
+  - Re-exports and host imports
+  - Module resolution
+  - Package manifest
+  - Initialization order
+- 📝 [Variables](src/reference/variables.md) — `/reference/variables/`
+  - let
+  - var
+  - Type annotations
+  - Definite assignment
+  - Shadowing
+- 📝 [Functions](src/reference/functions.md) — `/reference/functions/`
+  - Function declarations and arrows
+  - Parameters and arguments
+  - Default and optional parameters
+  - Arity adaptation
+  - Return types
+  - Closures
+  - Generic functions
+- 📝 [Expressions](src/reference/expressions.md) — `/reference/expressions/`
+  - Evaluation order
+  - Block expressions
+  - Member access
+  - Calls
+  - Conditional expressions
+- 📝 [Operators](src/reference/operators.md) — `/reference/operators/`
+  - Arithmetic
+  - Comparison and equality
+  - Logical
+  - Bitwise
+  - Assignment and compound assignment
+  - The pipeline operator (|>)
+  - Placeholders (\_)
+  - Operator precedence and associativity
+- 📝 [Comments](src/reference/comments.md) — `/reference/comments/`
+  - Line comments (//)
+  - Block comments (/\* \*/)
+  - Documentation comments (/\*\* \*/)
+- **Data Types**
+  - 📝 [Numbers](src/reference/numbers.md) — `/reference/numbers/`
+    - Integers
+    - Narrow integers
+    - Floats
+    - Number literals
+    - Unsigned semantics
+    - Overflow and special values
+    - Numeric conversions
+  - 📝 [Booleans](src/reference/booleans.md) — `/reference/booleans/`
+    - The boolean type
+    - true and false
+    - Strict conditional semantics
+  - 📝 [Strings](src/reference/strings.md) — `/reference/strings/`
+    - The String type
+    - String literals and escapes
+    - Template literals and interpolation
+    - Multi-line strings
+    - Tagged templates
+    - Indexing and slicing
+    - Comparison and equality
+    - Encodings and representation
+  - 📝 [Records](src/reference/records.md) — `/reference/records/`
+    - Record literals
+    - Record types
+    - Spread
+    - Structural typing
+    - Representation
+  - 📝 [Tuples](src/reference/tuples.md) — `/reference/tuples/`
+    - Tuple literals
+    - Inline tuples
+    - Multi-value returns
+    - Representation
+  - 📝 [Arrays](src/reference/arrays.md) — `/reference/arrays/`
+    - FixedArray
+    - Array
+    - ImmutableArray
     - Literals
-    - Semicolons
-  - 📝 [Program Structure](src/reference/program-structure.md) — `/reference/program-structure/`
-    - Files and libraries
-    - Top-level declarations
-    - Entry points
-    - Initialization order
-- **Declarations**
-  - 📝 [Variables](src/reference/variables.md) — `/reference/variables/`
-    - let
-    - var
-    - Type annotations
-    - Definite assignment
-    - Shadowing
-  - 📝 [Functions](src/reference/functions.md) — `/reference/functions/`
-    - Function expressions
-    - Parameters
-    - Default and optional parameters
-    - Arity adaptation
-    - Return types
-    - Closures
-    - Top-level functions versus closures
-    - Generic functions
+    - Indexing and bounds
+    - Slicing
+  - 📝 [Maps and Sets](src/reference/maps.md) — `/reference/maps/`
+    - Map
+    - OrderedMap
+    - Set
+    - Keys, hashing, and equality
+    - Literals
+  - 📝 [Ranges](src/reference/ranges.md) — `/reference/ranges/`
+    - Range syntax
+    - Iterating a range
+    - Slicing with ranges
+  - 📝 [Enums](src/reference/enums.md) — `/reference/enums/`
+    - Declaring an enum
+    - Backing types
+    - Conversions
+    - Enums versus sealed classes
+- **Types**
+  - 📝 [Type System Overview](src/reference/types.md) — `/reference/types/`
+    - The type hierarchy
+    - Assignability and subtyping
+    - Nominal versus structural
+    - anyref, void, and never
+  - 📝 [Inference](src/reference/inference.md) — `/reference/inference/`
+    - Local variable inference
+    - Contextual typing
+    - Return type inference
   - 📝 [Type Aliases and Distinct Types](src/reference/type-aliases.md) — `/reference/type-aliases/`
     - type
     - distinct type
     - Generic aliases
     - Conversions
-- **Types**
-  - 📝 [Type System Overview](src/reference/types.md) — `/reference/types/`
-    - The type hierarchy
-    - Assignability
-    - Nominal versus structural
-    - any, anyref, and never
-  - 📝 [Primitives](src/reference/primitives.md) — `/reference/primitives/`
-    - Integers
-    - Floats
-    - boolean
-    - Numeric conversions
-    - Overflow and wrapping
-    - Special float values
-  - 📝 [Strings](src/reference/strings.md) — `/reference/strings/`
-    - The String type
-    - Literals and escapes
-    - Indexing and slicing
-    - Comparison and equality
-    - Encodings
   - 📝 [Unions](src/reference/unions.md) — `/reference/unions/`
     - Declaring a union
+    - Nullability
     - What may appear in a union
     - Why primitives are restricted
     - Narrowing a union
@@ -307,42 +366,11 @@ To add a page: add it to the sidebar with an `outline`, then run
     - Monomorphization
     - Variance
     - Inference
-  - 📝 [Inference and Narrowing](src/reference/inference.md) — `/reference/inference/`
-    - Local inference
-    - Contextual typing
+  - 📝 [Type Testing and Narrowing](src/reference/type-testing.md) — `/reference/type-testing/`
+    - The is operator
+    - The as operator
     - Control-flow narrowing
-    - is and as
-- **Expressions**
-  - 📝 [Expressions](src/reference/expressions.md) — `/reference/expressions/`
-    - Literals
-    - Member access
-    - Calls
-    - Conditional expressions
-    - Block expressions
-    - Evaluation order
-  - 📝 [Operators](src/reference/operators.md) — `/reference/operators/`
-    - Arithmetic
-    - Comparison and equality
-    - Logical
-    - Bitwise
-    - Assignment and compound assignment
-    - Type operators
-  - 📝 [Operator Precedence](src/reference/operator-precedence.md) — `/reference/operator-precedence/`
-    - Precedence table
-    - Associativity
-  - 📝 [Template Literals](src/reference/template-literals.md) — `/reference/template-literals/`
-    - Interpolation
-    - Multi-line strings
-    - Tagged templates
-  - 📝 [Ranges](src/reference/ranges.md) — `/reference/ranges/`
-    - Range syntax
-    - Iterating a range
-    - Slicing with ranges
-  - 📝 [Pipelines](src/reference/pipelines.md) — `/reference/pipelines/`
-    - The pipeline operator
-    - Placeholders
-    - Status
-- **Statements and Control Flow**
+- **Control Flow**
   - 📝 [Control Flow](src/reference/control-flow.md) — `/reference/control-flow/`
     - if
     - match
@@ -368,40 +396,18 @@ To add a page: add it to the sidebar with an `outline`, then run
     - Tuple patterns
     - Class patterns
     - Rest and defaults
-- **Data Types**
-  - 📝 [Records](src/reference/records.md) — `/reference/records/`
-    - Record literals
-    - Record types
-    - Spread
-    - Structural typing
+  - 📝 [Exceptions](src/reference/exceptions.md) — `/reference/exceptions/`
+    - throw
+    - try/catch
+    - finally
+    - try as an expression
+    - The Error class
     - Representation
-  - 📝 [Tuples](src/reference/tuples.md) — `/reference/tuples/`
-    - Tuple literals
-    - Inline tuples
-    - Multi-value returns
-    - Representation
-  - 📝 [Arrays](src/reference/arrays.md) — `/reference/arrays/`
-    - FixedArray
-    - Array
-    - ImmutableArray
-    - Literals
-    - Indexing and bounds
-    - Slicing
-  - 📝 [Maps and Sets](src/reference/maps.md) — `/reference/maps/`
-    - Map
-    - OrderedMap
-    - Set
-    - Keys, hashing, and equality
-    - Literals
-  - 📝 [Enums](src/reference/enums.md) — `/reference/enums/`
-    - Declaring an enum
-    - Backing types
-    - Conversions
-    - Enums versus sealed classes
-  - 📝 [Boxing](src/reference/boxing.md) — `/reference/boxing/`
-    - Box
-    - Automatic boxing
-    - Costs
+  - 📝 [Cancellation](src/reference/cancellation.md) — `/reference/cancellation/`
+    - The cancellation channel
+    - Cancel scopes
+    - Cleanup on cancellation
+    - Structured concurrency
 - **Classes**
   - 📝 [Introduction](src/reference/classes/index.md) — `/reference/classes/`
     - Declaring a class
@@ -453,33 +459,6 @@ To add a page: add it to the sidebar with an `outline`, then run
     - operator ==
     - operator hash
     - Other operators
-- **Errors**
-  - 📝 [Exceptions](src/reference/exceptions.md) — `/reference/exceptions/`
-    - throw
-    - try/catch
-    - finally
-    - try as an expression
-    - The Error class
-    - Representation
-- **Libraries**
-  - 📝 [Libraries and Modules](src/reference/libraries.md) — `/reference/libraries/`
-    - Library directories
-    - Module resolution
-    - Library specifiers
-    - Circular imports
-  - 📝 [Imports and Exports](src/reference/imports-and-exports.md) — `/reference/imports-and-exports/`
-    - import
-    - from … import
-    - export
-    - Re-exports
-    - Host imports
-  - 📝 [Visibility](src/reference/visibility.md) — `/reference/visibility/`
-    - Module visibility
-    - Class member visibility
-  - 📝 [Package Manifest](src/reference/package-manifest.md) — `/reference/package-manifest/`
-    - Fields
-    - Dependencies
-    - Targets
 - **Attributes**
   - 📝 [Decorators and Intrinsics](src/reference/decorators.md) — `/reference/decorators/`
     - @intrinsic
@@ -647,4 +626,4 @@ To add a page: add it to the sidebar with an `outline`, then run
 
 ---
 
-33 of 101 pages written; 68 still placeholders.
+32 of 95 pages written; 63 still placeholders.

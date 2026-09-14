@@ -462,106 +462,105 @@ const guide = [
 
 const reference = [
   {
-    text: 'Overview',
-    items: [
-      {
-        text: 'Introduction',
-        link: '/reference/',
-        outline: [
-          'How to read this reference',
-          'Conventions',
-          'Feature status',
-        ],
-      },
-      {
-        // The most complete page on the site: every feature with a short
-        // example, written before the per-topic reference pages existed. Those
-        // pages will eventually expand on sections of this one.
-        text: 'Quick Reference',
-        link: '/reference/quick-reference/',
-      },
-      {
-        text: 'Lexical Structure',
-        link: '/reference/lexical-structure/',
-        outline: [
-          'Source encoding',
-          'Comments',
-          'Identifiers',
-          'Keywords',
-          'Literals',
-          'Semicolons',
-        ],
-      },
-      {
-        text: 'Program Structure',
-        link: '/reference/program-structure/',
-        outline: [
-          'Files and libraries',
-          'Top-level declarations',
-          'Entry points',
-          'Initialization order',
-        ],
-      },
+    text: 'Introduction',
+    link: '/reference/',
+    outline: ['How to read this reference', 'Conventions', 'Feature status'],
+  },
+  {
+    text: 'Libraries',
+    link: '/reference/libraries/',
+    outline: [
+      'Library directories and files',
+      'Top-level declarations',
+      'Entry points and main()',
+      'Imports and exports',
+      'Re-exports and host imports',
+      'Module resolution',
+      'Package manifest',
+      'Initialization order',
     ],
   },
   {
-    text: 'Declarations',
-    items: [
-      {
-        text: 'Variables',
-        link: '/reference/variables/',
-        outline: [
-          'let',
-          'var',
-          'Type annotations',
-          'Definite assignment',
-          'Shadowing',
-        ],
-      },
-      {
-        text: 'Functions',
-        link: '/reference/functions/',
-        outline: [
-          'Function expressions',
-          'Parameters',
-          'Default and optional parameters',
-          'Arity adaptation',
-          'Return types',
-          'Closures',
-          'Top-level functions versus closures',
-          'Generic functions',
-        ],
-      },
-      {
-        text: 'Type Aliases and Distinct Types',
-        link: '/reference/type-aliases/',
-        outline: ['type', 'distinct type', 'Generic aliases', 'Conversions'],
-      },
+    text: 'Variables',
+    link: '/reference/variables/',
+    outline: [
+      'let',
+      'var',
+      'Type annotations',
+      'Definite assignment',
+      'Shadowing',
     ],
   },
   {
-    text: 'Types',
+    text: 'Functions',
+    link: '/reference/functions/',
+    outline: [
+      'Function declarations and arrows',
+      'Parameters and arguments',
+      'Default and optional parameters',
+      'Arity adaptation',
+      'Return types',
+      'Closures',
+      'Generic functions',
+    ],
+  },
+  {
+    text: 'Expressions',
+    link: '/reference/expressions/',
+    outline: [
+      'Evaluation order',
+      'Block expressions',
+      'Member access',
+      'Calls',
+      'Conditional expressions',
+    ],
+  },
+  {
+    text: 'Operators',
+    link: '/reference/operators/',
+    outline: [
+      'Arithmetic',
+      'Comparison and equality',
+      'Logical',
+      'Bitwise',
+      'Assignment and compound assignment',
+      'The pipeline operator (|>)',
+      'Placeholders (_)',
+      'Operator precedence and associativity',
+    ],
+  },
+  {
+    text: 'Comments',
+    link: '/reference/comments/',
+    outline: [
+      'Line comments (//)',
+      'Block comments (/* */)',
+      'Documentation comments (/** */)',
+    ],
+  },
+  {
+    text: 'Data Types',
     items: [
       {
-        text: 'Type System Overview',
-        link: '/reference/types/',
-        outline: [
-          'The type hierarchy',
-          'Assignability',
-          'Nominal versus structural',
-          'any, anyref, and never',
-        ],
-      },
-      {
-        text: 'Primitives',
-        link: '/reference/primitives/',
+        text: 'Numbers',
+        link: '/reference/numbers/',
         outline: [
           'Integers',
+          'Narrow integers',
           'Floats',
-          'boolean',
+          'Number literals',
+          'Unsigned semantics',
+          'Overflow and special values',
           'Numeric conversions',
-          'Overflow and wrapping',
-          'Special float values',
+        ],
+      },
+      {
+        text: 'Booleans',
+        link: '/reference/booleans/',
+        outline: [
+          'The boolean type',
+          'true and false',
+          'Strict conditional semantics',
         ],
       },
       {
@@ -569,142 +568,15 @@ const reference = [
         link: '/reference/strings/',
         outline: [
           'The String type',
-          'Literals and escapes',
+          'String literals and escapes',
+          'Template literals and interpolation',
+          'Multi-line strings',
+          'Tagged templates',
           'Indexing and slicing',
           'Comparison and equality',
-          'Encodings',
+          'Encodings and representation',
         ],
       },
-      {
-        text: 'Unions',
-        link: '/reference/unions/',
-        outline: [
-          'Declaring a union',
-          'What may appear in a union',
-          'Why primitives are restricted',
-          'Narrowing a union',
-          'Literal types',
-        ],
-      },
-      {
-        text: 'Generics',
-        link: '/reference/generics/',
-        outline: [
-          'Type parameters',
-          'Constraints',
-          'Monomorphization',
-          'Variance',
-          'Inference',
-        ],
-      },
-      {
-        text: 'Inference and Narrowing',
-        link: '/reference/inference/',
-        outline: [
-          'Local inference',
-          'Contextual typing',
-          'Control-flow narrowing',
-          'is and as',
-        ],
-      },
-    ],
-  },
-  {
-    text: 'Expressions',
-    items: [
-      {
-        text: 'Expressions',
-        link: '/reference/expressions/',
-        outline: [
-          'Literals',
-          'Member access',
-          'Calls',
-          'Conditional expressions',
-          'Block expressions',
-          'Evaluation order',
-        ],
-      },
-      {
-        text: 'Operators',
-        link: '/reference/operators/',
-        outline: [
-          'Arithmetic',
-          'Comparison and equality',
-          'Logical',
-          'Bitwise',
-          'Assignment and compound assignment',
-          'Type operators',
-        ],
-      },
-      {
-        text: 'Operator Precedence',
-        link: '/reference/operator-precedence/',
-        outline: ['Precedence table', 'Associativity'],
-      },
-      {
-        text: 'Template Literals',
-        link: '/reference/template-literals/',
-        outline: ['Interpolation', 'Multi-line strings', 'Tagged templates'],
-      },
-      {
-        text: 'Ranges',
-        link: '/reference/ranges/',
-        outline: ['Range syntax', 'Iterating a range', 'Slicing with ranges'],
-      },
-      {
-        text: 'Pipelines',
-        link: '/reference/pipelines/',
-        outline: ['The pipeline operator', 'Placeholders', 'Status'],
-      },
-    ],
-  },
-  {
-    text: 'Statements and Control Flow',
-    items: [
-      {
-        text: 'Control Flow',
-        link: '/reference/control-flow/',
-        outline: ['if', 'match', 'Blocks', 'return', 'throw'],
-      },
-      {
-        text: 'Loops',
-        link: '/reference/loops/',
-        outline: [
-          'while',
-          'for',
-          'for-in',
-          'break and continue',
-          'Labels',
-          'while let',
-        ],
-      },
-      {
-        text: 'Pattern Matching',
-        link: '/reference/pattern-matching/',
-        outline: [
-          'match expressions',
-          'Pattern forms',
-          'Guards',
-          'Or patterns',
-          'Exhaustiveness checking',
-          'if let',
-        ],
-      },
-      {
-        text: 'Destructuring',
-        link: '/reference/destructuring/',
-        outline: [
-          'Record patterns',
-          'Tuple patterns',
-          'Class patterns',
-          'Rest and defaults',
-        ],
-      },
-    ],
-  },
-  {
-    text: 'Data Types',
-    items: [
       {
         text: 'Records',
         link: '/reference/records/',
@@ -750,6 +622,11 @@ const reference = [
         ],
       },
       {
+        text: 'Ranges',
+        link: '/reference/ranges/',
+        outline: ['Range syntax', 'Iterating a range', 'Slicing with ranges'],
+      },
+      {
         text: 'Enums',
         link: '/reference/enums/',
         outline: [
@@ -759,10 +636,132 @@ const reference = [
           'Enums versus sealed classes',
         ],
       },
+    ],
+  },
+  {
+    text: 'Types',
+    items: [
       {
-        text: 'Boxing',
-        link: '/reference/boxing/',
-        outline: ['Box', 'Automatic boxing', 'Costs'],
+        text: 'Type System Overview',
+        link: '/reference/types/',
+        outline: [
+          'The type hierarchy',
+          'Assignability and subtyping',
+          'Nominal versus structural',
+          'anyref, void, and never',
+        ],
+      },
+      {
+        text: 'Inference',
+        link: '/reference/inference/',
+        outline: [
+          'Local variable inference',
+          'Contextual typing',
+          'Return type inference',
+        ],
+      },
+      {
+        text: 'Type Aliases and Distinct Types',
+        link: '/reference/type-aliases/',
+        outline: ['type', 'distinct type', 'Generic aliases', 'Conversions'],
+      },
+      {
+        text: 'Unions',
+        link: '/reference/unions/',
+        outline: [
+          'Declaring a union',
+          'Nullability',
+          'What may appear in a union',
+          'Why primitives are restricted',
+          'Narrowing a union',
+          'Literal types',
+        ],
+      },
+      {
+        text: 'Generics',
+        link: '/reference/generics/',
+        outline: [
+          'Type parameters',
+          'Constraints',
+          'Monomorphization',
+          'Variance',
+          'Inference',
+        ],
+      },
+      {
+        text: 'Type Testing and Narrowing',
+        link: '/reference/type-testing/',
+        outline: [
+          'The is operator',
+          'The as operator',
+          'Control-flow narrowing',
+        ],
+      },
+    ],
+  },
+  {
+    text: 'Control Flow',
+    items: [
+      {
+        text: 'Control Flow',
+        link: '/reference/control-flow/',
+        outline: ['if', 'match', 'Blocks', 'return', 'throw'],
+      },
+      {
+        text: 'Loops',
+        link: '/reference/loops/',
+        outline: [
+          'while',
+          'for',
+          'for-in',
+          'break and continue',
+          'Labels',
+          'while let',
+        ],
+      },
+      {
+        text: 'Pattern Matching',
+        link: '/reference/pattern-matching/',
+        outline: [
+          'match expressions',
+          'Pattern forms',
+          'Guards',
+          'Or patterns',
+          'Exhaustiveness checking',
+          'if let',
+        ],
+      },
+      {
+        text: 'Destructuring',
+        link: '/reference/destructuring/',
+        outline: [
+          'Record patterns',
+          'Tuple patterns',
+          'Class patterns',
+          'Rest and defaults',
+        ],
+      },
+      {
+        text: 'Exceptions',
+        link: '/reference/exceptions/',
+        outline: [
+          'throw',
+          'try/catch',
+          'finally',
+          'try as an expression',
+          'The Error class',
+          'Representation',
+        ],
+      },
+      {
+        text: 'Cancellation',
+        link: '/reference/cancellation/',
+        outline: [
+          'The cancellation channel',
+          'Cancel scopes',
+          'Cleanup on cancellation',
+          'Structured concurrency',
+        ],
       },
     ],
   },
@@ -859,59 +858,6 @@ const reference = [
         text: 'Operator Overloads',
         link: '/reference/classes/operators/',
         outline: ['operator ==', 'operator hash', 'Other operators'],
-      },
-    ],
-  },
-  {
-    text: 'Errors',
-    items: [
-      {
-        text: 'Exceptions',
-        link: '/reference/exceptions/',
-        outline: [
-          'throw',
-          'try/catch',
-          'finally',
-          'try as an expression',
-          'The Error class',
-          'Representation',
-        ],
-      },
-    ],
-  },
-  {
-    text: 'Libraries',
-    items: [
-      {
-        text: 'Libraries and Modules',
-        link: '/reference/libraries/',
-        outline: [
-          'Library directories',
-          'Module resolution',
-          'Library specifiers',
-          'Circular imports',
-        ],
-      },
-      {
-        text: 'Imports and Exports',
-        link: '/reference/imports-and-exports/',
-        outline: [
-          'import',
-          'from … import',
-          'export',
-          'Re-exports',
-          'Host imports',
-        ],
-      },
-      {
-        text: 'Visibility',
-        link: '/reference/visibility/',
-        outline: ['Module visibility', 'Class member visibility'],
-      },
-      {
-        text: 'Package Manifest',
-        link: '/reference/package-manifest/',
-        outline: ['Fields', 'Dependencies', 'Targets'],
       },
     ],
   },

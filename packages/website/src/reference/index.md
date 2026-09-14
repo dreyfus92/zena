@@ -19,12 +19,11 @@ to write code, they're safe to skip.
 
 Pages are grouped by what they describe:
 
-- **Declarations** — how names are introduced
-- **Types** — the type system and each built-in type
-- **Expressions** and **Control flow** — how code is written and evaluated
-- **Data types** — records, tuples, arrays, maps, enums
-- **Classes** — the nominal type system, in detail
-- **Libraries** — modules, imports, exports, visibility
+- **Core language** — libraries, variables, functions, expressions, operators, comments
+- **Data types** — numbers, booleans, strings, records, tuples, arrays, maps, sets, ranges, enums
+- **Types** — the sound type system, inference, aliases, distinct types, unions, generics, and narrowing
+- **Control flow** — conditionals, loops, pattern matching, destructuring, exceptions, and cancellation
+- **Classes** — the nominal type system, interfaces, mixins, and sealed hierarchies
 - **Standard library** — one page per `zena:` library
 - **Toolchain** — the CLI, targets, flags, formatter, and language server
 
@@ -58,9 +57,12 @@ still open to change — nothing in Zena is frozen yet.
 
 ## Quick links
 
-- [Lexical structure](/reference/lexical-structure/) — tokens, comments, semicolons
+- [Comments](/reference/comments/) — comments and documentation syntax
+- [Libraries](/reference/libraries/) — directories, entry points, and modules
 - [Type system overview](/reference/types/) — how the type system fits together
+- [Numbers](/reference/numbers/) — integers, floats, and numeric semantics
+- [Strings](/reference/strings/) — string literals, template interpolation, and encodings
 - [Pattern matching](/reference/pattern-matching/) — `match`, patterns, exhaustiveness
-- [Classes](/reference/classes/) — the largest section
+- [Classes](/reference/classes/) — nominal classes and object orientation
 - [Standard library](/reference/stdlib/) — what ships with Zena
 - [CLI](/reference/cli/) — every command and flag
