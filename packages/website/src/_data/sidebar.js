@@ -533,11 +533,7 @@ const reference = [
   {
     text: 'Comments',
     link: '/reference/comments/',
-    outline: [
-      'Line comments (//)',
-      'Block comments (/* */)',
-      'Documentation comments (/** */)',
-    ],
+    outline: ['Line comments (//)', 'Block comments (/* */)', 'Doc comments'],
   },
   {
     text: 'Data Types',

@@ -280,10 +280,10 @@ To add a page: add it to the sidebar with an `outline`, then run
   - Range operators
   - Pipelines and the placeholder ($)
   - Operator precedence and associativity
-- 📝 [Comments](src/reference/comments.md) — `/reference/comments/`
+- ✅ [Comments](src/reference/comments.md) — `/reference/comments/`
   - Line comments (//)
   - Block comments (/\* \*/)
-  - Documentation comments (/\*\* \*/)
+  - Doc comments
 - **Data Types**
   - 📝 [Numbers](src/reference/numbers.md) — `/reference/numbers/`
     - Integers
@@ -627,4 +627,4 @@ To add a page: add it to the sidebar with an `outline`, then run
 
 ---
 
-37 of 95 pages written; 58 still placeholders.
+38 of 95 pages written; 57 still placeholders.
