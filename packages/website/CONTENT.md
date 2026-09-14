@@ -271,14 +271,14 @@ To add a page: add it to the sidebar with an `outline`, then run
   - Member access
   - Calls
   - Evaluation order
-- 📝 [Operators](src/reference/operators.md) — `/reference/operators/`
+- ✅ [Operators](src/reference/operators.md) — `/reference/operators/`
   - Arithmetic
   - Comparison and equality
-  - Logical
+  - Logical and null-coalescing
   - Bitwise
   - Assignment and compound assignment
-  - The pipeline operator (|>)
-  - Placeholders (\_)
+  - Range operators
+  - Pipelines and the placeholder ($)
   - Operator precedence and associativity
 - 📝 [Comments](src/reference/comments.md) — `/reference/comments/`
   - Line comments (//)
@@ -627,4 +627,4 @@ To add a page: add it to the sidebar with an `outline`, then run
 
 ---
 
-36 of 95 pages written; 59 still placeholders.
+37 of 95 pages written; 58 still placeholders.
