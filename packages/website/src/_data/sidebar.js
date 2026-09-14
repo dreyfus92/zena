@@ -509,11 +509,11 @@ const reference = [
     text: 'Expressions',
     link: '/reference/expressions/',
     outline: [
-      'Evaluation order',
-      'Block expressions',
+      'Expression-oriented syntax',
+      'Literals',
       'Member access',
       'Calls',
-      'Conditional expressions',
+      'Evaluation order',
     ],
   },
   {

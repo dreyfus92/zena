@@ -265,12 +265,12 @@ To add a page: add it to the sidebar with an `outline`, then run
   - Tail calls
   - Generator functions
   - Async functions
-- 📝 [Expressions](src/reference/expressions.md) — `/reference/expressions/`
-  - Evaluation order
-  - Block expressions
+- ✅ [Expressions](src/reference/expressions.md) — `/reference/expressions/`
+  - Expression-oriented syntax
+  - Literals
   - Member access
   - Calls
-  - Conditional expressions
+  - Evaluation order
 - 📝 [Operators](src/reference/operators.md) — `/reference/operators/`
   - Arithmetic
   - Comparison and equality
@@ -627,4 +627,4 @@ To add a page: add it to the sidebar with an `outline`, then run
 
 ---
 
-35 of 95 pages written; 60 still placeholders.
+36 of 95 pages written; 59 still placeholders.
