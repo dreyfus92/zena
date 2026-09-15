@@ -737,6 +737,31 @@ export let tests = suite('zir backend', (): void => {
         'the closure body is inlined into the loop');
   });
 
+  test('-O2 treats a named closure like a closure literal', (ctx: TestContext): void => {
+    // `let g = ...; each(g, n)` binds the closure value to a name; the
+    // call passes that same value, so the argument rule sees exactly
+    // what it sees for a literal.
+    let result = compileWithZirAt(
+        'let each = (f: (x: i32) => i32, n: i32): i32 => {\n' +
+        '  var s = 0;\n' +
+        '  var i = 0;\n' +
+        '  while (i < n) { s += f(i); i += 1; }\n' +
+        '  return s;\n' +
+        '};\n' +
+        'let a = (n: i32): i32 => {\n' +
+        '  let g = (x: i32): i32 => x * 2;\n' +
+        '  return each(g, n);\n' +
+        '};\n' +
+        'let b = (n: i32): i32 => each((x: i32): i32 => x + 1, n);\n' +
+        'export let main = (): i32 => a(10) + b(10);', 2);
+    assertNoAllocation(result, '$a',
+        'the named closure is never allocated');
+    let absent = new GrowableArray<String>();
+    absent.push('call');
+    assertFunctionOmits(result, '$a', absent,
+        'the named closure body is inlined into the loop');
+  });
+
   test('-O2 inlines a loop over an interface argument and removes the pack', (ctx: TestContext): void => {
     let result = compileWithZirAt(
         'interface Shape { area(): i32; }\n' +
