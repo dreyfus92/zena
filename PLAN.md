@@ -36,7 +36,7 @@ This document tracks completed work and planned features. For project instructio
 - **Status**: **Done.** The TypeScript compiler is deleted; a fresh checkout bootstraps from the checked-in `packages/zena-compiler/bootstrap/cli.wasm` (see `docs/design/bootstrapping.md`), gated by the `test:fixpoint` self-compilation byte-parity check.
 - **New IR Backend**: Building a new IR-based backend to unlock advanced optimizations (devirtualization, specialization, and size reductions).
 - **Performance Optimizations**:
-  - Solve quadratic JIT compilation/lookups. Introduce hashed lookup indices for WASM functions in the code generator to eliminate $O(N)$ linear scans.
+  - Solve quadratic JIT compilation/lookups. Introduce hashed lookup indices for WASM functions in the code generator to eliminate O(N) linear scans.
   - Implement hybrid monomorphization: share specialized reference type methods (e.g. `Box<anyref>`) to reduce compiled WASM code size.
 
 ### Phase 2: Platform Features (Post-Retirement)

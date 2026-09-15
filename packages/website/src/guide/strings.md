@@ -22,6 +22,7 @@ Strings in Zena are immutable sequences of Unicode characters represented by the
 
 Strings are being designed to find a good balance of familiar, ergonomic,
 correct, portable, fast, and compact:
+
 - Strings limit Unicode-unsafe operations, both for correctness and portability
   across hosts with different native encodings.
 - Strings have simple implementations for code size, which may sacrifice
@@ -242,7 +243,7 @@ let full = "Hello, world!";
 let hello = full.sliceBytes(0, 5); // String view: start = 0, end = 5
 ```
 
-Slicing runs in $O(1)$ constant time and allocates only the small `String` header.
+Slicing runs in O(1) constant time and allocates only the small `String` header.
 
 ### The memory retention hazard
 
@@ -371,7 +372,7 @@ let greeting = "Hello, " + name;
 
 While suitable for simple expressions, using `+` inside loops is a severe
 performance hazard. Similar to Java, repeated concatenation allocates and
-copies increasingly large buffers on every iteration, leading to $O(n^2)$ time
+copies increasingly large buffers on every iteration, leading to O(n²) time
 complexity:
 
 ```zena

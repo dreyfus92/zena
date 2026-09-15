@@ -70,15 +70,15 @@ compiler. Both evaluate to a `String` instance.
 
 The following escape sequences are recognized in string literals:
 
-| Escape | Name | Description |
-| :--- | :--- | :--- |
-| `\n` | Newline | Line feed character (`0x0A`) |
-| `\r` | Carriage return | Carriage return character (`0x0D`) |
-| `\t` | Tab | Horizontal tab character (`0x09`) |
-| `\\` | Backslash | Literal backslash character (`\`) |
-| `\"` | Double quote | Literal double quotation mark (`"`) |
-| `\'` | Single quote | Literal single quotation mark (`'`) |
-| `\h` | Word boundary | Word character escape |
+| Escape       | Name              | Description                                          |
+| :----------- | :---------------- | :--------------------------------------------------- |
+| `\n`         | Newline           | Line feed character (`0x0A`)                         |
+| `\r`         | Carriage return   | Carriage return character (`0x0D`)                   |
+| `\t`         | Tab               | Horizontal tab character (`0x09`)                    |
+| `\\`         | Backslash         | Literal backslash character (`\`)                    |
+| `\"`         | Double quote      | Literal double quotation mark (`"`)                  |
+| `\'`         | Single quote      | Literal single quotation mark (`'`)                  |
+| `\h`         | Word boundary     | Word character escape                                |
 | `\<newline>` | Line continuation | Escapes the source line break (no character emitted) |
 
 ```zena
@@ -100,6 +100,7 @@ let message = `Hello, ${name}! You have ${count} unread messages.`;
 ### Interpolated expressions
 
 Interpolation supports:
+
 - `String` expressions
 - Numeric primitives and narrow integers (`i32`, `u32`, `i64`, `u64`, `f32`, `f64`, `i8`, `u8`, `i16`, `u16`)
 - `boolean` values (`true` and `false`)
@@ -181,11 +182,11 @@ let customTag: TemplateTag<String> = (
 
 `TemplateStringsArray` provides access to both cooked and raw string segments:
 
-| Member | Type | Description |
-| :--- | :--- | :--- |
-| `length` | `i32` | Number of string segments |
-| `[index]` | `String` | Cooked (escape-processed) string at `index` |
-| `raw` | `ImmutableArray<String>` | Raw (unescaped) string segments |
+| Member    | Type                     | Description                                 |
+| :-------- | :----------------------- | :------------------------------------------ |
+| `length`  | `i32`                    | Number of string segments                   |
+| `[index]` | `String`                 | Cooked (escape-processed) string at `index` |
+| `raw`     | `ImmutableArray<String>` | Raw (unescaped) string segments             |
 
 In raw strings (`strings.raw[i]`), escape sequences like `\n` remain as two
 characters (`\` and `n`) rather than being converted to line feed characters.
@@ -276,12 +277,13 @@ let token = fileContent.sliceBytes(10, 20).copy(); // Detached from large buffer
 
 Strings compare by value using `==` and `!=`:
 
-| Operator | Semantic | Description |
-| :--- | :--- | :--- |
-| `==` | Value equality | Returns `true` if both strings contain identical byte sequences |
-| `!=` | Value inequality | Returns `true` if string contents differ |
+| Operator | Semantic         | Description                                                     |
+| :------- | :--------------- | :-------------------------------------------------------------- |
+| `==`     | Value equality   | Returns `true` if both strings contain identical byte sequences |
+| `!=`     | Value inequality | Returns `true` if string contents differ                        |
 
 Value equality (`==`) executes an optimized comparison:
+
 1. Length comparison (`this.length == other.length`).
 2. Cached hash code mismatch check: if both strings have computed hash codes and they differ, returns `false` without scanning bytes.
 3. Byte-by-byte comparison (`#regionEquals`).
@@ -390,7 +392,7 @@ operator +(other: String): String;
 ```
 
 Concatenating strings with `+` inside a loop repeatedly allocates new byte arrays,
-creating an $O(n^2)$ performance hazard identical to naive concatenation in Java.
+creating an O(n²) performance hazard identical to naive concatenation in Java.
 For dynamic or iterative string generation, use
 [`StringBuilder`](/reference/stdlib/string-builder/). For interpolating values
 into static text, prefer [template literals](#template-literals).
@@ -407,4 +409,3 @@ Zena is actively expanding its string implementation toward two major milestones
    - Native WebAssembly GC byte arrays (current default)
    - Host strings backed by JavaScript strings via WebAssembly `js-string-builtins`
    - Linear memory strings for zero-copy WASI I/O
-

@@ -13,12 +13,12 @@ allocation overhead.
 Zena supports two standard integer widths, each available in signed and unsigned
 variants:
 
-| Type  | Bit width | Signedness | Min value                                 | Max value                                   | WebAssembly type |
-| :---- | :-------- | :--------- | :---------------------------------------- | :------------------------------------------ | :--------------- |
-| `i32` | 32-bit    | Signed     | `-2_147_483_648` ($-2^{31}$)              | `2_147_483_647` ($2^{31} - 1$)              | `i32`            |
-| `u32` | 32-bit    | Unsigned   | `0`                                       | `4_294_967_295` ($2^{32} - 1$)              | `i32`            |
-| `i64` | 64-bit    | Signed     | ` -9_223_372_036_854_775_808` ($-2^{63}$) | `9_223_372_036_854_775_807` ($2^{63} - 1$)  | `i64`            |
-| `u64` | 64-bit    | Unsigned   | `0`                                       | `18_446_744_073_709_551_615` ($2^{64} - 1$) | `i64`            |
+| Type  | Bit width | Signedness | Min value                           | Max value                              | WebAssembly type |
+| :---- | :-------- | :--------- | :---------------------------------- | :------------------------------------- | :--------------- |
+| `i32` | 32-bit    | Signed     | `-2_147_483_648` (-2³¹)             | `2_147_483_647` (2³¹ - 1)              | `i32`            |
+| `u32` | 32-bit    | Unsigned   | `0`                                 | `4_294_967_295` (2³² - 1)              | `i32`            |
+| `i64` | 64-bit    | Signed     | `-9_223_372_036_854_775_808` (-2⁶³) | `9_223_372_036_854_775_807` (2⁶³ - 1)  | `i64`            |
+| `u64` | 64-bit    | Unsigned   | `0`                                 | `18_446_744_073_709_551_615` (2⁶⁴ - 1) | `i64`            |
 
 `i32` is the default integer type in Zena. Integer literals without a decimal point
 or contextual type annotation evaluate to `i32`:
@@ -223,7 +223,7 @@ Unsigned integer types (`u32`, `u64`) treat bit patterns as non-negative magnitu
 Operations that depend on signedness behave differently on unsigned types:
 
 - **Comparison**: Relational operators (`<`, `<=`, `>`, `>=`) perform unsigned comparisons.
-  For example, `0xffff_ffff as u32 > 0 as u32` is `true` ($4{,}294{,}967{,}295 > 0$),
+  For example, `0xffff_ffff as u32 > 0 as u32` is `true` (4,294,967,295 > 0),
   whereas for `i32`, `-1 > 0` is `false`.
 - **Modulo**: `%` computes the unsigned remainder using `i32.rem_u` / `i64.rem_u`.
 - **Right shift**: Shifting an unsigned integer with `>>` performs a logical zero-filling

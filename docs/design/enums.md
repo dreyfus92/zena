@@ -126,7 +126,7 @@ let z: i32 = c as i32;
 ### Type Checking
 
 Defining an Enum as a union of literals (e.g., `0 | 1 | ... | 100`) implies that
-checking assignability to the Enum type _could_ be expensive ($O(N)$).
+checking assignability to the Enum type _could_ be expensive (O(N)).
 
 However, because Enums are **Distinct Types**, they are nominally typed.
 

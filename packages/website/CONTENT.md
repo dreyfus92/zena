@@ -283,7 +283,7 @@ To add a page: add it to the sidebar with an `outline`, then run
   - Operator precedence and associativity
 - ✅ [Comments](src/reference/comments.md) — `/reference/comments/`
   - Line comments (//)
-  - Block comments (/* */)
+  - Block comments (/\* \*/)
   - Doc comments
 - **Data Types**
   - ✅ [Numbers](src/reference/numbers.md) — `/reference/numbers/`
