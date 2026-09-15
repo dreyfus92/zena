@@ -669,6 +669,57 @@ export let tests = suite('zir backend', (): void => {
         'the dispatch through the pack is direct');
   });
 
+  test('-O2 inlines a callee with a loop', (ctx: TestContext): void => {
+    // A multi-block callee: its blocks become the caller's, its return
+    // a branch to a continuation. The loop shape survives in the
+    // caller and the call does not.
+    let result = compileWithZirAt(
+        'let sum = (n: i32): i32 => {\n' +
+        '  var s = 0;\n' +
+        '  var i = 0;\n' +
+        '  while (i < n) { s += i; i += 1; }\n' +
+        '  return s;\n' +
+        '};\n' +
+        'let f = (k: i32): i32 => sum(k) + 1;\n' +
+        'export let main = (): i32 => f(10);', 2);
+    let present = new GrowableArray<String>();
+    present.push('loop');
+    assertFunctionUses(result, '$f', present,
+        'the callee loop is now the caller loop');
+    let absent = new GrowableArray<String>();
+    absent.push('call $sum');
+    assertFunctionOmits(result, '$f', absent,
+        'the multi-block callee is inlined');
+  });
+
+  test('-O2 inlines a callee with an early return', (ctx: TestContext): void => {
+    // Two returns become two branches to one continuation; with a
+    // constant argument the branch folds and the whole thing is a
+    // constant.
+    let result = compileWithZirAt(
+        'let abs = (x: i32): i32 => { if (x < 0) { return 0 - x; } return x; };\n' +
+        'export let main = (): i32 => abs(0 - 7);', 2);
+    let present = new GrowableArray<String>();
+    present.push('i32.const 7');
+    assertFunctionUses(result, '$main', present,
+        'the inlined early return folds to its value');
+    let absent = new GrowableArray<String>();
+    absent.push('call ');
+    assertFunctionOmits(result, '$main', absent,
+        'no call survives');
+  });
+
+  test('-O2 does not inline a callee containing try', (ctx: TestContext): void => {
+    let result = compileWithZirAt(
+        'let guarded = (x: i32): i32 => { try { return x + 1; } catch { return 0; } };\n' +
+        'let f = (k: i32): i32 => guarded(k);\n' +
+        'export let main = (): i32 => f(10);', 2);
+    let present = new GrowableArray<String>();
+    present.push('call $guarded');
+    assertFunctionUses(result, '$f', present,
+        'a protected region is not spliced into another body');
+  });
+
   test('-O1 does not inline', (ctx: TestContext): void => {
     let result = compileWithZir(
         'let inc = (x: i32): i32 => x + 1;\n' +

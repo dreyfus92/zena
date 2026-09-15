@@ -933,20 +933,20 @@ export final class IrBody {
   }
 
   /**
-   * Copies a NON-TERMINATOR instruction from `src` into this body,
-   * remapping value operands through `map` and table references by
-   * the given offsets (the caller appends src's typeTable, refTable,
-   * and varTypes wholesale before copying and passes the pre-append
-   * lengths; constant-pool values are copied here directly). Returns
-   * the new instruction id; the caller owns instBlock and block
-   * membership. Third mirror of
+   * Copies an instruction from `src` into this body, remapping value
+   * operands through `map`, branch targets through `mapBlock`, and
+   * table references by the given offsets (the caller appends src's
+   * typeTable, refTable, and varTypes wholesale before copying and
+   * passes the pre-append lengths; constant-pool values are copied
+   * here directly). Returns the new instruction id; the caller owns
+   * instBlock and block membership. Third mirror of
    * appendValueOperands / rewriteValueOperands — keep all three in
-   * sync, branch for branch. Terminators (and param/nop) throw:
-   * inlining callees with control flow is a later tier, and a copy
-   * routine that silently mishandled a branch would corrupt the CFG.
+   * sync, branch for branch. Params, returns, tail calls, try_br, and
+   * suspensions throw rather than risk a silently mishandled copy: the
+   * inliner creates or excludes those itself.
    */
   copyFrom(src: IrBody, inst: i32, map: (v: i32) => i32, typeOffset: i32,
-      refOffset: i32, varOffset: i32): i32 {
+      refOffset: i32, varOffset: i32, mapBlock: (b: i32) => i32): i32 {
     let op = src.op(inst);
     let av = src.a[inst];
     let bv = src.b[inst];
@@ -980,8 +980,71 @@ export final class IrBody {
       return idx;
     };
 
-    if (op == IrOp.param || op == IrOp.nop || isIrTerminator(op)) {
+    if (op == IrOp.param || op == IrOp.nop || op == IrOp.ret ||
+        op == IrOp.ret_multi || op == IrOp.ret_call ||
+        op == IrOp.ret_call_ref || op == IrOp.try_br ||
+        op == IrOp.yield_ || op == IrOp.await_) {
+      // Params are definitions the caller creates itself; returns
+      // become branches to a continuation the caller owns; tail calls,
+      // protected regions, and suspensions are excluded from inlining.
       throw new Error(`copyFrom: cannot copy ${irOpName(op)}`);
+    }
+    // Branch terminators: successor records [target, argc, args…]
+    // copied with targets through mapBlock and args through map.
+    let copySuccessors = (start: i32, count: i32, prefixLen: i32): i32 => {
+      let idx = this.extra.length;
+      var p = 0;
+      while (p < prefixLen) {
+        this.extra.push(src.extra[start + p]);
+        p += 1;
+      }
+      var pos = start + prefixLen;
+      var s = 0;
+      while (s < count) {
+        let target = src.extra[pos];
+        let argc = src.extra[pos + 1];
+        this.extra.push(mapBlock(target));
+        this.extra.push(argc);
+        var i = 0;
+        while (i < argc) {
+          this.extra.push(map(src.extra[pos + 2 + i]));
+          i += 1;
+        }
+        pos += 2 + argc;
+        s += 1;
+      }
+      return idx;
+    };
+    if (op == IrOp.br) {
+      return emit(copySuccessors(av, 1, 0), bv);
+    }
+    if (op == IrOp.br_if) {
+      return emit(map(av), copySuccessors(bv, 2, 0));
+    }
+    if (op == IrOp.br_on_cast || op == IrOp.br_on_cast_fail) {
+      // The record leads with the target type's typeTable index.
+      let idx = this.extra.length;
+      this.extra.push(src.extra[bv] + typeOffset);
+      copySuccessors(bv + 1, 2, 0);
+      return emit(map(av), idx);
+    }
+    if (op == IrOp.br_table) {
+      let count = src.extra[bv];
+      return emit(map(av), copySuccessors(bv, count, 1));
+    }
+    if (op == IrOp.throw) {
+      let argc = src.extra[av];
+      let idx = this.extra.length;
+      this.extra.push(argc);
+      var i = 0;
+      while (i < argc) {
+        this.extra.push(map(src.extra[av + 1 + i]));
+        i += 1;
+      }
+      return emit(idx, if (bv >= 0) bv + refOffset else bv);
+    }
+    if (op == IrOp.unreachable) {
+      return emit(av, bv);
     }
     // Shape: no value operands. Payloads by op: const pools, refTable
     // entities, var indices, the simd_const byte record.

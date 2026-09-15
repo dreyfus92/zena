@@ -1,65 +1,116 @@
 /**
- * Inlining, always-inline tier (docs/design/optimization-pipeline.md
- * §Inlining): a direct call to a straight-line callee splices the
- * callee's instructions into the caller and replaces the call's value
- * with the callee's return value. Accessors, thunks, and
- * argument-adaptation wrappers are the targets — the bodies whose call
- * overhead exceeds their work.
+ * Inlining (docs/design/optimization-pipeline.md §Inlining): a direct
+ * call to an eligible callee splices the callee into the caller and
+ * replaces the call's value with the callee's return value.
  *
- * Eligibility is deliberately narrow: the callee is a single block
- * ending in `ret`, with at most `inlineBudget` real instructions and a
- * single (or no) return value. One block means no control-flow
- * splicing, no continuation block, and no interaction with protected
- * regions — the copied instructions simply live at the call site,
- * inside whatever region it was in. Chains (an adapter calling an
- * accessor) resolve over the driver's rounds rather than a
- * topological order.
+ * Two splice shapes:
  *
- * What never inlines here: multi-block callees, multi-value returns,
- * recursion into the same body, and callees containing `tail return`
- * (its constant-stack guarantee would silently become a growing one).
- * These are the v2 tier.
+ * - **Straight-line.** A single-block callee ending in `ret` copies
+ *   its instructions into the call's block at the call site. No
+ *   control flow is created; the copied instructions simply live where
+ *   the call was, inside whatever protected region it was in.
+ * - **General.** Any other callee copies every block as a new caller
+ *   block; every `ret` becomes a `br` to a fresh continuation block,
+ *   whose parameter is the call's value and whose body is the rest of
+ *   the call's block. The call's block ends in a `br` to the copied
+ *   entry.
+ *
+ * Both paths pre-assign ids for every copied instruction before
+ * copying, so operand lookups never depend on within-block order
+ * matching id order — a previously inlined body has spliced ids in
+ * the middle of its blocks.
+ *
+ * What never inlines: callees with `try_br` (splicing a protected
+ * region inside another is the emitter risk ir.md §15 names),
+ * multi-value returns, `tail return` (its constant-stack guarantee
+ * must not silently become a growing one), suspensions, and
+ * self-recursion. A budget on the callee's real instruction count and
+ * two per-caller caps (size, splices per sweep) bound growth; chains
+ * and mutual recursion resolve across the driver's rounds.
  *
  * Determinism: callers in module function order, sites in block and
  * instruction order, callee lookup by identity map — no iteration
  * over hash containers.
  */
-import { IrBody, IrOp, IrRefFunc } from './ir.zena';
+import { HashMap } from 'zena:map';
+import { String } from 'zena:string';
+import { IrBlock, IrBody, IrOp, IrRefFunc } from './ir.zena';
 import { WasmModule, WasmFunction } from '../wasm-module.zena';
 
-let inlineBudget = 12;
+/**
+ * Callee real-instruction budgets (nops and returns excluded). A
+ * straight-line body costs its instructions minus the call overhead
+ * it replaces; a body with control flow also costs a continuation
+ * block and its branches, and duplicates more on every round it
+ * reaches, so its budget is tighter. At 48 for both, the self-compile
+ * at -O2 came out 2.5x the -O1 size.
+ */
+let straightBudget = 12;
+let generalBudget = 16;
+/**
+ * A body with control flow inlines under generalBudget only when it
+ * has one direct call site in the module (its body moves rather than
+ * duplicates; harvest deletes the original) or is tiny. At
+ * generalBudget for every site count, the self-compile at -O2 was
+ * 27% larger than -O1 for no measurable speed over the straight-line
+ * tier alone.
+ */
+let generalTinyBudget = 6;
+/**
+ * A caller takes general splices only while it is under twice its
+ * size at the start of the sweep (plus a little room for small
+ * callers); the round cap bounds growth across sweeps.
+ */
+let growthFactor = 2;
+let growthFloor = 64;
+/** General splices into one caller per sweep. */
+let splicesPerSweep = 32;
+/**
+ * Splices of one callee into one caller per sweep. A recursive callee's
+ * copy contains a call to itself, which the sweep would otherwise keep
+ * unrolling up to the coarser caps.
+ */
+let splicesPerCallee = 4;
 
 /**
- * The callee's real (non-nop) instruction count when it is eligible
- * for this tier, or -1.
+ * The callee's real instruction count when eligible, or -1.
  */
 let inlinableSize = (body: IrBody): i32 => {
-  if (body.blocks.length != 1) {
-    return -1;
-  }
-  let blk = body.blocks[0];
-  if (blk.insts.length == 0) {
-    return -1;
-  }
-  let term = blk.insts[blk.insts.length - 1];
-  if (body.op(term) != IrOp.ret) {
+  if (body.blocks.length == 0) {
     return -1;
   }
   var count = 0;
-  for (let inst in blk.insts) {
-    if (inst == term) {
-      continue;
+  for (let blk in body.blocks) {
+    if (blk.insts.length == 0) {
+      return -1;
     }
-    let op = body.op(inst);
-    if (op == IrOp.nop) {
-      continue;
+    for (let inst in blk.insts) {
+      let op = body.op(inst);
+      if (op == IrOp.nop || op == IrOp.ret) {
+        continue;
+      }
+      if (op == IrOp.ret_multi || op == IrOp.ret_call ||
+          op == IrOp.ret_call_ref || op == IrOp.try_br ||
+          op == IrOp.yield_ || op == IrOp.await_) {
+        return -1;
+      }
+      count += 1;
     }
-    count += 1;
   }
-  if (count > inlineBudget) {
+  let limit = if (isStraightLine(body)) straightBudget else generalBudget;
+  if (count > limit) {
     return -1;
   }
   return count;
+};
+
+/** A single block ending in `ret`: the straight-line shape. */
+let isStraightLine = (body: IrBody): boolean => {
+  if (body.blocks.length != 1) {
+    return false;
+  }
+  let insts = body.blocks[0].insts;
+  return body.op(insts[insts.length - 1]) == IrOp.ret;
 };
 
 /**
@@ -73,9 +124,27 @@ export let runInline = (wasm: WasmModule, bodies: GrowableArray<IrBody>,
   for (var i = 0; i < wasm.functions.length; i += 1) {
     bodyIndex[wasm.functions[i]] = i;
   }
+  // Direct call sites per callee, over the module as it stands at the
+  // start of the sweep.
+  let siteCounts = new GrowableArray<i32>();
+  for (var i = 0; i < bodies.length; i += 1) {
+    siteCounts.push(0);
+  }
+  for (var i = 0; i < bodies.length; i += 1) {
+    let body = bodies[i];
+    let n = body.instCount();
+    for (var inst = 0; inst < n; inst += 1) {
+      if (body.op(inst) == IrOp.call) {
+        let idx = calleeBodyFor(body, inst, bodyIndex);
+        if (idx >= 0) {
+          siteCounts[idx] += 1;
+        }
+      }
+    }
+  }
   var total = 0;
   for (var i = 0; i < bodies.length; i += 1) {
-    let n = inlineIntoBody(bodies[i], bodyIndex, wasm, bodies, i);
+    let n = inlineIntoBody(bodies[i], bodyIndex, bodies, i, siteCounts);
     if (n > 0) {
       changed[i] = true;
       total += n;
@@ -84,128 +153,184 @@ export let runInline = (wasm: WasmModule, bodies: GrowableArray<IrBody>,
   return total;
 };
 
-let inlineIntoBody = (caller: IrBody, bodyIndex: HashMap<WasmFunction, i32>,
-    wasm: WasmModule, bodies: GrowableArray<IrBody>, callerIdx: i32): i32 => {
-  var count = 0;
-  // repl maps an inlined call to the callee's (already remapped)
-  // return value; ids created by the splices are never themselves
-  // replaced, so anything past the original length is canonical.
-  let originalCount = caller.instCount();
-  let repl = new GrowableArray<i32>();
-  for (var i = 0; i < originalCount; i += 1) {
-    repl.push(i);
+/**
+ * Per-splice state: the callee's tables appended to the caller, and
+ * the id every callee instruction (params included) maps to.
+ */
+final class Splice {
+  caller: IrBody;
+  callee: IrBody;
+  var typeOffset = 0;
+  var refOffset = 0;
+  var varOffset = 0;
+  map = new GrowableArray<i32>();
+  new(this.caller, this.callee) {
+    this.typeOffset = this.caller.typeTable.length;
+    for (let t in this.callee.typeTable) {
+      this.caller.typeTable.push(t);
+    }
+    this.refOffset = this.caller.refTable.length;
+    for (let r in this.callee.refTable) {
+      this.caller.refTable.push(r);
+    }
+    this.varOffset = this.caller.varTypes.length;
+    for (let vt in this.callee.varTypes) {
+      this.caller.varTypes.push(vt);
+    }
+    let n = this.callee.instCount();
+    for (var i = 0; i < n; i += 1) {
+      this.map.push(-1);
+    }
   }
+
+  mapValue(v: i32): i32 {
+    if (v < 0) {
+      return v;
+    }
+    let mapped = this.map[v];
+    if (mapped < 0) {
+      throw new Error('inline: callee operand has no copy');
+    }
+    return mapped;
+  }
+
+  /** A fresh `param` instruction of the callee param's type. */
+  newParam(calleeParam: i32, block: i32): i32 {
+    let id = this.caller.opcode.length;
+    this.caller.opcode.push(IrOp.param as i32);
+    this.caller.typeId.push(this.callee.typeId[calleeParam] + this.typeOffset);
+    this.caller.a.push(-1);
+    this.caller.b.push(-1);
+    this.caller.instBlock.push(block);
+    return id;
+  }
+
+  /** A `br target(args)` terminator appended to the caller. */
+  newBr(target: i32, args: GrowableArray<i32>, block: i32): i32 {
+    let idx = this.caller.extra.length;
+    this.caller.extra.push(target);
+    this.caller.extra.push(args.length);
+    for (let a in args) {
+      this.caller.extra.push(a);
+    }
+    let id = this.caller.opcode.length;
+    this.caller.opcode.push(IrOp.br as i32);
+    this.caller.typeId.push(-1);
+    this.caller.a.push(idx);
+    this.caller.b.push(-1);
+    this.caller.instBlock.push(block);
+    return id;
+  }
+}
+
+let nopOut = (body: IrBody, inst: i32): void => {
+  body.opcode[inst] = IrOp.nop as i32;
+  body.typeId[inst] = -1;
+  body.a[inst] = -1;
+  body.b[inst] = -1;
+};
+
+let inlineIntoBody = (caller: IrBody, bodyIndex: HashMap<WasmFunction, i32>,
+    bodies: GrowableArray<IrBody>, callerIdx: i32,
+    siteCounts: GrowableArray<i32>): i32 => {
+  var count = 0;
+  var generalSplices = 0;
+  let perCallee = new HashMap<i32, i32>();
+  let sizeCap = caller.instCount() * growthFactor + growthFloor;
+  // repl maps an inlined call to its replacement value. It grows on
+  // demand: a general splice copies a callee body into new blocks the
+  // sweep goes on to visit, so a copied call (with a fresh, larger
+  // id) can itself be inlined and replaced.
+  let repl = new GrowableArray<i32>();
+  let growRepl = (): void => {
+    while (repl.length < caller.instCount()) {
+      repl.push(repl.length);
+    }
+  };
+  growRepl();
   let canon = (v: i32): i32 => {
-    // A replacement can point at a spliced-in id (>= originalCount),
-    // which is already canonical — the guard keeps the chase in
-    // bounds.
     var c = v;
-    while (c >= 0 && c < originalCount && repl[c] != c) {
+    while (c >= 0 && c < repl.length && repl[c] != c) {
       c = repl[c];
     }
     return c;
   };
 
+  // Blocks are appended by general splices (the copied callee blocks
+  // and the continuation), and the continuation holds the rest of the
+  // split block, so the loop re-reads the block count and moves on to
+  // the continuation after a split.
   for (var b = 0; b < caller.blocks.length; b += 1) {
     let blk = caller.blocks[b];
-    var spliced = false;
-    let newInsts = new GrowableArray<i32>();
-    for (let inst in blk.insts) {
+    var j = 0;
+    while (j < blk.insts.length) {
+      let inst = blk.insts[j];
       if (caller.op(inst) != IrOp.call) {
-        newInsts.push(inst);
+        j += 1;
         continue;
       }
-      let calleeIdx = calleeBodyFor(caller, inst, bodyIndex, wasm);
+      let calleeIdx = calleeBodyFor(caller, inst, bodyIndex);
       if (calleeIdx < 0 || calleeIdx == callerIdx) {
-        newInsts.push(inst);
+        j += 1;
         continue;
       }
       let callee = bodies[calleeIdx];
-      if (inlinableSize(callee) < 0) {
-        newInsts.push(inst);
+      let size = inlinableSize(callee);
+      if (size < 0) {
+        j += 1;
+        continue;
+      }
+      if (!isStraightLine(callee) && siteCounts[calleeIdx] > 1 &&
+          size > generalTinyBudget) {
+        j += 1;
         continue;
       }
       let params = callee.blocks[0].params;
       let extraIdx = caller.a[inst];
       let argc = caller.extra[extraIdx];
       if (argc != params.length) {
-        // An argument-count mismatch would be a compiler bug, but a
-        // silently skipped site beats a corrupted splice.
-        newInsts.push(inst);
+        j += 1;
+        continue;
+      }
+      let args = new GrowableArray<i32>();
+      for (var p = 0; p < argc; p += 1) {
+        args.push(canon(caller.extra[extraIdx + 1 + p]));
+      }
+
+      if (isStraightLine(callee)) {
+        let result = spliceStraight(caller, callee, b, j, inst, args);
+        growRepl();
+        if (result >= 0) {
+          repl[inst] = result;
+        }
+        count += 1;
+        // The copies were inserted before the call; skip past them
+        // and the nop-ed call.
+        j = blk.insts.length;
         continue;
       }
 
-      // Merge the callee's tables wholesale; indices remap by offset.
-      let typeOffset = caller.typeTable.length;
-      for (let t in callee.typeTable) {
-        caller.typeTable.push(t);
+      var soFar = 0;
+      if (let (true, seen) = perCallee.get(calleeIdx)) {
+        soFar = seen;
       }
-      let refOffset = caller.refTable.length;
-      for (let r in callee.refTable) {
-        caller.refTable.push(r);
+      if (caller.instCount() > sizeCap ||
+          generalSplices >= splicesPerSweep ||
+          soFar >= splicesPerCallee) {
+        j += 1;
+        continue;
       }
-      let varOffset = caller.varTypes.length;
-      for (let vt in callee.varTypes) {
-        caller.varTypes.push(vt);
+      perCallee[calleeIdx] = soFar + 1;
+      let result = spliceGeneral(caller, callee, b, j, inst, args);
+      growRepl();
+      if (result >= 0) {
+        repl[inst] = result;
       }
-
-      // Value map: callee param i -> the call's argument i (through
-      // canon, in case it was itself an inlined call's result);
-      // anything else -> its copy, which exists because defs precede
-      // uses in id order.
-      let calleeMap = new GrowableArray<i32>();
-      let calleeCount = callee.instCount();
-      for (var i = 0; i < calleeCount; i += 1) {
-        calleeMap.push(-1);
-      }
-      for (var p = 0; p < params.length; p += 1) {
-        calleeMap[params[p]] = canon(caller.extra[extraIdx + 1 + p]);
-      }
-      let mapValue = (v: i32): i32 => {
-        if (v < 0) {
-          return v;
-        }
-        let mapped = calleeMap[v];
-        if (mapped < 0) {
-          throw new Error('inline: callee operand copied before its def');
-        }
-        return mapped;
-      };
-
-      let calleeBlk = callee.blocks[0];
-      let term = calleeBlk.insts[calleeBlk.insts.length - 1];
-      for (let ci in calleeBlk.insts) {
-        if (ci == term || callee.op(ci) == IrOp.nop) {
-          continue;
-        }
-        let newId = caller.copyFrom(callee, ci, mapValue, typeOffset,
-            refOffset, varOffset);
-        caller.instBlock[newId] = b;
-        calleeMap[ci] = newId;
-        newInsts.push(newId);
-      }
-
-      // The call becomes a nop; its value, when it had one, becomes
-      // the callee's returned value.
-      let retVal = callee.a[term];
-      if (retVal >= 0) {
-        repl[inst] = mapValue(retVal);
-      }
-      caller.opcode[inst] = IrOp.nop as i32;
-      caller.typeId[inst] = -1;
-      caller.a[inst] = -1;
-      caller.b[inst] = -1;
-      newInsts.push(inst);
-      spliced = true;
       count += 1;
-    }
-    if (spliced) {
-      while (blk.insts.length > 0) {
-        blk.insts.pop();
-      }
-      for (let ni in newInsts) {
-        blk.insts.push(ni);
-      }
+      generalSplices += 1;
+      // The rest of this block moved to the continuation, which the
+      // outer loop reaches in turn.
+      j = blk.insts.length;
     }
   }
 
@@ -221,12 +346,182 @@ let inlineIntoBody = (caller: IrBody, bodyIndex: HashMap<WasmFunction, i32>,
 };
 
 /**
+ * Straight-line splice: the callee's instructions are copied into
+ * block `b` in place of the call at index `j`. Returns the id the
+ * call's value maps to, or -1 for a void call.
+ */
+let spliceStraight = (caller: IrBody, callee: IrBody, b: i32, j: i32,
+    inst: i32, args: GrowableArray<i32>): i32 => {
+  let sp = new Splice(caller, callee);
+  let params = callee.blocks[0].params;
+  for (var p = 0; p < params.length; p += 1) {
+    sp.map[params[p]] = args[p];
+  }
+  let calleeBlk = callee.blocks[0];
+  let term = calleeBlk.insts[calleeBlk.insts.length - 1];
+  // Pre-assign ids in copy order, then copy in the same order.
+  let order = new GrowableArray<i32>();
+  var next = caller.instCount();
+  for (let ci in calleeBlk.insts) {
+    if (ci == term || callee.op(ci) == IrOp.nop) {
+      continue;
+    }
+    sp.map[ci] = next;
+    next += 1;
+    order.push(ci);
+  }
+  let identity = (blockId: i32): i32 => blockId;
+  let copied = new GrowableArray<i32>();
+  for (let ci in order) {
+    let newId = caller.copyFrom(callee, ci, (v: i32): i32 => sp.mapValue(v),
+        sp.typeOffset, sp.refOffset, sp.varOffset, identity);
+    if (newId != sp.map[ci]) {
+      throw new Error('inline: copied id does not match its assignment');
+    }
+    caller.instBlock[newId] = b;
+    copied.push(newId);
+  }
+  let retVal = callee.a[term];
+  let result = if (retVal >= 0) sp.mapValue(retVal) else -1;
+  nopOut(caller, inst);
+  // Rebuild the block: prefix, copies, the nop-ed call, suffix.
+  let blk = caller.blocks[b];
+  let rebuilt = new GrowableArray<i32>();
+  for (var k = 0; k < blk.insts.length; k += 1) {
+    if (k == j) {
+      for (let c in copied) {
+        rebuilt.push(c);
+      }
+    }
+    rebuilt.push(blk.insts[k]);
+  }
+  while (blk.insts.length > 0) {
+    blk.insts.pop();
+  }
+  for (let r in rebuilt) {
+    blk.insts.push(r);
+  }
+  return result;
+};
+
+/**
+ * General splice: every callee block becomes a new caller block, each
+ * `ret` a `br` to a continuation block that takes the call's value as
+ * its parameter and the rest of block `b` as its body. Returns the
+ * continuation parameter's id, or -1 for a void call.
+ */
+let spliceGeneral = (caller: IrBody, callee: IrBody, b: i32, j: i32,
+    inst: i32, args: GrowableArray<i32>): i32 => {
+  let sp = new Splice(caller, callee);
+  let nb = callee.blocks.length;
+  let blockBase = caller.blocks.length;
+  for (var k = 0; k < nb; k += 1) {
+    caller.blocks.push(new IrBlock());
+  }
+  let cont = new IrBlock();
+  let contId = caller.blocks.length;
+  caller.blocks.push(cont);
+  let mapBlock = (blockId: i32): i32 => blockBase + blockId;
+
+  // Entry params are the arguments; every other block's params are
+  // fresh param instructions on the copied block.
+  let entryParams = callee.blocks[0].params;
+  for (var p = 0; p < entryParams.length; p += 1) {
+    sp.map[entryParams[p]] = args[p];
+  }
+  for (var k = 1; k < nb; k += 1) {
+    let dst = caller.blocks[blockBase + k];
+    for (let cp in callee.blocks[k].params) {
+      let id = sp.newParam(cp, blockBase + k);
+      sp.map[cp] = id;
+      dst.params.push(id);
+    }
+  }
+
+  // Continuation parameter: the call's value.
+  var result = -1;
+  let callType = caller.typeId[inst];
+  if (callType >= 0) {
+    let id = caller.opcode.length;
+    caller.opcode.push(IrOp.param as i32);
+    caller.typeId.push(callType);
+    caller.a.push(-1);
+    caller.b.push(-1);
+    caller.instBlock.push(contId);
+    cont.params.push(id);
+    result = id;
+  }
+
+  // Pre-assign ids for every copied instruction (returns become
+  // branches created during the copy, at the same position), then
+  // copy in that order.
+  var next = caller.instCount();
+  let order = new GrowableArray<i32>();
+  for (var k = 0; k < nb; k += 1) {
+    for (let ci in callee.blocks[k].insts) {
+      if (callee.op(ci) == IrOp.nop) {
+        continue;
+      }
+      sp.map[ci] = next;
+      next += 1;
+      order.push(ci);
+    }
+  }
+  for (let ci in order) {
+    let dstBlock = mapBlock(callee.instBlock[ci]);
+    var newId = -1;
+    if (callee.op(ci) == IrOp.ret) {
+      let brArgs = new GrowableArray<i32>();
+      let rv = callee.a[ci];
+      if (rv >= 0 && result >= 0) {
+        brArgs.push(sp.mapValue(rv));
+      }
+      newId = sp.newBr(contId, brArgs, dstBlock);
+    } else {
+      newId = caller.copyFrom(callee, ci, (v: i32): i32 => sp.mapValue(v),
+          sp.typeOffset, sp.refOffset, sp.varOffset, mapBlock);
+      caller.instBlock[newId] = dstBlock;
+    }
+    if (newId != sp.map[ci]) {
+      throw new Error('inline: copied id does not match its assignment');
+    }
+    caller.blocks[dstBlock].insts.push(newId);
+  }
+
+  // Split block b at the call: the suffix moves to the continuation,
+  // the call becomes a nop left in the continuation, and b ends in a
+  // branch to the copied entry.
+  let blk = caller.blocks[b];
+  let prefix = new GrowableArray<i32>();
+  for (var k = 0; k < j; k += 1) {
+    prefix.push(blk.insts[k]);
+  }
+  nopOut(caller, inst);
+  cont.insts.push(inst);
+  caller.instBlock[inst] = contId;
+  for (var k = j + 1; k < blk.insts.length; k += 1) {
+    let moved = blk.insts[k];
+    cont.insts.push(moved);
+    caller.instBlock[moved] = contId;
+  }
+  while (blk.insts.length > 0) {
+    blk.insts.pop();
+  }
+  for (let pinst in prefix) {
+    blk.insts.push(pinst);
+  }
+  let noArgs = new GrowableArray<i32>();
+  blk.insts.push(sp.newBr(blockBase, noArgs, b));
+  return result;
+};
+
+/**
  * The body index of a call's target when it is a known local function
  * with a single (or no) return value; -1 otherwise (imports, wrappers
  * this module never lowered, multi-value returns).
  */
 let calleeBodyFor = (caller: IrBody, inst: i32,
-    bodyIndex: HashMap<WasmFunction, i32>, wasm: WasmModule): i32 => {
+    bodyIndex: HashMap<WasmFunction, i32>): i32 => {
   let r = caller.refTable[caller.b[inst]];
   if (!(r is IrRefFunc)) {
     return -1;
