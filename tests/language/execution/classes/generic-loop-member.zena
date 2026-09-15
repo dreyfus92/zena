@@ -1,7 +1,7 @@
 // @mode: run
 // @result: 200
 
-import { Iterable, Iterator } from 'zena:iterator';
+import { Iterable, Iterator } from 'zena:core';
 
 class Entry<K, V> {
   key: K;

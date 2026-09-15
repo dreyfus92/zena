@@ -17,7 +17,7 @@
 //
 // See docs/design/ownership.md §"Handles are not forgeable".
 
-import { Own, Unmanaged } from 'zena:ownership';
+import { Own, Unmanaged } from 'zena:core';
 
 // @error: opaque type
 let forgeDisown = <T>(v: Own<T>): Unmanaged<T> => v as Unmanaged<T>;

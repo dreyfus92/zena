@@ -3,7 +3,7 @@
 // it admits second-class arguments, and the body is checked at the
 // fourth corner's discipline — every T consumed exactly once, no
 // storage, no capture. First-class instantiations are unaffected.
-import {Own, Borrow, Scoped, Disposable} from 'zena:ownership';
+import {Own, Borrow, Scoped, Disposable} from 'zena:core';
 
 resource class Res {
   new();

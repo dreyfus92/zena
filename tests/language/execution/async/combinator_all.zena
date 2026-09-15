@@ -6,8 +6,7 @@
 // plain wasmtime with no event loop: the completes below stand in for
 // whatever would normally settle these futures.
 import { Future, Completer } from 'zena:async';
-import { Array } from 'zena:array';
-import { Error } from 'zena:error';
+import { Array, Error } from 'zena:core';
 
 /** Awaits `f` and reports how it settled. A helper rather than an
  * inline try/catch because a local living across a try that holds both

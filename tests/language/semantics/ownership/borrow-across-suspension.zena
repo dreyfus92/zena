@@ -5,7 +5,7 @@
 // eager, so uses before the first await are fine; a generator's ramp
 // is lazy — no body code runs until the caller holds the iterator —
 // so a borrow parameter is rejected outright.
-import {Own, Borrow, Disposable} from 'zena:ownership';
+import {Own, Borrow, Disposable} from 'zena:core';
 
 resource class File {
   name: String;

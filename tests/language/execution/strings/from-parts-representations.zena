@@ -2,7 +2,7 @@
 // @stdlib: true
 // @stdout: ab-cd
 
-import { FixedArray } from 'zena:fixed-array';
+import { FixedArray } from 'zena:core';
 
 // String.fromParts is generic over the array representation: an
 // ImmutableArray (the literal default) and a FixedArray each get their

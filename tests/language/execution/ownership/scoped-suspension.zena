@@ -6,7 +6,7 @@
 // borrow parameter behind a Scoped<Iterator<T>> return. Both frames
 // are consumed inside the owner's scope, so the borrows never outlive
 // their extents.
-import {Own, Borrow, Scoped, Disposable} from 'zena:ownership';
+import {Own, Borrow, Scoped, Disposable} from 'zena:core';
 
 resource class Res {
   #n: i32;

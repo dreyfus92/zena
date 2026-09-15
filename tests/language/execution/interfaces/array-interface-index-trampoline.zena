@@ -7,7 +7,7 @@
 // (Index writes through an interface dispatch through the []= vtable
 // slot; see interface-index-write.zena.)
 
-import { Array } from 'zena:array';
+import { Array } from 'zena:core';
 
 class Node {
   value: i32;

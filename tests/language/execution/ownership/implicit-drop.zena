@@ -5,8 +5,7 @@
 // escaped, is released when its block exits — on the normal path, on an
 // early return, and on exception unwind, in reverse declaration order,
 // through the same shared finally region `using` compiles to.
-import { Own, Borrow, Unmanaged, Disposable, disown } from 'zena:ownership';
-import { Error } from 'zena:error';
+import { Own, Borrow, Unmanaged, Disposable, disown, Error } from 'zena:core';
 
 var released = 0;
 var order = 0;

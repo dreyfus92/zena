@@ -4,7 +4,7 @@
 // same-handle union normalizes to one owner, and the release —
 // through `using` and through implicit drop — dispatches on the
 // value's class. A nullable union owner skips when null.
-import {Own, Disposable} from 'zena:ownership';
+import {Own, Disposable} from 'zena:core';
 
 var log = 0;
 

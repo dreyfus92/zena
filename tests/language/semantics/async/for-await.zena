@@ -4,7 +4,7 @@
 // It is valid only in an async function or async gen; a sync function
 // using it is an error.
 
-import { Iterator } from 'zena:iterator';
+import { Iterator } from 'zena:core';
 import { Future } from 'zena:async';
 
 let consume = async (it: Iterator<i32>): Future<i32> => {

@@ -3,7 +3,7 @@
 // Scoped-wrapped Future or Iterator, and the body then gets the
 // suspension relaxations exactly as a function expression does. A
 // method without the wrapper keeps the bans.
-import {Own, Borrow, Scoped, Disposable} from 'zena:ownership';
+import {Own, Borrow, Scoped, Disposable} from 'zena:core';
 
 resource class Res {
   new();

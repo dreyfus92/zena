@@ -3,7 +3,7 @@
 // Scoped<T> end to end: a future coerces to scoped, awaiting consumes
 // it, and a scoped parameter takes one by move — the wrapper is erased,
 // so both awaits run the ordinary future path.
-import {Scoped} from 'zena:ownership';
+import {Scoped} from 'zena:core';
 
 let mk = async (): Future<i32> => {
   return 20;

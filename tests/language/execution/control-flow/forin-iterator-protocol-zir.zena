@@ -9,7 +9,7 @@
 // a loop-carried outer variable. next() is a multi-value
 // (bool, element) call through the iterator's vtable.
 import { HashMap } from 'zena:map';
-import { Iterable, Iterator } from 'zena:iterator';
+import { Iterable, Iterator } from 'zena:core';
 
 class Countdown implements Iterator<i32> {
   var n: i32;

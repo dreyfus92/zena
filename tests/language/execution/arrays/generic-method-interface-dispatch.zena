@@ -2,7 +2,7 @@
 // The elematic/zena#116 repro: Array<T>'s generic `map` called through
 // the interface. The receiver's class narrows the callback's `seq`
 // param and the return type, so the dispatch trampoline adapts both.
-import { Array } from 'zena:array';
+import { Array } from 'zena:core';
 
 export function main(): i32 {
   let a: Array<i32> = [1, 2, 3];

@@ -6,7 +6,7 @@
 // inside the region and rides the region's result out, so the release
 // runs after the value is read but before the enclosing expression
 // continues. A `using` in a void `try` body works the same way.
-import {Own, Borrow, Disposable} from 'zena:ownership';
+import {Own, Borrow, Disposable} from 'zena:core';
 
 var released = 0;
 

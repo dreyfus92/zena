@@ -6,7 +6,7 @@
 // code after, and a `never` call in tail position satisfies the
 // missing-return check.
 
-import { Error } from 'zena:error';
+import { Error } from 'zena:core';
 
 class Box {
   v: i32;

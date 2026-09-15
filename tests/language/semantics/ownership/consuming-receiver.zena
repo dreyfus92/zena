@@ -6,7 +6,7 @@
 // under inheritance — on a subclass it means `Own<Subclass>`.
 // See docs/design/ownership.md §"Release consumes its receiver".
 
-import { Own, Borrow, Unmanaged, Disposable } from 'zena:ownership';
+import { Own, Borrow, Unmanaged, Disposable } from 'zena:core';
 
 resource class File {
   var #fd: i32;

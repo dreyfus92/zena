@@ -5,7 +5,7 @@
 // early `return`, `break`/`continue`, and exception unwind — in reverse
 // declaration order. See docs/design/ownership.md §`using`.
 
-import { Disposable, Own } from 'zena:ownership';
+import { Disposable, Own } from 'zena:core';
 
 /** Records the order releases happen in, so ordering is observable. */
 class Log {

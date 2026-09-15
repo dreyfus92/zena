@@ -10,7 +10,7 @@
 // Legal uses live here; the positions that stay errors are in
 // ./resource-class-bare-mention.zena.
 
-import { Own, Borrow, Unmanaged, Disposable } from 'zena:ownership';
+import { Own, Borrow, Unmanaged, Disposable } from 'zena:core';
 
 resource class Descriptor {
   value(): i32 { return 1; }

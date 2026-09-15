@@ -6,7 +6,7 @@
 // continues past the block.
 
 import { raiseCancellation } from 'zena:async';
-import { Disposable } from 'zena:ownership';
+import { Disposable } from 'zena:core';
 
 var trace = '';
 

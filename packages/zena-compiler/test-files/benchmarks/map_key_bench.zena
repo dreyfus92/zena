@@ -1,7 +1,6 @@
 import { Memory, defaultAllocator } from 'zena:memory';
-import { i32ToString } from 'zena:string-convert';
+import { i32ToString, Hashable } from 'zena:core';
 import { getArguments } from 'zena:cli';
-import { Hashable } from 'zena:hashable';
 
 @intrinsic('hash')
 declare function hash<T>(value: T): i32;

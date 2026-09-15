@@ -12,8 +12,7 @@
 // a class values could have. A generic method whose body uses `eq` on
 // its own parameter could not be compiled at all while that was so.
 
-import { GrowableArray } from 'zena:growable-array';
-import { Hashable } from 'zena:hashable';
+import { GrowableArray, Hashable } from 'zena:core';
 
 @intrinsic('eq')
 declare function equals<T>(a: T, b: T): boolean;

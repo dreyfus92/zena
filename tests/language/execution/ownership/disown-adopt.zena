@@ -13,7 +13,7 @@
 // whose body casts between two opaque aliases over the same target, which is
 // legal inside the file that declares them and rejected everywhere else.
 
-import { Own, Borrow, Unmanaged, Disposable, disown, adopt } from 'zena:ownership';
+import { Own, Borrow, Unmanaged, Disposable, disown, adopt } from 'zena:core';
 
 resource class Counter {
   var #n: i32;

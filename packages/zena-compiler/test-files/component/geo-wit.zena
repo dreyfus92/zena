@@ -8,7 +8,7 @@ import {
   origin, locate, surveyAll, check, bounds,
   labelOf, annotate, maybeName, sendLabels, window
 } from 'wasi:geo/survey';
-import { Some, some, none } from 'zena:option';
+import { Some, some, none } from 'zena:core';
 
 export function main(): u32 {
   let p = origin();

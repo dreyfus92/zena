@@ -3,7 +3,7 @@
 // null at scope exit (the same rule TC39 `using` adopted). A nullable
 // Borrow stays rejected — a borrow never releases what it points at —
 // and wider unions have no single release path.
-import {Own, Borrow, Disposable} from 'zena:ownership';
+import {Own, Borrow, Disposable} from 'zena:core';
 
 resource class File {
   name: String;

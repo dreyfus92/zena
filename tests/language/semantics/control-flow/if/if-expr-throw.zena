@@ -2,7 +2,7 @@
 // Throw in if-expression branches enables narrowing:
 // the non-throwing branch narrows the condition, and the overall
 // expression type collapses Never out of the union.
-import {Error} from 'zena:error';
+import {Error} from 'zena:core';
 
 class Wrapper(value: i32)
 

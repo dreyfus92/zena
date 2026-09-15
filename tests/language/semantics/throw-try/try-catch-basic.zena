@@ -1,5 +1,5 @@
 // @mode: check
-import {Error} from 'zena:error';
+import {Error} from 'zena:core';
 // Basic try/catch is valid; body and handler are both checked.
 let fn = () => {};
 

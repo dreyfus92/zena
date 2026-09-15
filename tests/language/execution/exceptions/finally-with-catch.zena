@@ -3,7 +3,7 @@
 //
 // try/catch/finally, and finalizers nested inside one another.
 
-import { Error } from 'zena:error';
+import { Error } from 'zena:core';
 
 // The handler runs first, the finalizer after it.
 let order = (): String => {

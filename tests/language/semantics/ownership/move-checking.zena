@@ -5,7 +5,7 @@
 // on any path after a move is an error, checked on the flow graph.
 // See ownership.md §"Move checking".
 
-import { Own, Borrow, Unmanaged, Disposable, disown } from 'zena:ownership';
+import { Own, Borrow, Unmanaged, Disposable, disown } from 'zena:core';
 
 resource class File {
   var #fd: i32;

@@ -9,7 +9,7 @@
 import {
   Future, CancelScope, checkCancellation, drainMicrotasks,
 } from 'zena:async';
-import { Error } from 'zena:error';
+import { Error } from 'zena:core';
 
 var log = '';
 var stoppedAt = 0;

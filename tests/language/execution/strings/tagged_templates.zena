@@ -1,6 +1,6 @@
 // @mode: run
 // @stdout: 1\n2\n4\n2\n42\n30\n1
-import { TemplateStringsArray } from 'zena:template-strings-array';
+import { TemplateStringsArray } from 'zena:core';
 
 let tagLength = (strings: TemplateStringsArray, values: FixedArray<i32>): i32 => {
   return strings.length;

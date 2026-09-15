@@ -6,7 +6,7 @@
 // identifier must keep working, because bindgen-generated and user code both
 // plausibly name a variable `resource`.
 
-import { Own, Disposable } from 'zena:ownership';
+import { Own, Disposable } from 'zena:core';
 
 resource class Handle {
   [Disposable.dispose](this: Own<this>): void {}

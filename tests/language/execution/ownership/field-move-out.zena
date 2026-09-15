@@ -4,7 +4,7 @@
 // sink's to release (the glue skips it); moving fields into locals
 // gives dispose a custom release order; a consuming extractor hands a
 // field's ownership to its caller.
-import {Own, Disposable} from 'zena:ownership';
+import {Own, Disposable} from 'zena:core';
 
 /** Records events as decimal digits, so ordering is observable. */
 class Log {

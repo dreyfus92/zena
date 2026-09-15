@@ -6,7 +6,7 @@
 //
 // See docs/design/ownership.md §Handles.
 
-import { Own, Borrow, Unmanaged, Disposable } from 'zena:ownership';
+import { Own, Borrow, Unmanaged, Disposable } from 'zena:core';
 
 resource class Counter {
   var #n: i32;

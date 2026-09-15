@@ -8,7 +8,7 @@
 // disposal"). The break happens with the generator parked after its
 // first yield, so 'b' and 'c' never run and 'F' does.
 
-import { Iterator } from 'zena:iterator';
+import { Iterator } from 'zena:core';
 
 var log = '';
 

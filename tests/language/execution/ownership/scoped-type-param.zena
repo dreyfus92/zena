@@ -3,7 +3,7 @@
 // A `scoped T` function serves a scoped argument and an ordinary one
 // with the same body: the modifier is checking discipline, not
 // representation.
-import {Own, Borrow, Scoped, Disposable} from 'zena:ownership';
+import {Own, Borrow, Scoped, Disposable} from 'zena:core';
 
 resource class Res {
   #n: i32;

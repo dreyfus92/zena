@@ -5,7 +5,7 @@
 // path does, so a class can host an all-style combinator for scoped
 // inputs. The method type parameter is scoped, the array literal is a
 // call-site temporary, and the result is awaited in the owner's scope.
-import {Own, Borrow, Scoped, Disposable} from 'zena:ownership';
+import {Own, Borrow, Scoped, Disposable} from 'zena:core';
 import {Awaited} from 'zena:async';
 
 resource class Res {

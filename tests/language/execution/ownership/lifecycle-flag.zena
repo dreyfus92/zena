@@ -15,7 +15,7 @@
 // handles are erased and an `Unmanaged<R>` alias and a later `adopt`
 // have to observe the same one. `sharesFlagWithAlias` is the case that
 // pins that down.
-import { Own, Unmanaged, Disposable, disown, adopt, ResourceStateError } from 'zena:ownership';
+import { Own, Unmanaged, Disposable, disown, adopt, ResourceStateError } from 'zena:core';
 
 resource class Counter {
   var #n: i32;

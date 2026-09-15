@@ -2,9 +2,7 @@
 // @stdlib: true
 // @result: 65442
 
-import { Array } from 'zena:array';
-import { FixedArray } from 'zena:fixed-array';
-import { ImmutableArray } from 'zena:immutable-array';
+import { Array, FixedArray, ImmutableArray } from 'zena:core';
 
 // An array literal is an ImmutableArray unless the context wants
 // mutable elements: reads, iteration, interface use, and map all work

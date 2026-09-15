@@ -14,7 +14,7 @@
 //
 //   zir unsupported: eq operand type @Store_s868_anyref_anyref.matches
 
-import { Hashable } from 'zena:hashable';
+import { Hashable } from 'zena:core';
 
 @intrinsic('eq')
 declare function equals<T>(a: T, b: T): boolean;

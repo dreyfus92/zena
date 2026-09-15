@@ -1,5 +1,5 @@
 // @mode: check
 // Array literal infers element type from elements
-import {Array} from 'zena:array';
+import {Array} from 'zena:core';
 let arr = [1, 2, 3];
 let first: i32 = arr[0];

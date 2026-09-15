@@ -2,7 +2,7 @@
 // @result: 1234
 // A mutable capture lives in a heap cell shared by the enclosing
 // scope and every iterator: state persists across iterators.
-import { Iterator } from 'zena:iterator';
+import { Iterator } from 'zena:core';
 
 let counter = (): () => Iterator<i32> => {
   var n = 0;

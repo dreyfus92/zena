@@ -5,7 +5,7 @@
 // on normal completion, early return, and unwind — unless the body
 // moves it onward. A nullable owner skips when null, like any other
 // release site.
-import {Own, Disposable} from 'zena:ownership';
+import {Own, Disposable} from 'zena:core';
 
 var released = 0;
 var seen = 0;

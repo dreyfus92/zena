@@ -1,7 +1,7 @@
 // @mode: check
 // for-in loop directly on an Iterator<T>
 import {HashMap} from 'zena:map';
-import {Box} from 'zena:box';
+import {Box} from 'zena:core';
 let map = new HashMap<String, Box<i32>>();
 for (let key in map.keys()) {
   let s: String = key;

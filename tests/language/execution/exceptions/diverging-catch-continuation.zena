@@ -5,7 +5,7 @@
 // the catch handles only the body's throw, and the continuation's own
 // throw propagates to the caller (issue #426, sync form).
 
-import { Error } from 'zena:error';
+import { Error } from 'zena:core';
 
 let statementShape = (b: boolean): i32 => {
   try {

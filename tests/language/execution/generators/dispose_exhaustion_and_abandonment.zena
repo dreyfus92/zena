@@ -8,7 +8,7 @@
 // dropped runs NOTHING — cleanup runs at cancellation, and only
 // cancellation is deterministic (docs/design/cancellation.md).
 
-import { Iterator } from 'zena:iterator';
+import { Iterator } from 'zena:core';
 
 var log = '';
 

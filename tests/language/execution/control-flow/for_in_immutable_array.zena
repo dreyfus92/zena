@@ -1,7 +1,7 @@
 // @mode: run
 // @result: 5
 
-import { ImmutableArray } from 'zena:immutable-array';
+import { ImmutableArray } from 'zena:core';
 
 export let main = (): i32 => {
   let arr = ["hello" as anyref] as ImmutableArray<anyref>;

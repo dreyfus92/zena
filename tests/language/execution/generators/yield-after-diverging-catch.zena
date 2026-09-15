@@ -9,8 +9,7 @@
 // out of a resume still trips the deferred poison-state gap in the
 // disposal path, which is a separate, pre-existing hole.)
 
-import { Error } from 'zena:error';
-import { Iterator } from 'zena:iterator';
+import { Error, Iterator } from 'zena:core';
 
 let shape = gen (b: boolean): Iterator<i32> => {
   try {

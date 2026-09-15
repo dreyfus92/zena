@@ -5,7 +5,7 @@
 // conformance — no `implements Disposable` clause — but the member must exist.
 // See docs/design/ownership.md §Resource.
 
-import { Own, Disposable } from 'zena:ownership';
+import { Own, Disposable } from 'zena:core';
 
 resource class Descriptor {
   #handle: i32;

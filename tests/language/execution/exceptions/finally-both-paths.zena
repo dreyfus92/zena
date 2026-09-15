@@ -4,7 +4,7 @@
 // A finalizer runs whether the body completes or throws, and on the
 // throwing path the exception keeps propagating past it.
 
-import { Error } from 'zena:error';
+import { Error } from 'zena:core';
 
 let log = (s: String, add: String): String => s + add;
 

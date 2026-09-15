@@ -2,8 +2,7 @@
 // @stdlib: true
 // @result: 36
 
-import { Array } from 'zena:array';
-import { FixedArray } from 'zena:fixed-array';
+import { Array, FixedArray } from 'zena:core';
 
 // `<A extends Array<T>>` is the signature that accepts every array
 // representation at no cost: each specialization's receiver is the

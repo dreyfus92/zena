@@ -1,7 +1,7 @@
 // @mode: run
 // @result: 18
 // A `gen function` is a generator, same as a `gen` arrow.
-import { Iterator } from 'zena:iterator';
+import { Iterator } from 'zena:core';
 
 gen function counter(n: i32): Iterator<i32> {
   var i = 0;

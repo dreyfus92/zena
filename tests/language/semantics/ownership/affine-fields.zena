@@ -4,7 +4,7 @@
 // class may declare one, the field is immutable, and the class
 // declares its own dispose for the release glue to follow. Reads
 // borrow — a read must not mint a second owner.
-import {Own, Borrow, Disposable} from 'zena:ownership';
+import {Own, Borrow, Disposable} from 'zena:core';
 
 resource class File {
   name: String;

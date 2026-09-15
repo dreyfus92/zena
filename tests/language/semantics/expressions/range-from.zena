@@ -1,4 +1,4 @@
 // @mode: check
 // Range expression with start only
-import {FromRange} from 'zena:range';
+import {FromRange} from 'zena:core';
 let r: FromRange = 5..;

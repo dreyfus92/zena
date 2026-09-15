@@ -5,8 +5,7 @@
 // coverage — no host serves `wasi:store` — the unit tests assert the
 // synthesized source.
 import { Bucket, defaultBucket } from 'wasi:store/kv';
-import { Some } from 'zena:option';
-import { Disposable } from 'zena:ownership';
+import { Some, Disposable } from 'zena:core';
 
 export function main(): u32 {
   var acc: u32 = 0;

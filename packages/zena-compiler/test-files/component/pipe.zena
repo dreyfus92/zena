@@ -11,8 +11,7 @@
 import { console } from 'zena:console';
 import { lowerByteStream, liftByteStream } from 'zena:component-stream';
 import { StreamWriter } from 'zena:stream';
-import { FixedArray } from 'zena:fixed-array';
-import { String } from 'zena:string';
+import { FixedArray, String } from 'zena:core';
 import { Future } from 'zena:async';
 
 let toBytes = (s: String): FixedArray<u8> => {

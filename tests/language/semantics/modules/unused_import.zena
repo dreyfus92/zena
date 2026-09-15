@@ -7,10 +7,10 @@ import { helperFn3 } from './unused_import_helper.zena'; // @warning: Import fro
 import * as unusedNs from './unused_import_helper.zena'; // @warning: Import from './unused_import_helper.zena' is never used.
 
 // 3. Unnecessary prelude import:
-import { String } from 'zena:string'; // @warning: Imported symbol 'String' is unnecessary because it is in the prelude.
+import { String } from 'zena:core'; // @warning: Imported symbol 'String' is unnecessary because it is in the prelude.
 
 // 4. Renamed prelude import is permitted without warning:
-import { String as CustomString } from 'zena:string';
+import { String as CustomString } from 'zena:core';
 
 // 5. Some symbols used, some unused, some duplicate:
 // @warning: Imported symbol 'helperFn2' is never used.

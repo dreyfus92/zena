@@ -4,7 +4,7 @@
 // must be Own<T>, Borrow<T> or Unmanaged<T>. See docs/design/ownership.md
 // §"Resource-ness and affineness are different properties".
 
-import { Own, Borrow, Unmanaged, Disposable } from 'zena:ownership';
+import { Own, Borrow, Unmanaged, Disposable } from 'zena:core';
 
 resource class Descriptor {
   [Disposable.dispose](this: Own<this>): void {}

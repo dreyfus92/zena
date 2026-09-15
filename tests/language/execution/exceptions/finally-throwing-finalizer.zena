@@ -6,7 +6,7 @@
 // rather than re-entering the finalizer — and it replaces whatever
 // was pending.
 
-import { Error } from 'zena:error';
+import { Error } from 'zena:core';
 
 // Replaces the body's exception.
 let replacesPendingThrow = (): String => {

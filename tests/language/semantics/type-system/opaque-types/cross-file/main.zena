@@ -7,7 +7,7 @@
 // code fail.
 
 import { Token, Handle } from './lib.zena';
-import { Array } from 'zena:array';
+import { Array } from 'zena:core';
 
 // The whole point: no cast can manufacture one.
 let forged: Token = 42 as Token; // @error: Cannot cast to opaque type 'Token'

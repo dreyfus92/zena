@@ -9,9 +9,8 @@
 // This is the zena:fetch body-reads-once shape, which compiled and
 // silently skipped the catch before the outer local was spilled.
 
-import { Error } from 'zena:error';
+import { Error, String } from 'zena:core';
 import { Future, Completer } from 'zena:async';
-import { String } from 'zena:string';
 
 class Once {
   var #used: boolean = false;

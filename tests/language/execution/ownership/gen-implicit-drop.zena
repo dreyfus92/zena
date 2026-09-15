@@ -6,8 +6,7 @@
 // yield — when the consumer stops early. The same region machinery
 // `using` in generators proved out.
 
-import { Iterator } from 'zena:iterator';
-import { Own, Disposable } from 'zena:ownership';
+import { Iterator, Own, Disposable } from 'zena:core';
 
 /** Records events as decimal digits, so ordering is observable. */
 class Log {

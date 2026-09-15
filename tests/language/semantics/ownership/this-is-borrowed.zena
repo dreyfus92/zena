@@ -12,7 +12,7 @@
 // bare `this` was unspellable, so `return this` was already rejected under
 // every handle name, but a closure's type names nothing the spelling rule
 // could reject, and capturing `this` laundered a live alias out.
-import {Own, Borrow, Unmanaged, Disposable} from 'zena:ownership';
+import {Own, Borrow, Unmanaged, Disposable} from 'zena:core';
 
 resource class Counter {
   var #n: i32;

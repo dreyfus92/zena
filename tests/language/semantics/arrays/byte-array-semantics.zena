@@ -2,7 +2,7 @@
 // `ByteArray` is `array<u8>`: an ordinary packed array, not a bespoke
 // primitive. Its length is an i32, and an element is a `u8` — which is
 // what a byte always was, now said in the type system.
-import { newByteArray } from 'zena:byte-array';
+import { newByteArray } from 'zena:core';
 
 let arr = newByteArray(10);
 

@@ -8,7 +8,7 @@
 // (issue #426, the split-pass face).
 
 import { Future, Completer, runFuture } from 'zena:async';
-import { Error } from 'zena:error';
+import { Error } from 'zena:core';
 
 let shape = async (src: Future<i32>, alt: Future<i32>): Future<i32> => {
   try {

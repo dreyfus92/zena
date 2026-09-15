@@ -6,7 +6,7 @@
 // The bound is what makes `disown`/`adopt`'s domain the same set of classes
 // that codegen gives a lifecycle flag to. Without it the two sets agree only
 // by accident — see ownership.md §"Disowning and adopting".
-import {Own, Unmanaged, Disposable, Resource, disown, adopt} from 'zena:ownership';
+import {Own, Unmanaged, Disposable, Resource, disown, adopt} from 'zena:core';
 
 resource class Handle {
   new();

@@ -2,7 +2,7 @@
 // The scoped iterator adapters follow the consumption rules like any
 // scoped values: each call consumes its input, the result must be
 // consumed in turn, and an abandoned link in the chain is an error.
-import {Own, Borrow, Scoped, Disposable, map, filter} from 'zena:ownership';
+import {Own, Borrow, Scoped, Disposable, map, filter} from 'zena:core';
 
 resource class Res {
   new();

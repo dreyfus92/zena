@@ -6,7 +6,7 @@
 // an explicit `using` rather than by implicit drop.
 // See docs/design/ownership.md §`using`.
 
-import { Disposable } from 'zena:ownership';
+import { Disposable } from 'zena:core';
 
 class Guard implements Disposable {
   var released: boolean = false;

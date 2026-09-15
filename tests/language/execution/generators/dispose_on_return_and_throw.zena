@@ -6,7 +6,7 @@
 // run the generator's finally before leaving, and the exception
 // keeps propagating afterwards.
 
-import { Iterator } from 'zena:iterator';
+import { Iterator } from 'zena:core';
 
 var log = '';
 

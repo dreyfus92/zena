@@ -5,7 +5,7 @@
 // awaits. A plain `gen` may not await.
 
 import { Future } from 'zena:async';
-import { Iterator } from 'zena:iterator';
+import { Iterator } from 'zena:core';
 
 async gen function counts(gate: Future<i32>): Iterator<i32> {
   yield 1;

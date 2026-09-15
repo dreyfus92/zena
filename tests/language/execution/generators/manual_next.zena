@@ -3,7 +3,7 @@
 // Manual protocol consumption: while (let (true, x) = it.next()),
 // exhausted iterators stay politely done, and two iterators from the
 // same generator are independent.
-import { Iterator } from 'zena:iterator';
+import { Iterator } from 'zena:core';
 
 let countdown = gen (n: i32): Iterator<i32> => {
   var i = n;

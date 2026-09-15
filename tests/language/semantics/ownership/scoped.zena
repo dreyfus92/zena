@@ -3,7 +3,7 @@
 // consumption"): may not be duplicated, may not escape to the heap,
 // and must be consumed on every path. A first-class future coerces to
 // scoped; nothing coerces back out.
-import {Own, Borrow, Scoped, Disposable} from 'zena:ownership';
+import {Own, Borrow, Scoped, Disposable} from 'zena:core';
 
 resource class Res {
   new();

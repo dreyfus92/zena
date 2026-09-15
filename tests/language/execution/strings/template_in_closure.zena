@@ -1,6 +1,6 @@
 // @mode: run
 // @result: 1
-import {TemplateStringsArray} from 'zena:template-strings-array';
+import {TemplateStringsArray} from 'zena:core';
 
 export let main = (): i32 => {
   let tag = (strings: TemplateStringsArray, values: FixedArray<i32>): i32 => {

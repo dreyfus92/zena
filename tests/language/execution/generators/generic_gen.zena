@@ -2,7 +2,7 @@
 // @result: 305
 // Generic generators: each reached instantiation gets its own frame
 // and Iterator<T> plumbing via the specialization machinery.
-import { Iterator } from 'zena:iterator';
+import { Iterator } from 'zena:core';
 
 let pair = gen <T>(first: T, second: T): Iterator<T> => {
   yield first;

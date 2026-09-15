@@ -11,7 +11,7 @@
 // `Borrow<R>` by the implicit-borrow coercion, so the cast read as a downcast.
 // See docs/design/ownership.md.
 
-import { Own, Borrow, Unmanaged, Disposable } from 'zena:ownership';
+import { Own, Borrow, Unmanaged, Disposable } from 'zena:core';
 
 resource class D {
   [Disposable.dispose](this: Own<this>): void {}

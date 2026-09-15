@@ -5,7 +5,7 @@
 // every resource kind shares. Disposal is idempotent — a second dispose() must
 // not release twice.
 
-import { Disposable } from 'zena:ownership';
+import { Disposable } from 'zena:core';
 
 var released = 0;
 

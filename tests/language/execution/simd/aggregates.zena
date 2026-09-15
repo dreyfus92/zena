@@ -12,8 +12,7 @@
 // zero is a 16-byte `v128.const` and lowering used to have nothing to
 // emit for it.
 import {i32x4Splat, i32x4Add, i32x4ExtractLane, v128Const} from 'zena:simd';
-import {Array} from 'zena:array';
-import {Box} from 'zena:box';
+import {Array, Box} from 'zena:core';
 import {HashMap} from 'zena:map';
 
 let ones: v128 = i32x4Splat(1);

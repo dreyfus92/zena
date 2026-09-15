@@ -1,5 +1,5 @@
 // @mode: check
-import {Error} from 'zena:error';
+import {Error} from 'zena:core';
 
 // A function annotated `: never` must have a never-typed body.
 let fail = (): never => {

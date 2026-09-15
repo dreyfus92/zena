@@ -1,6 +1,6 @@
 // @mode: run
 // @result: 150
-import { newByteArray } from 'zena:byte-array';
+import { newByteArray } from 'zena:core';
 
 export let main = (): i32 => {
   let arr = newByteArray(5);

@@ -2,7 +2,7 @@
 // Resource-ness is inherited, and only from a resource. A mismatch in
 // either direction lets a bare reference to a resource exist, which is
 // the one thing the handle lattice is there to prevent.
-import {Own, Disposable} from 'zena:ownership';
+import {Own, Disposable} from 'zena:core';
 
 class Plain {
   v: i32;

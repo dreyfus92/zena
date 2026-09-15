@@ -1,5 +1,5 @@
 // @mode: check
-import {Error} from 'zena:error';
+import {Error} from 'zena:core';
 // A try/catch/finally block is valid; the finally block is type-checked but
 // does not affect the overall expression type.
 let test = () => {

@@ -4,7 +4,7 @@
 // fields through compiler glue — after the user's dispose body, in
 // reverse declaration order — transitively through the ownership
 // tree, with a nullable field skipped when null.
-import {Own, Disposable} from 'zena:ownership';
+import {Own, Disposable} from 'zena:core';
 
 /** Records events as decimal digits, so ordering is observable. */
 class Log {

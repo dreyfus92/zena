@@ -6,7 +6,7 @@
 // reallocates and copies element by element through the same packed
 // read/write path.
 
-import { GrowableArray } from 'zena:growable-array';
+import { GrowableArray } from 'zena:core';
 
 export let main = (): i32 => {
   let bytes = new GrowableArray<u8>();

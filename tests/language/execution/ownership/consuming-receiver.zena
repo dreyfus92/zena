@@ -9,7 +9,7 @@
 //
 // See docs/design/ownership.md §"Release consumes its receiver".
 
-import { Own, Disposable } from 'zena:ownership';
+import { Own, Disposable } from 'zena:core';
 
 var released = 0;
 

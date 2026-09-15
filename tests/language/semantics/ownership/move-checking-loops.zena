@@ -4,7 +4,7 @@
 // declared outside the loop and moved inside it must be reinitialized on
 // every path to the back edge.
 
-import { Own, Borrow, Disposable } from 'zena:ownership';
+import { Own, Borrow, Disposable } from 'zena:core';
 
 resource class File {
   var #fd: i32;

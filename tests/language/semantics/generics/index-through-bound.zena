@@ -1,7 +1,7 @@
 // @mode: check
 // Index access resolves through a type parameter's bound; an
 // unconstrained parameter still supports none.
-import { Array } from 'zena:array';
+import { Array } from 'zena:core';
 
 function first<A extends Array<i32>>(arr: A): i32 {
   return arr[0];

@@ -5,7 +5,7 @@
 // use site; open ones stay symbolic until substitution closes them.
 
 import { Future } from 'zena:async';
-import { Error } from 'zena:error';
+import { Error } from 'zena:core';
 
 @intrinsic('type.awaited')
 declare type Awaited<T>;

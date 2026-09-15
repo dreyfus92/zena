@@ -8,7 +8,7 @@
 // finally regions `using` proved out.
 
 import { Future, Completer, drainMicrotasks, runFuture } from 'zena:async';
-import { Own, Disposable } from 'zena:ownership';
+import { Own, Disposable } from 'zena:core';
 
 /** Records events as decimal digits, so ordering is observable. */
 class Log {

@@ -8,7 +8,7 @@
 // rejected at compile time; see exceptions.md.)
 
 import { Future, Completer, drainMicrotasks, runFuture } from 'zena:async';
-import { Error } from 'zena:error';
+import { Error } from 'zena:core';
 
 let guarded = async (c: Completer<i32>): Future<i32> => {
   var n = 0;

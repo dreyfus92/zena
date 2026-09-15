@@ -7,8 +7,7 @@
 // are located through the module they come from, so the declarations below
 // do not stand in for them.
 
-import { String as StdString } from 'zena:string';
-import { Error as StdError } from 'zena:error';
+import { String as StdString, Error as StdError } from 'zena:core';
 
 /** Not the stdlib String. */
 class String {

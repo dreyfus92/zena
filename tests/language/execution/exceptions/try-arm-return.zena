@@ -5,7 +5,7 @@
 // `never` when both arms return and takes the other arm's type when
 // only one does.
 
-import { Error } from 'zena:error';
+import { Error } from 'zena:core';
 
 let mayThrow = (fail: boolean): i32 => {
   if (fail) {

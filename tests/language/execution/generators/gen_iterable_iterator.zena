@@ -3,7 +3,7 @@
 // A class implements Iterable<T> with its :iterator() written as a
 // generator method — no hand-written iterator class at all. This is
 // the shape stdlib collections adopt after bootstrap retirement.
-import { Iterable, Iterator } from 'zena:iterator';
+import { Iterable, Iterator } from 'zena:core';
 
 class Countdown implements Iterable<i32> {
   n: i32;

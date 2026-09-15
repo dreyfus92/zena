@@ -3,7 +3,7 @@
 // Case classes nominally implement Hashable: they are assignable to the
 // interface without an explicit implements clause, and hashCode() dispatches
 // correctly through the interface.
-import {Hashable} from 'zena:hashable';
+import {Hashable} from 'zena:core';
 
 class CaseKey(name: String, id: i32)
 

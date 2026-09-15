@@ -10,7 +10,7 @@
 // ownership.md §"`Borrow<T>` is the identity at unrestricted
 // instantiations". A borrow of a bare type parameter is restricted, because
 // a generic body is checked against the worst case its bound permits.
-import {Own, Borrow, Disposable} from 'zena:ownership';
+import {Own, Borrow, Disposable} from 'zena:core';
 
 resource class File {
   name: String;

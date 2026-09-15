@@ -11,10 +11,8 @@
 // is the host, which reads only once the response has been returned.
 import { Fields, Request, Response, ErrorCode } from 'wasi:http/types';
 import { Completer, Future } from 'zena:async';
-import { Outcome, Ok } from 'zena:result';
-import { Option, some, none } from 'zena:option';
+import { Outcome, Ok, Option, some, none, FixedArray } from 'zena:core';
 import { StreamWriter } from 'zena:stream';
-import { FixedArray } from 'zena:fixed-array';
 import { sleep, milliseconds } from 'zena:time';
 
 /**

@@ -7,7 +7,7 @@
 // the write, each evaluating once. #combineCompound applies the
 // operator, like the array-element and member compound paths.
 
-import { GrowableArray } from 'zena:growable-array';
+import { GrowableArray } from 'zena:core';
 
 class Tag {
   n: i32;

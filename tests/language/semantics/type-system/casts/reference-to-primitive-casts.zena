@@ -6,7 +6,7 @@
 // unwrap of `Box<target>`, which trapped for every reference that was
 // not that exact box.
 
-import {Box} from 'zena:box';
+import {Box} from 'zena:core';
 
 class Counted {
   count: i32;

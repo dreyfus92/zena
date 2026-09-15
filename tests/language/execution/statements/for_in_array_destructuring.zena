@@ -2,7 +2,7 @@
 // @result: 100
 // @invoke: main
 
-import { GrowableArray } from 'zena:growable-array';
+import { GrowableArray } from 'zena:core';
 
 export let main = (): i32 => {
   let pairs = new GrowableArray<Array<i32>>();

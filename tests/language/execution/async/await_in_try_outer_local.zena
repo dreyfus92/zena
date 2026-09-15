@@ -8,7 +8,7 @@
 // frame, not SSA. This shape used to fail ZIR verification with a
 // dominance error; fixed 2026-08-14.
 
-import { Error } from 'zena:error';
+import { Error } from 'zena:core';
 import { Future, Completer } from 'zena:async';
 
 let failedI32 = (): Future<i32> => {

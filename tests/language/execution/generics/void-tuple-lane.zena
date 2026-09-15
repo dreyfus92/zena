@@ -6,7 +6,7 @@
 // result slot. Encoding (constructing either arm), decoding
 // (if-let), and both instantiations of the same generic method.
 
-import { Error } from "zena:error";
+import { Error } from 'zena:core';
 
 class Holder<T> {
   has: boolean;

@@ -5,7 +5,7 @@
 // NOT shared/cached like Python defaults.
 // The test passes (returns 0) if arrays are NOT shared.
 
-import {GrowableArray} from 'zena:growable-array';
+import {GrowableArray} from 'zena:core';
 
 class Processor {
   // Default creates a new Array each call

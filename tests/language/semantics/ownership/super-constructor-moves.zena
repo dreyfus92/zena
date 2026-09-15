@@ -5,7 +5,7 @@
 // list first, then super, then the body — so an initializer-list use
 // before the super call is fine, and a body use after it is a use
 // after move.
-import {Own, Disposable} from 'zena:ownership';
+import {Own, Disposable} from 'zena:core';
 
 resource class File {
   name: String;

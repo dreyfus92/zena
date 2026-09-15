@@ -4,7 +4,7 @@
 // return, break and continue all leave a finally-protected region, so
 // each runs the finalizer before it reaches its target.
 
-import { Error } from 'zena:error';
+import { Error } from 'zena:core';
 
 // The value is parked before the finalizer runs, so a later
 // assignment to the same local does not change what comes back.

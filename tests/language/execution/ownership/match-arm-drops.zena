@@ -5,7 +5,7 @@
 // is uniformly dead at the merge — statement and value matches alike.
 // A moving arm that diverges needs no compensation, and the binding
 // stays usable after the match.
-import {Own, Disposable} from 'zena:ownership';
+import {Own, Disposable} from 'zena:core';
 
 var released = 0;
 var given = 0;

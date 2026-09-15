@@ -5,9 +5,8 @@
 // across the suspended yield — the same region machinery finally
 // rides (docs/design/ownership.md §using).
 
-import { Iterator } from 'zena:iterator';
+import { Iterator, Disposable } from 'zena:core';
 
-import { Disposable } from 'zena:ownership';
 
 var log = '';
 

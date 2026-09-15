@@ -4,7 +4,7 @@
 // expression-position `&&` chains, narrowing by assignment, the guard's
 // inversion after a loop, and termination through `never`-returning
 // calls. No errors expected except where marked.
-import { Error } from 'zena:error';
+import { Error } from 'zena:core';
 
 class Node {
   var value: i32 = 0;

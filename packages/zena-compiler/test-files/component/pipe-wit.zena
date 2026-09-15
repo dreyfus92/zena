@@ -14,9 +14,8 @@ import {
   PipeError, PipeErrorClosed,
 } from 'wasi:pipe/pipes';
 import { Stream, StreamWriter } from 'zena:stream';
-import { Some, Option } from 'zena:option';
+import { Some, Option, Outcome, Ok } from 'zena:core';
 import { Completer, Future } from 'zena:async';
-import { Outcome, Ok } from 'zena:result';
 
 export async function main(): Future<void> {
   let incoming = source();

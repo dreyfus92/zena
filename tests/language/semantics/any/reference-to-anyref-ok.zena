@@ -1,5 +1,5 @@
 // @mode: check
-import { Box } from 'zena:box';
+import { Box } from 'zena:core';
 
 class Point {
   x: i32;

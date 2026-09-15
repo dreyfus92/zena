@@ -1,5 +1,5 @@
 // @mode: check
-import {Error} from 'zena:error';
+import {Error} from 'zena:core';
 
 // throw is an expression with type `never`.
 let fail = (): never => throw new Error("fail");

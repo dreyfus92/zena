@@ -2,7 +2,7 @@
 // Generic methods dispatch through interface receivers: each solved
 // type-argument list gets its own vtable slot (elematic/zena#116), so
 // the call checks like any other interface method call.
-import { Array } from 'zena:array';
+import { Array } from 'zena:core';
 
 let s: Array<i32> = [1, 2, 3];
 let ok = s.map((x: i32): i32 => x + 1);

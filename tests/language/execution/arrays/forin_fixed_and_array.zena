@@ -3,7 +3,7 @@
 // for-in fast paths under ZENA_BACKEND=zir: FixedArray (wasm array
 // via array.len/array.get) with break and continue, and Array
 // (#buffer/#length struct) over reference elements.
-import { GrowableArray } from 'zena:growable-array';
+import { GrowableArray } from 'zena:core';
 
 let sumFixed = (xs: FixedArray<i32>): i32 => {
   var acc = 0;

@@ -3,7 +3,7 @@
 // method, `this.field` keeps its owner type and may be moved out — at
 // most once per field per path, on every path or none. Everywhere
 // else the read is a borrow.
-import {Own, Borrow, Disposable} from 'zena:ownership';
+import {Own, Borrow, Disposable} from 'zena:core';
 
 resource class Res {
   id: i32;

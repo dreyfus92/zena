@@ -4,7 +4,7 @@
 // zena:ownership chain over a borrow-holding generator, each consuming
 // its input and deriving a scoped result, all driven inside the
 // owner's scope.
-import {Own, Borrow, Scoped, Disposable, map, filter, take} from 'zena:ownership';
+import {Own, Borrow, Scoped, Disposable, map, filter, take} from 'zena:core';
 
 resource class Res {
   #n: i32;

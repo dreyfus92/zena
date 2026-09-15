@@ -2,7 +2,7 @@
 // @result: 0
 
 import { i32x4Splat, v128Const } from 'zena:simd';
-import { GrowableArray } from 'zena:growable-array';
+import { GrowableArray } from 'zena:core';
 
 export function main(): i32 {
   let a = i32x4Splat(42);

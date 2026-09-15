@@ -5,7 +5,7 @@
 // generator take a borrow parameter. Without the annotation both bans
 // stand, and the scoped result is still governed by the consumption
 // and derivation rules.
-import {Own, Borrow, Scoped, Disposable} from 'zena:ownership';
+import {Own, Borrow, Scoped, Disposable} from 'zena:core';
 
 resource class Res {
   new();

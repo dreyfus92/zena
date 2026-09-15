@@ -5,7 +5,7 @@
 // into a scoped-T parameter as a call-site temporary, a first-class
 // future coerces into the same literal, and an all-style combinator
 // awaits each element and derives a scoped result.
-import {Own, Borrow, Scoped, Disposable} from 'zena:ownership';
+import {Own, Borrow, Scoped, Disposable} from 'zena:core';
 import {Awaited} from 'zena:async';
 
 resource class Res {

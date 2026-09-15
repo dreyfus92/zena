@@ -3,7 +3,7 @@
 // Nullable release end to end: `using` and implicit drop over
 // `Own<R> | null` bindings dispose when the value is there and skip
 // when it is null, including through early returns.
-import {Own, Disposable} from 'zena:ownership';
+import {Own, Disposable} from 'zena:core';
 
 var released = 0;
 

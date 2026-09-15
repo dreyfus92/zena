@@ -10,7 +10,7 @@
 // `Borrow<File>` cannot be a field's type or a container's element type,
 // there is no storage location left that could hold one, so no flow
 // analysis is needed to find the stores.
-import {Own, Borrow, Disposable} from 'zena:ownership';
+import {Own, Borrow, Disposable} from 'zena:core';
 
 resource class File {
   name: String;

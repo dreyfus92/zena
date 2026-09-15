@@ -4,7 +4,7 @@
 // value computes first, then the release runs — and a body that hands
 // the ownership out (returning the parameter) releases nothing, since
 // the caller owns it from there.
-import {Own, Borrow, Disposable} from 'zena:ownership';
+import {Own, Borrow, Disposable} from 'zena:core';
 
 var released = 0;
 var seen = 0;

@@ -1,7 +1,7 @@
 // @mode: run
 // @result: 15
 
-import { Iterable, Iterator } from 'zena:iterator';
+import { Iterable, Iterator } from 'zena:core';
 
 class StringIterator implements Iterator<String> {
   var count: i32 = 0;

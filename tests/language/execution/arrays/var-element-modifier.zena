@@ -2,7 +2,7 @@
 // @stdlib: true
 // @result: 6
 
-import { FixedArray } from 'zena:fixed-array';
+import { FixedArray } from 'zena:core';
 
 // `array<var i32>` is the mutable-element array: writes through it
 // work, and FixedArray is its extension class.

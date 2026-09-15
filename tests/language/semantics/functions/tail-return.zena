@@ -4,7 +4,7 @@
 // (docs/design/tail-calls.md §3).
 
 import { Future } from 'zena:async';
-import { Own, Disposable } from 'zena:ownership';
+import { Own, Disposable } from 'zena:core';
 
 class Animal {}
 class Dog extends Animal {}

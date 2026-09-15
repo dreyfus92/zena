@@ -7,7 +7,7 @@
 // the erasure, lowering saw a handle as a type it had no class for.
 // See docs/design/ownership.md §Handles.
 
-import { Own, Borrow, Disposable } from 'zena:ownership';
+import { Own, Borrow, Disposable } from 'zena:core';
 
 resource class Counter {
   var #n: i32;

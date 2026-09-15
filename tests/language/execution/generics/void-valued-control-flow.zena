@@ -6,7 +6,7 @@
 // specialization — testing the generic type alone made every one of
 // these bail ("try result type") at the void instantiation.
 
-import { Error } from 'zena:error';
+import { Error } from 'zena:core';
 
 let viaTry = <T>(f: () => T, fallback: () => T): T => {
   return try {

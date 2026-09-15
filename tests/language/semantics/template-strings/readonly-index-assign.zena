@@ -1,6 +1,6 @@
 // @mode: check
 // TemplateStringsArray should reject index assignment (immutable)
-import {TemplateStringsArray} from 'zena:template-strings-array';
+import {TemplateStringsArray} from 'zena:core';
 
 let tag = (strings: TemplateStringsArray, values: FixedArray<i32>): i32 => {
   strings[0] = "changed"; // @error: read-only indexer

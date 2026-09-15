@@ -8,7 +8,7 @@
 // the async-resource pattern (`using conn = …; await conn.query()`).
 
 import { Future, Completer, drainMicrotasks, runFuture } from 'zena:async';
-import { Disposable } from 'zena:ownership';
+import { Disposable } from 'zena:core';
 
 /** Records events as decimal digits, so ordering is observable. */
 class Log {

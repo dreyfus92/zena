@@ -1,4 +1,4 @@
 // @mode: check
 // Range expression with both bounds
-import {BoundedRange} from 'zena:range';
+import {BoundedRange} from 'zena:core';
 let r: BoundedRange = 1..10;

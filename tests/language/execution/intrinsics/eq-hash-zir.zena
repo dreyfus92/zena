@@ -6,7 +6,7 @@
 // and class equality/hashing through operator== / hashCode with the
 // reference fast path.
 
-import { Hashable } from 'zena:hashable';
+import { Hashable } from 'zena:core';
 
 @intrinsic('hash')
 declare function hash<T>(value: T): i32;

@@ -4,7 +4,7 @@
 // signature, a literal of scoped futures is legal only flowing
 // directly into such a parameter, and every way to name or bind the
 // container otherwise is rejected.
-import {Own, Borrow, Scoped, Disposable} from 'zena:ownership';
+import {Own, Borrow, Scoped, Disposable} from 'zena:core';
 import {Awaited} from 'zena:async';
 
 resource class Res {

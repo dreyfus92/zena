@@ -2,8 +2,8 @@
 // `array<var T>` has mutable elements — Wasm's `(array (mut T))`; bare
 // `array<T>` is the immutable-element `(array T)`. Wasm gives no
 // subtyping between them in either direction.
-import { FixedArray } from 'zena:fixed-array';
-import { ImmutableArray } from 'zena:immutable-array';
+import { FixedArray } from 'zena:core';
+import { ImmutableArray } from 'zena:core';
 
 let a: array<var i32> = __array_new(3, 0);
 let bad: array<i32> = a; // @error: Type mismatch

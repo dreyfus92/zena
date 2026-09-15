@@ -13,7 +13,7 @@
 // and equal through `anyref` — and `hash` never had a matching tier,
 // so the pair could not satisfy the eq/hash contract.
 
-import { Box } from 'zena:box';
+import { Box } from 'zena:core';
 
 class Point {
   x: i32;

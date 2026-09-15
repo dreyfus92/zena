@@ -3,7 +3,7 @@
 // The handler must see assignments the try body COMPLETED before it
 // threw — not the state at try entry. Same for the code after the try.
 
-import { Error } from 'zena:error';
+import { Error } from 'zena:core';
 
 let boom = (fail: boolean): i32 => {
   if (fail) {

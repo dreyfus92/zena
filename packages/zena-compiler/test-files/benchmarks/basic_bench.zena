@@ -1,7 +1,5 @@
 import { getArguments } from 'zena:cli';
-import { Iterator, Iterable } from 'zena:iterator';
-import { IterableUtils } from 'zena:iterable-utils';
-import { ImmutableArray } from 'zena:immutable-array';
+import { Iterator, Iterable, IterableUtils, ImmutableArray } from 'zena:core';
 import { runTest } from 'zena:bench';
 
 let fibRecursive = (n: i32): i32 => {

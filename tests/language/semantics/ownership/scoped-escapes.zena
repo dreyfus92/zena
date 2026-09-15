@@ -3,7 +3,7 @@
 // value (and the borrow-holding frame behind it) past its extent, and
 // each is rejected. Written from a red-team pass over the rules; the
 // legal counterparts live in scoped.zena and scoped-suspension.zena.
-import {Own, Borrow, Scoped, Disposable} from 'zena:ownership';
+import {Own, Borrow, Scoped, Disposable} from 'zena:core';
 
 resource class Res {
   new();

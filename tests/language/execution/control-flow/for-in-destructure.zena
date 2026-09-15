@@ -1,7 +1,7 @@
 // @mode: run
 // @stdout: found a=1\nfound b=2\ndone
 
-import { Iterable, Iterator } from 'zena:iterator';
+import { Iterable, Iterator } from 'zena:core';
 
 class Item {
   key: String;

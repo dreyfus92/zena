@@ -8,7 +8,7 @@
 // does), and a resource class must be nameable bare as an explicit type
 // argument.
 
-import { Own, Borrow, Disposable } from 'zena:ownership';
+import { Own, Borrow, Disposable } from 'zena:core';
 
 resource class Counter {
   var #n: i32;

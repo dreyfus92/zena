@@ -1,6 +1,4 @@
-import { StringBuilder } from 'zena:string-builder';
-import { newByteArray } from 'zena:byte-array';
-import { Encoding } from 'zena:string';
+import { StringBuilder, newByteArray, Encoding } from 'zena:core';
 import { getArguments } from 'zena:cli';
 import { runTest } from 'zena:bench';
 

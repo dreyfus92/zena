@@ -1,7 +1,7 @@
 // @mode: run
 // @result: 6
 
-import { Iterable, Iterator } from 'zena:iterator';
+import { Iterable, Iterator } from 'zena:core';
 
 class Item {
   value: i32;

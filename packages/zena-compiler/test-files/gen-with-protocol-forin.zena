@@ -1,4 +1,4 @@
-import { Iterator } from 'zena:iterator';
+import { Iterator } from 'zena:core';
 
 let counting = gen (): Iterator<i32> => {
   yield 1;

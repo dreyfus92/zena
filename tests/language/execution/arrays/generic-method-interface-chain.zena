@@ -4,7 +4,7 @@
 // result pack, so the second call dispatches through a pair the
 // fixpoint built in a later round. The helper's demand is recorded
 // from a specialization's walk (the template mentions Array<T>).
-import { Array } from 'zena:array';
+import { Array } from 'zena:core';
 
 function addAll<T>(items: Array<T>, bonus: i32): i32 {
   let mapped = items.map((x, i, seq) => bonus + i);

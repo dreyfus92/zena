@@ -2,7 +2,7 @@
 // @result: 30
 // A `function` used as a value: stored in a binding, put in an array, and
 // handed to a higher-order function.
-import { GrowableArray } from 'zena:growable-array';
+import { GrowableArray } from 'zena:core';
 
 function inc(x: i32): i32 {
   return x + 1;

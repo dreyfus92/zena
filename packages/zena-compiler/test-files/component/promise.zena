@@ -12,8 +12,7 @@ import { console } from 'zena:console';
 import { Memory, defaultAllocator } from 'zena:memory';
 import { awaitWaitable } from 'zena:component-async';
 import { Future } from 'zena:async';
-import { i32ToString } from 'zena:string-convert';
-import { Error } from 'zena:error';
+import { i32ToString, Error } from 'zena:core';
 
 @external("canon", "future.new", "future<u32>")
 declare function futureNew(): u64;

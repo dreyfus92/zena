@@ -6,7 +6,7 @@
 // requested, eight lifted, whatever the bytes were.
 import { console } from 'zena:console';
 import { getRandomBytes, getRandomU64 } from 'wasi:random/random';
-import { i32ToString } from 'zena:string-convert';
+import { i32ToString } from 'zena:core';
 
 export function main(): u32 {
   let bytes = getRandomBytes(8);

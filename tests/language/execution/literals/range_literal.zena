@@ -1,7 +1,7 @@
 // @mode: run
 // @result: true
 
-import { BoundedRange, FromRange, ToRange, FullRange } from 'zena:range';
+import { BoundedRange, FromRange, ToRange, FullRange } from 'zena:core';
 
 export let main = (): boolean => {
   // Test basic BoundedRange
