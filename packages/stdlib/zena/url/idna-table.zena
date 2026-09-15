@@ -13,8 +13,6 @@
 // a delta from the previous start and a tag, then the spill area holding the
 // mappings too long to store as a delta.
 
-import { String } from 'zena:string';
-
 /** Offset of the spill area within `IDNA_TABLE`. */
 export let IDNA_SPILL_START = 35851;
 

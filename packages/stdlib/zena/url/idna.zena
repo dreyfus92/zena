@@ -15,9 +15,7 @@
 // rejected. A host that needs them is rare, and the alternative — refusing
 // every non-ASCII host, which is what this replaced — was worse.
 
-import { String } from 'zena:string';
 import { StringBuilder } from 'zena:string-builder';
-import { Array } from 'zena:array';
 import { toCodePoints, appendCodePoint, punycodeEncode, punycodeDecode } from './punycode.zena';
 import { IDNA_TABLE, IDNA_SPILL_START, IDNA_RANGE_COUNT } from './idna-table.zena';
 
