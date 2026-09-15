@@ -1,7 +1,6 @@
 // GrowableArray stdlib tests using zena:test
 import {suite, test, TestContext} from 'zena:test';
 import {equal, throws} from 'zena:assert';
-import {GrowableArray} from 'zena:growable-array';
 
 export let tests = suite('GrowableArray', (): void => {
   test('constructor creates array with zero length', (ctx: TestContext): void => {

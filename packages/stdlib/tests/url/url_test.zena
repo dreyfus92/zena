@@ -1,7 +1,6 @@
 import {suite, test, TestContext} from 'zena:test';
 import {equal, isTrue, isFalse} from 'zena:assert';
 import {URL} from 'zena:url';
-import {String} from 'zena:string';
 
 // The Zena-specific API surface, which the generated WPT suite cannot cover:
 // URL.parse's null return, canParse, toString, and derived components. Spec

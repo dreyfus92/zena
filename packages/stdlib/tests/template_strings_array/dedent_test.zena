@@ -7,7 +7,7 @@
 // *expected* values are fine — only the tagged literals are affected.
 import {suite, test, TestContext} from 'zena:test';
 import {equal} from 'zena:assert';
-import {dedent} from 'zena:template-strings-array';
+import {dedent} from 'zena:core';
 
 export let tests = suite('dedent', (): void => {
   suite('the block form', (): void => {

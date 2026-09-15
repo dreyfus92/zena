@@ -4,7 +4,6 @@
 import {suite, test, TestContext} from 'zena:test';
 import {equal, isTrue, isFalse} from 'zena:assert';
 import {abs} from 'zena:math';
-import {GrowableArray} from 'zena:growable-array';
 import {
   summarize, sortedCopy, tCritical95, differenceOfMeans, parseHorizons, isResolved,
 } from 'zena:bench';

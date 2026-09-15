@@ -4,10 +4,7 @@
 // an explicit second claim; the bare future stays an ordinary value.
 import {suite, test, TestContext} from 'zena:test';
 import {equal, isTrue, isFalse} from 'zena:assert';
-import {
-  Future, Completer, FutureClaim, CancelScope, drainMicrotasks, runFuture,
-} from 'zena:async';
-import { Error } from 'zena:error';
+import {Completer, FutureClaim, CancelScope, drainMicrotasks, runFuture} from 'zena:async';
 
 let doubled = async (gate: Future<i32>): Future<i32> => {
   let v = await gate;

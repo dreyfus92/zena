@@ -1,9 +1,7 @@
 import {suite, test, TestContext} from 'zena:test';
 import {equal, isTrue, isFalse} from 'zena:assert';
-import {FixedArray} from 'zena:fixed-array';
-import {GrowableArray} from 'zena:growable-array';
+import {FilteredIterable} from 'zena:core';
 import {HashSet, OrderedHashSet} from 'zena:collections';
-import {FilteredIterable} from 'zena:iterable-utils';
 
 export let tests = suite('IterableUtils.filter', (): void => {
   test('filters FixedArray elements', (ctx: TestContext): void => {

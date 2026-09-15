@@ -3,7 +3,6 @@ import {suite, test, TestContext} from 'zena:test';
 import {jsonEqual, throws, isTrue} from 'zena:assert';
 import {AssertionError} from 'zena:assert';
 import {JsonObject, JsonArray, JsonValue, SourceLocation, parseJson, JsonOptions} from 'zena:json';
-import {Box} from 'zena:box';
 
 // Helper to build a JsonObject from key-value pairs
 let obj = (key: String, value: JsonValue): JsonObject => {

@@ -1,5 +1,4 @@
 import {suite, test, TestContext} from 'zena:test';
-import {Iterable} from 'zena:iterator';
 import {equal, isTrue, isFalse} from 'zena:assert';
 import {OrderedHashMap} from 'zena:collections';
 

@@ -4,17 +4,11 @@
 // parked pump.
 import {suite, test} from 'zena:test';
 import {equal, isTrue, isFalse} from 'zena:assert';
-import {
-  Future, Completer, drainMicrotasks, runFuture,
-} from 'zena:async';
+import {Completer, drainMicrotasks, runFuture} from 'zena:async';
 import {
   Stream, StreamWriter, Multicast, Subscription, conflate, waits, buffered,
 } from 'zena:stream';
-import { Disposable } from 'zena:ownership';
-import { Error } from 'zena:error';
-import { FixedArray } from 'zena:fixed-array';
-import { GrowableArray } from 'zena:growable-array';
-import { i32ToString } from 'zena:string-convert';
+import { Disposable } from 'zena:core';
 
 /** Reads `st` to end-of-stream, recording elements as digits. */
 let collect = async (st: Stream<i32>, tag: String): Future<String> => {

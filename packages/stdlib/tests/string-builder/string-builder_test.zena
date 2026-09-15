@@ -1,7 +1,7 @@
 // @stdlib: true
 import {suite, test, TestContext} from 'zena:test';
 import {equal} from 'zena:assert';
-import {StringBuilder} from 'zena:string-builder';
+import {StringBuilder} from 'zena:core';
 
 export let tests = suite('StringBuilder', (): void => {
   test('append strings', (ctx: TestContext): void => {

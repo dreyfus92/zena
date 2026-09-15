@@ -1,7 +1,6 @@
 // Assert stdlib tests using zena:test
 import {suite, test, TestContext} from 'zena:test';
 import {equal, notEqual, isTrue, isFalse, greater, greaterOrEqual, less, lessOrEqual, throws, doesNotThrow, same, notSame, isNull, isNotNull, fail} from 'zena:assert';
-import {Error} from 'zena:error';
 
 class TestBox {
   value: i32;

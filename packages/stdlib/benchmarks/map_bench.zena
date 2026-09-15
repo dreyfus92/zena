@@ -1,4 +1,3 @@
-import { HashMap } from 'zena:map';
 import { OrderedHashMap } from 'zena:collections';
 import { runTest } from 'zena:bench';
 import { getArguments } from 'zena:cli';

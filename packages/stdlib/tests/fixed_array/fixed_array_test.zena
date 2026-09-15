@@ -1,7 +1,6 @@
 // FixedArray stdlib tests using zena:test
 import {suite, test, TestContext} from 'zena:test';
 import {equal} from 'zena:assert';
-import {FixedArray} from 'zena:fixed-array';
 
 export let tests = suite('FixedArray', (): void => {
   test('constructor with length creates array of given size', (ctx: TestContext): void => {

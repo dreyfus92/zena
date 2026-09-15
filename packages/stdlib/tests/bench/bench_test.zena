@@ -16,7 +16,6 @@ import {
   reportToJson,
   collectMachineInfo,
 } from 'zena:bench';
-import {GrowableArray} from 'zena:growable-array';
 
 // Deterministic busy work the optimizer can't delete: the result feeds an
 // (always-false) branch the caller asserts on.

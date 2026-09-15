@@ -2,9 +2,8 @@
 //
 // @requires: wasmtime
 
-import { Encoding } from 'zena:string';
+import { Encoding, newByteArray } from 'zena:core';
 import { Memory, defaultAllocator } from 'zena:memory';
-import { newByteArray } from 'zena:byte-array';
 
 // Memory access
 let mem = Memory.default;

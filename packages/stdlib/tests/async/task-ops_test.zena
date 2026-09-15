@@ -3,11 +3,10 @@
 // and hand cancellation through untouched.
 import {suite, test} from 'zena:test';
 import {equal, isTrue, isFalse} from 'zena:assert';
-import {Future, Completer, CancelScope, drainMicrotasks, runFuture} from 'zena:async';
+import {Completer, CancelScope, drainMicrotasks, runFuture} from 'zena:async';
 import {
   Op, TimeoutError, timeout, deadline, retry, fallback, hedge,
 } from 'zena:task';
-import { Error } from 'zena:error';
 import { monotonic, milliseconds } from 'zena:time';
 
 var log = '';

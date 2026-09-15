@@ -4,13 +4,8 @@
 // race (its early exit needs concurrent observation).
 import {suite, test, TestContext} from 'zena:test';
 import {equal, isTrue, isFalse} from 'zena:assert';
-import {
-  Future, Completer, AggregateError, drainMicrotasks, runFuture,
-} from 'zena:async';
-import { Outcome, Ok, Err } from 'zena:result';
-import { Error } from 'zena:error';
-import { GrowableArray } from 'zena:growable-array';
-import { i32ToString } from 'zena:string-convert';
+import {Completer, AggregateError, drainMicrotasks, runFuture} from 'zena:async';
+import { Outcome, Ok, Err } from 'zena:core';
 
 let describe = (outcomes: Array<Outcome<i32, Error>>): String => {
   var s = '';

@@ -1,7 +1,7 @@
 // TemplateStringsArray stdlib tests using zena:test
 import {suite, test, TestContext} from 'zena:test';
 import { equal } from 'zena:assert';
-import {TemplateStringsArray} from 'zena:template-strings-array';
+import {TemplateStringsArray} from 'zena:core';
 
 export let tests = suite('TemplateStringsArray', (): void => {
   test('length property returns number of string parts', (ctx: TestContext): void => {

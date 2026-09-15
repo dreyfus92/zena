@@ -8,7 +8,6 @@ import {
   parseFormUrlencoded,
   serializeFormUrlencoded
 } from 'zena:url';
-import {Array} from 'zena:array';
 
 // Hand-written from the WHATWG URL Standard (https://url.spec.whatwg.org/).
 // Each suite links the spec section it covers. See DESIGN.md for the plan to

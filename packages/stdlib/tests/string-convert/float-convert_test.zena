@@ -8,9 +8,7 @@
 // conversions, which is what actually establishes that this is right.
 import { suite, test } from 'zena:test';
 import { equal } from 'zena:assert';
-import {
-  parseF64, f64ToString, f32ToString, f64ToPrecision, u64ToString,
-} from 'zena:string-convert';
+import {f32ToString, f64ToPrecision, u64ToString} from 'zena:core';
 import {
   i64_reinterpret_f64, f64_reinterpret_i64, mulWide, mulWideSigned,
   add128, sub128,

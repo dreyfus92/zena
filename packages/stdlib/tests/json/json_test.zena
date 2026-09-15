@@ -2,7 +2,6 @@
 import {suite, test, TestContext} from 'zena:test';
 import {equal, isTrue, isFalse, throws} from 'zena:assert';
 import {parseJson, jsonGet, JsonObject, JsonArray, JsonOptions, JsonParseError, stringify} from 'zena:json';
-import {Box} from 'zena:box';
 
 // Helper to test that parsing throws JsonParseError
 let expectParseError = (input: String): void => {

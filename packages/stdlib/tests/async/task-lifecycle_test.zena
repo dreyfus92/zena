@@ -4,14 +4,10 @@
 // the second's value.
 import {suite, test} from 'zena:test';
 import {equal, isTrue, isFalse} from 'zena:assert';
-import {
-  Future, Completer, drainMicrotasks, runFuture,
-} from 'zena:async';
+import {Completer, drainMicrotasks, runFuture} from 'zena:async';
 import {
   Task, TaskState, Initial, Pending, Complete, Errored,
 } from 'zena:task';
-import { Error } from 'zena:error';
-import { i32ToString } from 'zena:string-convert';
 
 var log = '';
 var gate: Completer<i32> = new Completer<i32>();
