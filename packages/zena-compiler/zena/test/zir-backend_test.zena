@@ -709,6 +709,62 @@ export let tests = suite('zir backend', (): void => {
         'no call survives');
   });
 
+  test('-O2 inlines a loop over a closure argument and removes the closure', (ctx: TestContext): void => {
+    // `each` is called from two places, so the plain policy leaves it
+    // alone; both calls pass a closure written at the call, `each`
+    // only calls its parameter, so the argument rule inlines it. Then
+    // the closure call becomes a direct call to the lambda, the lambda
+    // inlines, and the closure object is never allocated.
+    let result = compileWithZirAt(
+        'let each = (f: (x: i32) => i32, n: i32): i32 => {\n' +
+        '  var s = 0;\n' +
+        '  var i = 0;\n' +
+        '  while (i < n) { s += f(i); i += 1; }\n' +
+        '  return s;\n' +
+        '};\n' +
+        'let a = (n: i32): i32 => each((x: i32): i32 => x * 2, n);\n' +
+        'let b = (n: i32): i32 => each((x: i32): i32 => x + 1, n);\n' +
+        'export let main = (): i32 => a(10) + b(10);', 2);
+    let present = new GrowableArray<String>();
+    present.push('loop');
+    assertFunctionUses(result, '$a', present,
+        'the loop from each is now in a');
+    assertNoAllocation(result, '$a',
+        'the closure passed to each is never allocated');
+    let absent = new GrowableArray<String>();
+    absent.push('call');
+    assertFunctionOmits(result, '$a', absent,
+        'the closure body is inlined into the loop');
+  });
+
+  test('-O2 inlines a loop over an interface argument and removes the pack', (ctx: TestContext): void => {
+    let result = compileWithZirAt(
+        'interface Shape { area(): i32; }\n' +
+        'class Circle implements Shape {\n' +
+        '  r: i32;\n' +
+        '  new(this.r);\n' +
+        '  area(): i32 { return this.r * this.r; }\n' +
+        '}\n' +
+        'class Square implements Shape {\n' +
+        '  s: i32;\n' +
+        '  new(this.s);\n' +
+        '  area(): i32 { return this.s * 4; }\n' +
+        '}\n' +
+        'let total = (s: Shape, n: i32): i32 => {\n' +
+        '  var t = 0;\n' +
+        '  var i = 0;\n' +
+        '  while (i < n) { t += s.area(); i += 1; }\n' +
+        '  return t;\n' +
+        '};\n' +
+        'let c = (n: i32): i32 => total(new Circle(3), n);\n' +
+        'let q = (n: i32): i32 => total(new Square(2), n);\n' +
+        'export let main = (): i32 => c(10) + q(10);', 2);
+    let absent = new GrowableArray<String>();
+    absent.push('call_ref');
+    assertFunctionOmits(result, '$c', absent,
+        'the interface call inside the inlined loop is direct');
+  });
+
   test('-O2 does not inline a callee containing try', (ctx: TestContext): void => {
     let result = compileWithZirAt(
         'let guarded = (x: i32): i32 => { try { return x + 1; } catch { return 0; } };\n' +

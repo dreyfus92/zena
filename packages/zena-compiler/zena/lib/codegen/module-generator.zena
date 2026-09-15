@@ -31,6 +31,7 @@ import { runBlockCleanup } from './ir/blockmerge.zena';
 import { runDce } from './ir/dce.zena';
 import { runInline } from './ir/inline.zena';
 import { DevirtContext, runDevirt } from './ir/devirt.zena';
+import { EscapeSummaries } from './ir/escape.zena';
 import { printIr } from './ir/printer.zena';
 import { IrCfg } from './ir/cfg.zena';
 import { emitZirFunction } from './ir/emit.zena';
@@ -879,7 +880,11 @@ export final class ModuleGenerator {
         // Inline first, then devirtualize: inlining exposes the
         // provenance devirtualization reads, and the direct calls
         // devirtualization creates are the next round's inline sites.
-        let inlined = runInline(wasm, bodies, changed);
+        // Escape summaries are recomputed per round: bodies change,
+        // and a parameter can stop escaping once the call it was
+        // passed to has been inlined and simplified.
+        let escapes = new EscapeSummaries(wasm, bodies);
+        let inlined = runInline(wasm, bodies, changed, escapes);
         var devirtualized = 0;
         for (var i = 0; i < bodies.length; i += 1) {
           let d = runDevirt(devirtCx, bodies[i]);

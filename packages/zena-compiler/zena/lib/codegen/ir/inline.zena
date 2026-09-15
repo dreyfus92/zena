@@ -36,6 +36,7 @@ import { HashMap } from 'zena:map';
 import { String } from 'zena:string';
 import { IrBlock, IrBody, IrOp, IrRefFunc } from './ir.zena';
 import { WasmModule, WasmFunction } from '../wasm-module.zena';
+import { EscapeSummaries } from './escape.zena';
 
 /**
  * Callee real-instruction budgets (nops and returns excluded). A
@@ -56,6 +57,15 @@ let generalBudget = 16;
  * tier alone.
  */
 let generalTinyBudget = 6;
+/**
+ * The budget when an argument makes inlining pay: the argument is an
+ * object allocated in the caller whose only use is this call, and the
+ * callee's parameter does not escape (escape.zena). After inlining,
+ * every use of that object is in one body, so the forwarding rules
+ * replace its field reads, calls through it become direct, and the
+ * allocation is deleted. That is the `map`-over-a-closure shape.
+ */
+let argumentBudget = 64;
 /**
  * A caller takes general splices only while it is under twice its
  * size at the start of the sweep (plus a little room for small
@@ -97,10 +107,6 @@ let inlinableSize = (body: IrBody): i32 => {
       count += 1;
     }
   }
-  let limit = if (isStraightLine(body)) straightBudget else generalBudget;
-  if (count > limit) {
-    return -1;
-  }
   return count;
 };
 
@@ -119,7 +125,7 @@ let isStraightLine = (body: IrBody): boolean => {
  * those). Returns the number of sites inlined.
  */
 export let runInline = (wasm: WasmModule, bodies: GrowableArray<IrBody>,
-    changed: GrowableArray<boolean>): i32 => {
+    changed: GrowableArray<boolean>, escapes: EscapeSummaries): i32 => {
   let bodyIndex = new HashMap<WasmFunction, i32>();
   for (var i = 0; i < wasm.functions.length; i += 1) {
     bodyIndex[wasm.functions[i]] = i;
@@ -144,7 +150,8 @@ export let runInline = (wasm: WasmModule, bodies: GrowableArray<IrBody>,
   }
   var total = 0;
   for (var i = 0; i < bodies.length; i += 1) {
-    let n = inlineIntoBody(bodies[i], bodyIndex, bodies, i, siteCounts);
+    let n = inlineIntoBody(bodies[i], bodyIndex, bodies, i, siteCounts,
+        escapes);
     if (n > 0) {
       changed[i] = true;
       total += n;
@@ -232,11 +239,47 @@ let nopOut = (body: IrBody, inst: i32): void => {
 
 let inlineIntoBody = (caller: IrBody, bodyIndex: HashMap<WasmFunction, i32>,
     bodies: GrowableArray<IrBody>, callerIdx: i32,
-    siteCounts: GrowableArray<i32>): i32 => {
+    siteCounts: GrowableArray<i32>, escapes: EscapeSummaries): i32 => {
   var count = 0;
   var generalSplices = 0;
   let perCallee = new HashMap<i32, i32>();
   let sizeCap = caller.instCount() * growthFactor + growthFloor;
+  // Use counts of the caller's values as the sweep starts, for the
+  // only-use-is-this-call test. Values the sweep creates are past the
+  // end and never qualify.
+  let useCount = new GrowableArray<i32>();
+  let originalCount = caller.instCount();
+  for (var i = 0; i < originalCount; i += 1) {
+    useCount.push(0);
+  }
+  let operands = new GrowableArray<i32>();
+  for (var i = 0; i < originalCount; i += 1) {
+    while (operands.length > 0) {
+      operands.pop();
+    }
+    caller.appendValueOperands(i, operands);
+    for (let o in operands) {
+      if (o >= 0 && o < originalCount) {
+        useCount[o] += 1;
+      }
+    }
+  }
+  let freshArgument = (calleeIdx: i32, args: GrowableArray<i32>): boolean => {
+    for (var k = 0; k < args.length; k += 1) {
+      let a = args[k];
+      if (a < 0 || a >= originalCount || useCount[a] != 1) {
+        continue;
+      }
+      let op = caller.op(a);
+      if (op != IrOp.struct_new && op != IrOp.iface_pack) {
+        continue;
+      }
+      if (!escapes.paramEscapes(calleeIdx, k)) {
+        return true;
+      }
+    }
+    return false;
+  };
   // repl maps an inlined call to its replacement value. It grows on
   // demand: a general splice copies a callee body into new blocks the
   // sweep goes on to visit, so a copied call (with a fresh, larger
@@ -280,11 +323,6 @@ let inlineIntoBody = (caller: IrBody, bodyIndex: HashMap<WasmFunction, i32>,
         j += 1;
         continue;
       }
-      if (!isStraightLine(callee) && siteCounts[calleeIdx] > 1 &&
-          size > generalTinyBudget) {
-        j += 1;
-        continue;
-      }
       let params = callee.blocks[0].params;
       let extraIdx = caller.a[inst];
       let argc = caller.extra[extraIdx];
@@ -295,6 +333,22 @@ let inlineIntoBody = (caller: IrBody, bodyIndex: HashMap<WasmFunction, i32>,
       let args = new GrowableArray<i32>();
       for (var p = 0; p < argc; p += 1) {
         args.push(canon(caller.extra[extraIdx + 1 + p]));
+      }
+      // Policy: the plain budgets first; then the argument rule, which
+      // allows a larger body when this call's arguments make it pay.
+      var allowed = if (isStraightLine(callee)) {
+        size <= straightBudget
+      } else {
+        size <= generalBudget &&
+            (siteCounts[calleeIdx] == 1 || size <= generalTinyBudget)
+      };
+      if (!allowed && size <= argumentBudget &&
+          freshArgument(calleeIdx, args)) {
+        allowed = true;
+      }
+      if (!allowed) {
+        j += 1;
+        continue;
       }
 
       if (isStraightLine(callee)) {
