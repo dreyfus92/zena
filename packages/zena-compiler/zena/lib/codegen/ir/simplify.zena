@@ -28,8 +28,10 @@
  *
  * Determinism: a single id-order walk, no hash containers.
  */
-import { IrBody, IrOp, IrSuccessor } from './ir.zena';
-import { isValSubtype } from '../wasm-module.zena';
+import {
+  IrBody, IrOp, IrRefField, IrRefGlobal, IrRefType, IrSuccessor,
+} from './ir.zena';
+import { WasmStruct, isValSubtype } from '../wasm-module.zena';
 import { ValType, ValTypeRef, ValTypeRefNull } from '../wasm.zena';
 
 /**
@@ -366,6 +368,61 @@ export let runSimplify = (body: IrBody): i32 => {
       foldToBool(inst, body.constI64[body.a[av]] == z);
       continue;
     }
+    // --- allocation forwarding (scalar replacement, immutable tier) ---
+    // A read of an immutable field straight off the allocation that
+    // set it is the allocation's operand; a fat pointer's instance and
+    // vtable are the pack's operand and the pack's vtable global.
+    // Forwarding a read never changes behavior; when every read is
+    // forwarded the allocation has no uses and DCE deletes it, which
+    // is the whole of the immutable tier of scalar replacement
+    // (docs/design/optimization-pipeline.md §Escape analysis and
+    // SROA). Mutable fields stay: a write could sit between the
+    // allocation and the read.
+    if (op == IrOp.struct_get && av >= 0 &&
+        body.op(av) == IrOp.struct_new) {
+      let s = allocatedStruct(body, av);
+      let fieldRef = body.refTable[bv];
+      if (s != null && fieldRef is IrRefField) {
+        let idx = s.fieldIndexByName(fieldRef.fieldName);
+        let argsIdx = body.a[av];
+        let argc = body.extra[argsIdx];
+        if (idx >= 0 && idx < argc && !s.fields[idx].isMutable) {
+          let arg = body.extra[argsIdx + 1 + idx];
+          let argType = body.resultType(arg);
+          let readType = body.resultType(inst);
+          if (arg >= 0 && argType != null && readType != null &&
+              isValSubtype(argType, readType)) {
+            replaceWithValue(inst, arg);
+            continue;
+          }
+        }
+      }
+    }
+    if (op == IrOp.iface_instance && av >= 0 &&
+        body.op(av) == IrOp.iface_pack) {
+      let instance = body.a[av];
+      let instType = body.resultType(instance);
+      let readType = body.resultType(inst);
+      if (instance >= 0 && instType != null && readType != null &&
+          isValSubtype(instType, readType)) {
+        replaceWithValue(inst, instance);
+        continue;
+      }
+    }
+    if (op == IrOp.iface_vtable && av >= 0 &&
+        body.op(av) == IrOp.iface_pack) {
+      // The pack's ref slot names the pair's vtable global; the read
+      // becomes a global_get of it, in place.
+      let r = body.refTable[body.b[av]];
+      if (r is IrRefGlobal) {
+        body.opcode[inst] = IrOp.global_get as i32;
+        body.b[inst] = body.b[av];
+        body.a[inst] = -1;
+        rewrites += 1;
+        continue;
+      }
+    }
+
     // --- reference folds ---
     // A cast the operand's static type already satisfies cannot trap
     // and yields the operand; folding it is what lets DCE remove the
@@ -448,6 +505,18 @@ let rewriteToBr = (body: IrBody, inst: i32, s: IrSuccessor): void => {
   body.opcode[inst] = IrOp.br as i32;
   body.a[inst] = idx;
   body.b[inst] = -1;
+};
+
+/** The struct a struct_new allocates, or null if its ref is not one. */
+let allocatedStruct = (body: IrBody, alloc: i32): WasmStruct | null => {
+  let typeRef = body.refTable[body.b[alloc]];
+  if (typeRef is IrRefType) {
+    let t = typeRef.target;
+    if (t is WasmStruct) {
+      return t;
+    }
+  }
+  return null;
 };
 
 /** Signed comparison of sign-flipped values = unsigned comparison. */

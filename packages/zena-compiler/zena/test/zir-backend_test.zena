@@ -631,6 +631,44 @@ export let tests = suite('zir backend', (): void => {
         'a pack visible at the dispatch site names the implementation');
   });
 
+  test('an unescaping tuple is scalar-replaced', (ctx: TestContext): void => {
+    // Both element reads forward to the tuple's operands, so the
+    // allocation has no uses left and DCE deletes it. Level 1: this is
+    // per-function forwarding, not the module loop.
+    let result = compileWithZir(
+        'let f = (x: i32): i32 => { let t = (x, x + 1); let (a, b) = t; return a * b; };\n' +
+        'export let main = (): i32 => f(21);');
+    assertNoAllocation(result, '$f',
+        'reads off a fresh immutable allocation forward to its operands');
+  });
+
+  test('-O2 removes a local fat pointer entirely', (ctx: TestContext): void => {
+    // Pack, dispatch, unpack, all in one body: devirtualization makes
+    // the call direct, inlining brings the trampoline's receiver cast
+    // in, forwarding turns the unpack into the packed object, the cast
+    // folds, and the pack dies unused.
+    let result = compileWithZirAt(
+        'interface Shape { area(): i32; }\n' +
+        'class Circle implements Shape {\n' +
+        '  r: i32;\n' +
+        '  new(this.r);\n' +
+        '  area(): i32 { return this.r * this.r; }\n' +
+        '}\n' +
+        'class Square implements Shape {\n' +
+        '  s: i32;\n' +
+        '  new(this.s);\n' +
+        '  area(): i32 { return this.s * 4; }\n' +
+        '}\n' +
+        'let measure = (c: Circle): i32 => { let s: Shape = c; return s.area(); };\n' +
+        'export let main = (): i32 => measure(new Circle(3)) + (new Square(2)).area();', 2);
+    assertNoAllocation(result, '$measure',
+        'the fat pointer never escapes, so it is never allocated');
+    let absent = new GrowableArray<String>();
+    absent.push('call_ref');
+    assertFunctionOmits(result, '$measure', absent,
+        'the dispatch through the pack is direct');
+  });
+
   test('-O1 does not inline', (ctx: TestContext): void => {
     let result = compileWithZir(
         'let inc = (x: i32): i32 => x + 1;\n' +
