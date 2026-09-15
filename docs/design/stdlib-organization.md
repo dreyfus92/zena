@@ -134,6 +134,30 @@ after the prelude switch — see "What a facade costs", where a much smaller
 facade change cost every binary 9.5% — and if either regresses, keep the
 implementation grouping and have the prelude name a narrower module.
 
+Which modules are denied the prelude is narrower than "the stdlib". The
+prelude scope is assembled from the export maps of the modules the prelude
+names, so those modules — and anything they re-export from, transitively —
+must have their scopes built before the prelude scope exists, and handing
+it back to them would be circular. That set is what `Compiler#preludeClosure`
+computes, and it follows **re-export** edges only (`export * from`,
+`export {…} from`): those are the only edges that grow an export map. A
+module reached by an ordinary `import` contributes nothing to its
+importer's exports, is not consulted while the prelude scope is being
+assembled, and so keeps the prelude like any other module. The walk is
+exhaustive rather than merely narrower: a name is in an export map
+because the module declares it or because one of those two statements
+put it there, and the grammar has no bare `export { x };` that could
+re-export an import without naming the module it came from.
+
+Following ordinary imports as well — which the closure did until
+elematic/zena#594 — meant any module a prelude module happened to import
+lost the prelude silently. `zena:string-builder` spells `String` without
+importing it, so a single `import { StringBuilder }` in a prelude module
+left `String.fromByteArray` unresolvable. The checker did not notice,
+because `resolveObjectType` reads such a name out of
+`SharedCheckerState.preludeValues`; ZIR lowering has no such fallback, so
+a name-resolution bug surfaced as `zir unsupported: unresolved identifier`.
+
 There is a second cost, noted already on `console`'s manifest entry: a
 prelude module loads with the entry point and shifts symbol ids for every
 component build, which breaks "the component embeds the same core module a

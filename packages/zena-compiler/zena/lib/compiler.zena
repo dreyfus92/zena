@@ -455,7 +455,7 @@ export final class Compiler {
   }
 
   /**
-   * The prelude's transitive import closure, by module path.
+   * The modules whose export maps the prelude scope reads, by path.
    *
    * These are the only modules that must be built without a prelude
    * parent: the prelude scope is assembled from their exports, so
@@ -464,6 +464,29 @@ export final class Compiler {
    * circularity, and denying it the prelude only produced silent
    * divergence from the bootstrap, which resolved prelude names in
    * stdlib modules regardless.
+   *
+   * The walk follows **re-export** edges only (`export * from`,
+   * `export {…} from`), because those are the only edges that grow a
+   * module's export map, and an export map is all `#buildPreludeScope`
+   * reads. An ordinary `import` binds a name inside the importer's
+   * body and contributes nothing to its exports, so a module reached
+   * that way is not consulted before the prelude scope exists and has
+   * no reason to be denied it.
+   *
+   * That makes the walk exhaustive rather than merely narrower: a name
+   * is in a module's export map because the module declares it, or
+   * because one of those two statements put it there — `#wireImports`
+   * rebuilds the map from exactly those three sources, and the grammar
+   * has no bare `export { x };` that could re-export an import without
+   * naming the module it came from.
+   *
+   * Following ordinary imports too — which this did until
+   * elematic/zena#594 — let any module a prelude module happened to
+   * import lose the prelude silently. `zena:string-builder` spells
+   * `String` without importing it, so one `import { StringBuilder }`
+   * in a prelude module left `String.fromByteArray` unresolvable; the
+   * checker read the name out of `SharedCheckerState.preludeValues`
+   * and only ZIR lowering, which has no such fallback, said so.
    *
    * Computed rather than listed, so it cannot drift as the prelude changes.
    */
@@ -487,13 +510,20 @@ export final class Compiler {
       if (!closure.has(path)) {
         closure.add(path);
         if (let (true, lib) = byPath.get(path)) {
-          let depIter = lib.imports.keys();
-          while (let (true, spec) = depIter.next()) {
-            if (let (true, dep) = lib.imports.get(spec)) {
+          var j = 0;
+          while (j < lib.ast.body.length) {
+            let spec = match (lib.ast.body[j]) {
+              case ExportAllDeclaration {moduleSpecifier}: moduleSpecifier.value
+              case ExportFromDeclaration {moduleSpecifier}: moduleSpecifier.value
+              case _: ""
+            };
+            if (spec != "" && lib.imports.has(spec)) {
+              let dep = lib.imports[spec];
               if (!closure.has(dep)) {
                 pending.push(dep);
               }
             }
+            j = j + 1;
           }
         }
       }
