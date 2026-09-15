@@ -71,6 +71,38 @@ should decide anything". The same goes for external forces: code is
 not "forced" or "punished" by a design; the design has a consequence,
 so state the consequence.
 
+## Clarity
+
+A compressed sentence states a conclusion and leaves the reader to
+reconstruct the reasoning behind it:
+
+> Inlining the same callee at two sites folds at one and not the other.
+
+To follow that, a reader has to know what "folds" means, imagine two
+call sites, and work out why they would differ. Write the concrete case
+first, in ordinary words, and then the general point:
+
+> Suppose `map` is called in two places. At the first call the argument
+> is a closure written right there, so after inlining, the loop calls
+> that closure directly. At the second call the argument came in as a
+> parameter, so nothing simplifies. Whether inlining pays depends on the
+> arguments at the call.
+
+The rules that follow:
+
+- One idea per sentence. If a sentence needs a second reading, split it.
+- Give a concrete example before the general claim.
+- Say what happens in plain words. "The call becomes a direct call and
+  the closure's fields are read as ordinary values" is clearer than "the
+  call devirtualizes and the environment scalar-replaces". If a term of
+  art will be used repeatedly, define it once where it first appears.
+- Avoid contrast framing — "X, not Y", "rather than Y", "by A, not by B" —
+  as a habit. It makes the reader hold two ideas to get one. State the
+  one you mean: "the decision depends on the arguments" instead of
+  "argument-dependent, not callee-dependent".
+
+This applies to review comments and discussion as much as to documents.
+
 ## Self-contained documents
 
 A document should make sense to someone who has only the repository — not
