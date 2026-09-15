@@ -731,7 +731,7 @@ export let tests = suite('WPT urltestdata', (): void => {
       equal((u as URL).origin(), 'http://c:29');
     }
   });
-  testSkip('#47 http://é@é', (ctx: TestContext): void => {
+  test('#47 http://é@é', (ctx: TestContext): void => {
     let u = URL.parse('http://é@é', null);
     isTrue(u != null);
     if (u != null) {
@@ -4221,7 +4221,7 @@ export let tests = suite('WPT urltestdata', (): void => {
   test('#286 http://GOO 　goo.com [base http://other.com/]', (ctx: TestContext): void => {
     isTrue(URL.parse('http://GOO 　goo.com', 'http://other.com/') == null);
   });
-  testSkip('#288 http://GOO​⁠﻿goo.com [base http://other.com/]', (ctx: TestContext): void => {
+  test('#288 http://GOO​⁠﻿goo.com [base http://other.com/]', (ctx: TestContext): void => {
     let u = URL.parse('http://GOO​⁠﻿goo.com', 'http://other.com/');
     isTrue(u != null);
     if (u != null) {
@@ -4391,7 +4391,7 @@ export let tests = suite('WPT urltestdata', (): void => {
       equal((u as URL).origin(), 'null');
     }
   });
-  testSkip('#300 http://www.foo。bar.com [base http://other.com/]', (ctx: TestContext): void => {
+  test('#300 http://www.foo。bar.com [base http://other.com/]', (ctx: TestContext): void => {
     let u = URL.parse('http://www.foo。bar.com', 'http://other.com/');
     isTrue(u != null);
     if (u != null) {
@@ -4539,7 +4539,7 @@ export let tests = suite('WPT urltestdata', (): void => {
       equal((u as URL).origin(), 'http://10.0.0.xn--pokxncvks');
     }
   });
-  testSkip('#318 http://Ｇｏ.com [base http://other.com/]', (ctx: TestContext): void => {
+  test('#318 http://Ｇｏ.com [base http://other.com/]', (ctx: TestContext): void => {
     let u = URL.parse('http://Ｇｏ.com', 'http://other.com/');
     isTrue(u != null);
     if (u != null) {
@@ -4568,7 +4568,7 @@ export let tests = suite('WPT urltestdata', (): void => {
   test('#324 http://%ef%bc%85%ef%bc%90%ef%bc%90.com [base http://other.com/]', (ctx: TestContext): void => {
     isTrue(URL.parse('http://%ef%bc%85%ef%bc%90%ef%bc%90.com', 'http://other.com/') == null);
   });
-  testSkip('#326 http://你好你好 [base http://other.com/]', (ctx: TestContext): void => {
+  test('#326 http://你好你好 [base http://other.com/]', (ctx: TestContext): void => {
     let u = URL.parse('http://你好你好', 'http://other.com/');
     isTrue(u != null);
     if (u != null) {
@@ -4585,7 +4585,7 @@ export let tests = suite('WPT urltestdata', (): void => {
       equal((u as URL).origin(), 'http://xn--6qqa088eba');
     }
   });
-  testSkip('#327 https://faß.ExAmPlE/', (ctx: TestContext): void => {
+  test('#327 https://faß.ExAmPlE/', (ctx: TestContext): void => {
     let u = URL.parse('https://faß.ExAmPlE/', null);
     isTrue(u != null);
     if (u != null) {
@@ -4674,7 +4674,7 @@ export let tests = suite('WPT urltestdata', (): void => {
   test('#342 https://x x:12', (ctx: TestContext): void => {
     isTrue(URL.parse('https://x x:12', null) == null);
   });
-  testSkip('#344 http://０Ｘｃ０．０２５０．０１ [base http://other.com/]', (ctx: TestContext): void => {
+  test('#344 http://０Ｘｃ０．０２５０．０１ [base http://other.com/]', (ctx: TestContext): void => {
     let u = URL.parse('http://０Ｘｃ０．０２５０．０１', 'http://other.com/');
     isTrue(u != null);
     if (u != null) {
@@ -5959,7 +5959,7 @@ export let tests = suite('WPT urltestdata', (): void => {
   test('#547 https://example.com%A0/', (ctx: TestContext): void => {
     isTrue(URL.parse('https://example.com%A0/', null) == null);
   });
-  testSkip('#548 ftp://%e2%98%83', (ctx: TestContext): void => {
+  test('#548 ftp://%e2%98%83', (ctx: TestContext): void => {
     let u = URL.parse('ftp://%e2%98%83', null);
     isTrue(u != null);
     if (u != null) {
@@ -5976,7 +5976,7 @@ export let tests = suite('WPT urltestdata', (): void => {
       equal((u as URL).origin(), 'ftp://xn--n3h');
     }
   });
-  testSkip('#549 https://%e2%98%83', (ctx: TestContext): void => {
+  test('#549 https://%e2%98%83', (ctx: TestContext): void => {
     let u = URL.parse('https://%e2%98%83', null);
     isTrue(u != null);
     if (u != null) {
@@ -9239,7 +9239,7 @@ export let tests = suite('WPT urltestdata', (): void => {
       equal((u as URL).hash, '');
     }
   });
-  testSkip('#828 file://a­b/p', (ctx: TestContext): void => {
+  test('#828 file://a­b/p', (ctx: TestContext): void => {
     let u = URL.parse('file://a­b/p', null);
     isTrue(u != null);
     if (u != null) {
@@ -9255,7 +9255,7 @@ export let tests = suite('WPT urltestdata', (): void => {
       equal((u as URL).hash, '');
     }
   });
-  testSkip('#829 file://a%C2%ADb/p', (ctx: TestContext): void => {
+  test('#829 file://a%C2%ADb/p', (ctx: TestContext): void => {
     let u = URL.parse('file://a%C2%ADb/p', null);
     isTrue(u != null);
     if (u != null) {
@@ -10001,7 +10001,7 @@ export let tests = suite('WPT urltestdata', (): void => {
       equal((u as URL).origin(), 'https://example.com');
     }
   });
-  testSkip('#914 https://a%C2%ADb/', (ctx: TestContext): void => {
+  test('#914 https://a%C2%ADb/', (ctx: TestContext): void => {
     let u = URL.parse('https://a%C2%ADb/', null);
     isTrue(u != null);
     if (u != null) {

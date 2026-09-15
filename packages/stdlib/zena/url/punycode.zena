@@ -77,8 +77,13 @@ let charToDigit = (c: i32): i32 => {
   return BASE;
 };
 
-/** Decodes UTF-8 bytes to code points, or null if the bytes are malformed. */
-let toCodePoints = (s: String): Array<i32> | null => {
+/**
+ * Decodes UTF-8 bytes to code points, or null if the bytes are malformed.
+ *
+ * Exported for idna.zena, which walks the same code points; it is not part of
+ * the library's public surface, which index.zena defines.
+ */
+export let toCodePoints = (s: String): Array<i32> | null => {
   let out = new GrowableArray<i32>();
   var i = 0;
   while (i < s.length) {
@@ -107,8 +112,8 @@ let toCodePoints = (s: String): Array<i32> | null => {
   return out;
 };
 
-/** Appends one code point to `sb` as UTF-8. */
-let appendCodePoint = (sb: StringBuilder, cp: i32): void => {
+/** Appends one code point to `sb` as UTF-8. Exported alongside `toCodePoints`. */
+export let appendCodePoint = (sb: StringBuilder, cp: i32): void => {
   if (cp < 0x80) {
     sb.appendByte(cp);
   } else if (cp < 0x800) {

@@ -59,28 +59,65 @@ stdlib's pay-to-play principle.
 ```
 packages/stdlib/zena/url/
   README.md, DESIGN.md   # these docs
+  UNICODE.md             # how idna-table.zena is generated and what it costs
   index.zena             # public entry for 'zena:url' — re-exports only
   url.zena               # URL
   search-params.zena     # URLSearchParams
   encoding.zena          # percent-encode sets, form-urlencoded codec
-  template.zena          # url template tag, UrlString (later)
-  idna.zena              # UTS 46 + punycode (later)
+  tag.zena               # the url template tag
+  punycode.zena          # RFC 3492 codec
+  idna.zena              # UTS 46 host processing
+  idna-table.zena        # GENERATED mapping table
   pattern.zena           # URLPattern (later)
   pattern-list.zena      # URLPatternList (later)
-```
-
-```zena
-// index.zena
-export {URL} from './url.zena';
-export {URLSearchParams} from './search-params.zena';
-export {url, UrlString} from './template.zena';
-export {URLPattern} from './pattern.zena';
-export {URLPatternList} from './pattern-list.zena';
 ```
 
 Implementation files import each other with relative specifiers and are not
 reachable via `zena:` specifiers at all — stronger encapsulation than the
 manifest's current `internal` list gives.
+
+### A JS-host variant (planned)
+
+On a JS host the platform already has a conformant `URL` and
+`URLSearchParams`, and reusing them would drop the parser, the IDNA tables,
+and their supporting code from the binary. The manifest's `virtual` mechanism
+already swaps a module by target, and the seam fits it without extension:
+
+```jsonc
+"url": {"virtual": {"host": "url/index-js.zena", "wasi": "url/index.zena"}}
+```
+
+`index-js.zena` is a second entry point, not a second library. It re-exports
+the parts JS has no equivalent for — the punycode codec, the percent-encode
+sets, the form-urlencoded codec, the `url` tag — verbatim from the same files,
+and replaces only `URL` and `URLSearchParams` with thin Zena shims over the
+host objects. Nothing forks: there is one implementation of everything except
+the two classes the platform supplies.
+
+The tables come out of the JS build because nothing imports them, not because
+the entry point hides them. That relies on DCE being precise about which
+module-level values a program actually reaches; see the measurements below.
+
+Three things have to be true before this is worth building:
+
+1. **String interop.** There is none today — no `js-string` builtins, no
+   stringref. Every component read crosses a UTF-16/UTF-8 boundary. The glue
+   is small, but it is a compiler feature with a much wider blast radius than
+   this library, and should be justified on its own terms.
+2. **The two behavioural divergences have to go.** `URLSearchParams` iteration
+   is fail-fast here and silently lossy in JS, and `sort()` orders by code
+   point where JS orders by UTF-16 code unit. `console`'s two implementations
+   differ only in where output goes, which no program can observe; these would
+   make the same program behave differently per target, which is a materially
+   higher bar. Reconcile them — most likely by conforming to JS — before
+   splitting.
+3. **A size number worth having.** See the measurements below: the current
+   figures cannot separate the library's real cost from DCE retaining things a
+   program cannot reach, so there is nothing yet to justify the split against.
+
+Note also that WPT stops being a signal for the JS build, since it would be
+testing the host's own URL. The Zena implementation stays the conformance
+target regardless, so this saves binary size, not maintenance.
 
 ### Required stdlib loader changes
 
@@ -417,7 +454,7 @@ Each phase lands with its tests green and the expected-failures list updated.
    Zena's UTF-8 strings), form-urlencoded parse/serialize.
    _Tests_: hand-written unit tests (`tests/url/encoding_test.zena`) plus the
    generated `percent-encoding.json` suite (`tests/url/
-   wpt_percent_encoding_test.zena`, 7 cases). Only each fixture's `utf-8`
+wpt_percent_encoding_test.zena`, 7 cases). Only each fixture's `utf-8`
    output is asserted — encoding override is a non-goal (see Scope), and the
    generator reports how many legacy-encoding outputs it ignored rather than
    dropping them silently. The fixture drives its inputs through the query of
@@ -468,6 +505,7 @@ Each phase lands with its tests green and the expected-failures list updated.
    `withHref` is the one exception to the "failure returns an unchanged URL"
    rule: it replaces every component, so there is nothing to fall back to and
    it returns `URL | null`, matching `URL.parse`.
+
 4. **`URLSearchParams`** ✅ **done**: the class and `URL.searchParams()`.
    _Tests_: hand-written in `tests/url/search-params_test.zena` (WPT's
    URLSearchParams tests are JS files, not JSON, so the interesting cases are
@@ -525,6 +563,7 @@ Each phase lands with its tests green and the expected-failures list updated.
 
    The tag returns `URL | null` rather than the `TemplateTag<URL>` sketched
    above, for the same reason `URL.parse` does: this library does not throw.
+
 6. **IDNA / UTS 46** — punycode **done** (`punycode.zena`); the UTS 46
    mapping tables still to come (size-conscious; see Open Questions).
 
@@ -547,12 +586,32 @@ Each phase lands with its tests green and the expected-failures list updated.
      so `"-"` alone must be rejected rather than decoding to the empty
      string. This is pinned by a test.
 
-   Still to do: the UTS 46 mapping tables, `xn--` prefix handling, and
-   `domainToASCII` wired into `parseHost`.
-   _Tests_: generated `toascii.json` (vendored, 87 cases) — it exercises the
-   whole pipeline rather than punycode alone, so it lands with the mapping
-   work — plus `IdnaTestV2.json` if we go for full compliance; burn down the
-   15-entry skip list.
+   The mapping tables landed too (`idna.zena` + generated `idna-table.zena`;
+   see UNICODE.md). **The urltestdata skip list is now empty**: all 871
+   parser cases, 277 setter cases, and 7 percent-encoding cases pass with
+   nothing skipped, where 15 entries were skipped before.
+
+   The size question the Open Questions raised is answered: **42.5 KB**, from
+   787 KB of source, and the arithmetic is in UNICODE.md. That was cheap
+   enough to just carry, so the compile-time flag and the permanent
+   ASCII-only variant are both off the table.
+
+   _Tests_: generated `toascii.json` suite — **72/87 passing, 15 skipped**.
+   Those 15 are the rules still missing, and they are a fair statement of
+   where this stops:
+   - **NFC normalization** (UTS 46 step 2) — 9 cases. Its own Unicode tables
+     plus canonical ordering, so it is the large remaining piece.
+   - **CheckBidi** — 2 cases. **CheckJoiners** — 1 case.
+   - **The validity criteria applied to a decoded ACE label** — 3 cases.
+     This one is a deliberate choice, not an omission: applying them costs 7
+     urltestdata cases, because `http://a.b.c.xn--pokxncvks` decodes to
+     circled digits the table would map, and the pinned WPT parser data wants
+     that host kept. The two fixtures disagree, and the 871-case one wins.
+
+   Every gap is in the same direction — a host we accept that a fully
+   conformant implementation would reject — so nothing here is silently
+   wrong in the way a wrong host would be.
+
 7. **`URLPattern`** (`pattern.zena`): constructor-string and init-record forms,
    path-to-regexp pattern compilation, `test`/`exec`. Depends on `zena:regex`
    maturity (needs capture groups — present — and named-group bookkeeping we
@@ -566,16 +625,53 @@ Each phase lands with its tests green and the expected-failures list updated.
 Phases 1–4 are the meat of "a URL object in `zena:url`"; 5 is cheap polish;
 6–8 are each independently schedulable.
 
+## Binary size
+
+Measured with the self-hosted compiler, Unicode 17.0, against a baseline that
+imports only `zena:console`:
+
+| program                     | total    | data    | code    | funcs |
+| --------------------------- | -------- | ------- | ------- | ----- |
+| baseline (`console` only)   | 34.0 KB  | 60 B    | 17.6 KB | 227   |
+| `punycodeEncode` only       | 162.8 KB | 43.7 KB | 74.1 KB | 742   |
+| `percentEncode` only        | 162.8 KB | 43.7 KB | 74.1 KB | 743   |
+| `URL.parse`, ASCII host     | 160.7 KB | 43.7 KB | 73.6 KB | 704   |
+| `URL.parse`, non-ASCII host | 160.7 KB | 43.7 KB | 73.6 KB | 704   |
+
+The encoded table lands in the binary 1:1 — 43,484 bytes of payload become a
+43.7 KB data section, with only segment framing on top. That is what the
+printable-ASCII, no-decode-pass encoding bought.
+
+**These numbers do not yet say what the library costs**, for two reasons.
+
+The first is a DCE gap: a program whose only use of `zena:url` is
+`punycodeEncode` cannot reach `IDNA_TABLE`, `domainToASCII`, or the parser,
+and still carries all of them. Both narrow programs are _larger_ than the one
+that actually parses a URL — using less of the library costs more, which is
+backwards. Until that is fixed, every row above is an upper bound of unknown
+tightness.
+
+The second is the baseline: `console.log` and nothing else is unrealistically
+bare, so some of the ~84 KB of code and types is string and collection
+machinery that any real program pays for anyway. The marginal cost of adding
+`zena:url` to a program that already does work is smaller than the 127 KB
+delta suggests.
+
+Both need fixing before the JS-host variant above can be justified on size.
+Note that fixing the first may deliver much of the same win with no host
+coupling at all, by letting a program that wants only percent-encoding drop
+the parser and the table.
+
 ## Open questions
 
-- **IDNA vs. DCE**: the parser must call domain-to-ASCII for any special-scheme
-  host, so once implemented, the UTS 46 tables are reachable and DCE can't drop
-  them. Options: accept the size (Ada does); a compile-time flag/virtual module
-  choosing an ASCII-only host parser; or keep v1's behavior (non-ASCII hosts
-  fail to parse, which is at least never silently wrong)
-  available permanently as the lite variant. Decide when phase 6 starts.
+- ~~**IDNA vs. DCE**~~: RESOLVED — accept the size. The table is 42.5 KB
+  (see UNICODE.md for how that falls out of 787 KB), which did not justify a
+  compile-time flag or a permanent ASCII-only variant. It is still true that
+  the parser calls domain-to-ASCII for every special-scheme host, so the table
+  is always reachable and DCE cannot drop it; revisit only if someone has a
+  binary-size budget that 42.5 KB breaks.
 - **`UrlString`**: OPEN, and deliberately not landed with the `url` tag. The
-  brand is only worth anything once something *demands* it — a sink like
+  brand is only worth anything once something _demands_ it — a sink like
   `fetch(input: UrlString | URL)` — and there is no such sink yet. Typing
   `href` as `UrlString` today would buy nothing and cost an `as String` at
   every site that compares or concatenates an `href`, since Zena requires an

@@ -16,6 +16,7 @@ import { URLSearchParams } from './search-params.zena';
 import {
   EncodeSet, percentEncode, percentDecode, encodeByteInto, byteNeedsPercentEncoding
 } from './encoding.zena';
+import { domainToASCII } from './idna.zena';
 
 // ============================================================================
 // Byte classification
@@ -495,19 +496,6 @@ let parseOpaqueHost = (input: String): String | null => {
     encodeByteInto(sb, input.getByteAt(i), EncodeSet.C0Control);
   }
   return sb.toString();
-};
-
-/**
- * https://url.spec.whatwg.org/#concept-domain-to-ASCII
- * ASCII-only stand-in for UTS 46 ToASCII: lowercases, and rejects non-ASCII
- * rather than guessing. Replace this once the UTS 46 tables are available.
- */
-let domainToASCII = (domain: String): String | null => {
-  for (var i = 0; i < domain.length; i += 1) {
-    if (domain.getByteAt(i) >= 0x80) return null;
-  }
-  if (domain.length == 0) return null;
-  return domain.asciiLowerCase();
 };
 
 let parseHost = (input: String, isOpaque: boolean): String | null => {

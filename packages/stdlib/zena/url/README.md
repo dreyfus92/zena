@@ -2,8 +2,10 @@
 
 URL parsing, serialization, building, and matching for Zena.
 
-**Status: 📐 Design phase.** Nothing is implemented yet. See [DESIGN.md](./DESIGN.md)
-for the full design and implementation plan.
+**Status:** parsing, serialization, `with*` copies, `URLSearchParams`,
+percent-encoding, the `url` tag, and IDNA all work — the WPT parser and setter
+suites pass with nothing skipped. `URLPattern` and `URLPatternList` are still
+to come. See [DESIGN.md](./DESIGN.md) for the design and what is left.
 
 ## Overview
 
@@ -20,16 +22,17 @@ Everything is one library — `import {...} from 'zena:url'` — implemented as
 multiple files in this directory, with dead-code elimination keeping unused
 pieces out of compiled binaries:
 
-| Export                   | Description                               | Status                             |
-| ------------------------ | ----------------------------------------- | ---------------------------------- |
+| Export                   | Description                               | Status                                                                                                |
+| ------------------------ | ----------------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | `URL`                    | WHATWG URL parsing and serialization      | Done, including the `with*` copy methods. Usable as a map key (`==`/`hashCode` on the canonical form) |
-| `URLSearchParams`        | The query as an ordered multimap          | Done                               |
-| percent-encoding helpers | Encode sets, form-urlencoded codec        | Done                               |
-| `url` tag                | Safe URL building by interpolation        | Done                               |
-| punycode codec           | RFC 3492 encode/decode for one label      | Done — the IDNA host processing around it is not |
-| `UrlString`              | Typed URL strings                         | Design                             |
-| `URLPattern`             | Route/pattern matching                    | Planned                            |
-| `URLPatternList`         | Fast multi-pattern matching (prefix trie) | Planned                            |
+| `URLSearchParams`        | The query as an ordered multimap          | Done                                                                                                  |
+| percent-encoding helpers | Encode sets, form-urlencoded codec        | Done                                                                                                  |
+| `url` tag                | Safe URL building by interpolation        | Done                                                                                                  |
+| punycode codec           | RFC 3492 encode/decode for one label      | Done                                                                                                  |
+| IDNA / UTS 46            | Non-ASCII hosts, via the mapping table    | Done — minus NFC, CheckBidi, CheckJoiners (see DESIGN.md)                                             |
+| `UrlString`              | Typed URL strings                         | Design                                                                                                |
+| `URLPattern`             | Route/pattern matching                    | Planned                                                                                               |
+| `URLPatternList`         | Fast multi-pattern matching (prefix trie) | Planned                                                                                               |
 
 ## API at a glance
 
@@ -112,6 +115,9 @@ Zena has no getter/setter accessors and favors immutability by default.
 ## Testing
 
 Conformance tests are mechanically generated from the WPT JSON test data
-(`urltestdata.json`, `setters_tests.json`) into `zena:test` suites — the same
-approach as the Go regexp tests ported into `zena:regex`. See
-[DESIGN.md](./DESIGN.md#testing-strategy).
+(`urltestdata.json`, `setters_tests.json`, `percent-encoding.json`,
+`toascii.json`) into `zena:test` suites — the same approach as the Go regexp
+tests ported into `zena:regex`. See [DESIGN.md](./DESIGN.md#testing-strategy).
+
+The Unicode data behind IDNA is generated too; [UNICODE.md](./UNICODE.md)
+covers how to refresh it and what it costs.

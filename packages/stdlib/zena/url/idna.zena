@@ -1,0 +1,237 @@
+// IDNA / UTS 46 host processing (https://www.unicode.org/reports/tr46/),
+// as WHATWG URL calls it: UseSTD3ASCIIRules=false, CheckHyphens=false,
+// Transitional_Processing=false, VerifyDnsLength=false.
+//
+// The mapping data lives in idna-table.zena, generated from Unicode's
+// IdnaMappingTable.txt. See UNICODE.md for how to refresh it.
+//
+// NOT implemented yet, and each one is a case the WPT toascii suite lists as
+// an expected failure rather than something silently wrong:
+//   - NFC normalization (UTS 46 step 2), which needs its own Unicode tables
+//   - CheckBidi and CheckJoiners
+//   - the "must not begin with a combining mark" validity rule, which needs
+//     general categories
+// Everything they would reject, we accept; nothing they would accept is
+// rejected. A host that needs them is rare, and the alternative — refusing
+// every non-ASCII host, which is what this replaced — was worse.
+
+import { String } from 'zena:string';
+import { StringBuilder } from 'zena:string-builder';
+import { Array } from 'zena:array';
+import { toCodePoints, appendCodePoint, punycodeEncode, punycodeDecode } from './punycode.zena';
+import { IDNA_TABLE, IDNA_SPILL_START, IDNA_RANGE_COUNT } from './idna-table.zena';
+
+// Status tags, matching scripts/generate-idna-table.js.
+let STATUS_VALID = 0;
+let STATUS_IGNORED = 1;
+let STATUS_DISALLOWED = 2;
+let STATUS_MAPPED_DELTA = 3;
+let STATUS_MAPPED_SPILL = 4;
+
+// The encoding's alphabet: five payload bits per byte, bit 5 continues, all
+// offset into printable ASCII.
+let VARINT_BASE = 0x30;
+let VARINT_CONTINUE = 0x20;
+let VARINT_MASK = 0x1F;
+
+let FULL_STOP = 0x2E;
+
+/** A cursor reading varints out of the encoded table. */
+final class TableReader {
+  var pos: i32;
+
+  new(this.pos);
+
+  /** Reads one varint and advances past it. */
+  next(): i32 {
+    var result = 0;
+    var shift = 0;
+    while (true) {
+      let raw = IDNA_TABLE.getByteAt(this.pos) - VARINT_BASE;
+      this.pos += 1;
+      result = result | ((raw & VARINT_MASK) << shift);
+      if (raw < VARINT_CONTINUE) break;
+      shift += 5;
+    }
+    return result;
+  }
+}
+
+/**
+ * The table decoded into parallel arrays.
+ *
+ * The encoded form is a varint stream, which cannot be binary-searched in
+ * place, so it is expanded once on first use. That costs one linear pass over
+ * 43 KB and about 64 KB of arrays, and only for programs that actually parse
+ * a non-ASCII host — an all-ASCII one never reaches the lookup.
+ */
+final class DecodedTable {
+  starts: Array<i32>;
+  tags: Array<i32>;
+  payloads: Array<i32>;
+
+  new(this.starts, this.tags, this.payloads);
+}
+
+var cached: DecodedTable | null = null;
+
+let decodeTable = (): DecodedTable => {
+  let existing = cached;
+  if (existing != null) return existing as DecodedTable;
+
+  let reader = new TableReader(0);
+  let count = reader.next();
+  let starts = new GrowableArray<i32>(count);
+  let tags = new GrowableArray<i32>(count);
+  let payloads = new GrowableArray<i32>(count);
+
+  var start = 0;
+  var i = 0;
+  while (i < count) {
+    start += reader.next();
+    starts.push(start);
+    let tag = reader.next();
+    tags.push(tag);
+    if (tag == STATUS_MAPPED_DELTA || tag == STATUS_MAPPED_SPILL) {
+      payloads.push(reader.next());
+    } else {
+      payloads.push(0);
+    }
+    i += 1;
+  }
+
+  let built = new DecodedTable(starts, tags, payloads);
+  cached = built;
+  return built;
+};
+
+/**
+ * Index of the range containing `cp`.
+ *
+ * The table covers every code point with no gaps — the generator fails if it
+ * does not — so this always finds one.
+ */
+let rangeOf = (table: DecodedTable, cp: i32): i32 => {
+  var lo = 0;
+  var hi = table.starts.length - 1;
+  while (lo < hi) {
+    // Bias high so the loop always makes progress.
+    let mid = (lo + hi + 1) >> 1;
+    if (table.starts[mid] <= cp) {
+      lo = mid;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  return lo;
+};
+
+/** Zigzag decode, matching the generator's encoding of signed deltas. */
+let unzigzag = (n: i32): i32 => (n >> 1) ^ (0 - (n & 1));
+
+/**
+ * Applies UTS 46's mapping step to one code point, appending the result to
+ * `out`. Returns false if the code point is disallowed.
+ */
+let mapCodePoint = (table: DecodedTable, cp: i32, out: StringBuilder): boolean => {
+  let idx = rangeOf(table, cp);
+  let tag = table.tags[idx];
+  if (tag == STATUS_VALID) {
+    appendCodePoint(out, cp);
+    return true;
+  }
+  if (tag == STATUS_IGNORED) return true;
+  if (tag == STATUS_DISALLOWED) return false;
+  if (tag == STATUS_MAPPED_DELTA) {
+    appendCodePoint(out, cp + unzigzag(table.payloads[idx]));
+    return true;
+  }
+  // STATUS_MAPPED_SPILL: the payload indexes a length-prefixed run in the
+  // spill area.
+  let reader = new TableReader(IDNA_SPILL_START + table.payloads[idx]);
+  let length = reader.next();
+  var i = 0;
+  while (i < length) {
+    appendCodePoint(out, reader.next());
+    i += 1;
+  }
+  return true;
+};
+
+/** True if `s` holds a byte >= 0x80, i.e. anything outside ASCII. */
+let hasNonAscii = (s: String): boolean => {
+  for (var i = 0; i < s.length; i += 1) {
+    if (s.getByteAt(i) >= 0x80) return true;
+  }
+  return false;
+};
+
+/** True if `label` starts with the ACE prefix, which by here is lowercase. */
+let hasAcePrefix = (label: String): boolean =>
+  label.length >= 4 && label.getByteAt(0) == 0x78 && label.getByteAt(1) == 0x6E &&
+  label.getByteAt(2) == 0x2D && label.getByteAt(3) == 0x2D;
+
+/**
+ * https://url.spec.whatwg.org/#concept-domain-to-ascii
+ *
+ * Returns the ASCII form of `domain`, or null if it cannot be represented —
+ * a disallowed code point, a label that is not valid Punycode, or a decoded
+ * label that is not valid under UTS 46.
+ *
+ * Empty labels are kept: WHATWG passes VerifyDnsLength=false, so `a..b` is a
+ * domain with an empty label rather than an error. An entirely empty domain
+ * is still a failure.
+ */
+export let domainToASCII = (domain: String): String | null => {
+  if (domain.length == 0) return null;
+
+  let table = decodeTable();
+
+  // Step 1: map. This lowercases ASCII as a side effect, since the table maps
+  // every uppercase letter, so no separate case pass is needed.
+  let cps = toCodePoints(domain);
+  if (cps == null) return null;
+  let mappedBuilder = new StringBuilder(domain.length);
+  for (let cp in cps as Array<i32>) {
+    if (!mapCodePoint(table, cp, mappedBuilder)) return null;
+  }
+  let mapped = mappedBuilder.toString();
+
+  // Steps 3-4: per label, convert between Unicode and the ACE form.
+  let out = new StringBuilder(mapped.length + 8);
+  let labels = mapped.split('.');
+  var first = true;
+  for (let label in labels) {
+    if (!first) out.appendByte(FULL_STOP);
+    first = false;
+
+    if (hasAcePrefix(label)) {
+      // Already ACE, so the only question is whether it is Punycode at all.
+      // What it decodes TO is deliberately not re-validated: the UTS 46
+      // validity criteria would reject a label whose decoded form contains
+      // mapped characters, and the WPT data wants those accepted —
+      // `http://a.b.c.xn--pokxncvks` keeps its host even though the label
+      // decodes to circled digits the table would map. An empty decode is
+      // fine too, which is why `file://xn--/p` keeps `xn--` as its host.
+      let decoded = punycodeDecode(label.sliceBytes(4, label.length));
+      if (decoded == null) return null;
+      out.append(label);
+    } else if (hasNonAscii(label)) {
+      let encoded = punycodeEncode(label);
+      if (encoded == null) return null;
+      out.append('xn--');
+      out.append(encoded as String);
+    } else {
+      // Mapping already replaced or removed everything that needed it, so an
+      // all-ASCII label at this point is valid by construction.
+      out.append(label);
+    }
+  }
+
+  // "If result is the empty string, then return failure." A domain of only
+  // ignorable code points lands here: U+00AD maps to nothing, so `file://­/p`
+  // is a failure rather than a URL with an empty host.
+  let result = out.toString();
+  if (result.length == 0) return null;
+  return result;
+};

@@ -107,16 +107,55 @@ export let tests = suite('URL API', (): void => {
     });
   });
 
-  suite('IDNA is not implemented yet', (): void => {
-    // Pinned so the behavior is an explicit failure rather than a silently
-    // wrong host; update these when IDNA/UTS 46 support lands.
-    test('a non-ASCII domain fails to parse rather than parsing wrongly', (ctx: TestContext): void => {
-      isTrue(URL.parse('http://你好/') == null);
-      isTrue(URL.parse('https://faß.example/') == null);
+  suite('IDNA', (): void => {
+    test('a non-ASCII domain is converted to its ACE form', (ctx: TestContext): void => {
+      equal(mustParse('http://你好/').hostname, 'xn--6qq79v');
+      // Nontransitional processing keeps the sharp s rather than folding it
+      // to "ss", which is what the transitional rules would have done.
+      equal(mustParse('https://faß.example/').hostname, 'xn--fa-hia.example');
     });
 
-    test('ASCII domains are unaffected', (ctx: TestContext): void => {
+    test('the mapping step lowercases and normalizes width', (ctx: TestContext): void => {
+      // Fullwidth letters map to their ASCII equivalents, so this is not an
+      // IDN at all once mapped.
+      equal(mustParse('http://Ｇｏ.com/').hostname, 'go.com');
+      // The ideographic full stop is a label separator after mapping.
+      equal(mustParse('http://www.foo。bar.com/').hostname, 'www.foo.bar.com');
+    });
+
+    test('ignorable code points are removed', (ctx: TestContext): void => {
+      // %C2%AD is U+00AD SOFT HYPHEN, which maps to nothing. Written
+      // percent-encoded because the character is invisible in source.
+      equal(mustParse('https://a%C2%ADb/').hostname, 'ab');
+    });
+
+    test('a domain of only ignorable code points fails', (ctx: TestContext): void => {
+      // Mapping leaves the empty string, and an empty domain is a failure
+      // rather than a URL with an empty host.
+      isTrue(URL.parse('https://%C2%AD/') == null);
+    });
+
+    test('an ACE label is kept as-is when it decodes', (ctx: TestContext): void => {
       equal(mustParse('http://xn--fsq.example/').hostname, 'xn--fsq.example');
+    });
+
+    test('a label that is not valid punycode fails', (ctx: TestContext): void => {
+      // 'xn' runs out of input mid-digit, so the label cannot be decoded.
+      isTrue(URL.parse('http://xn--xn.example/') == null);
+    });
+
+    test('an ACE label is not re-validated after decoding', (ctx: TestContext): void => {
+      // This decodes to circled digits, which the mapping table would map
+      // rather than accept — the UTS 46 validity criteria would reject the
+      // label. WPT expects it kept, so the decode is only checked for being
+      // Punycode at all.
+      equal(mustParse('http://a.b.c.xn--pokxncvks/').hostname, 'a.b.c.xn--pokxncvks');
+    });
+
+    test('fullwidth digits reach the IPv4 parser after mapping', (ctx: TestContext): void => {
+      // The mapping runs before the ends-in-a-number check, so this is an
+      // IPv4 address written in fullwidth forms.
+      equal(mustParse('http://０Ｘｃ０．０２５０．０１/').hostname, '192.168.0.1');
     });
   });
 

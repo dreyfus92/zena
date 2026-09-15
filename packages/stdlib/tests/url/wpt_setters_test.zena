@@ -679,7 +679,7 @@ export let tests = suite('WPT setters', (): void => {
       equal(out.hostname, '%C3%9F');
     }
   });
-  testSkip('#10 host=ß on https://x/ — IDNA Nontransitional_Processing', (ctx: TestContext): void => {
+  test('#10 host=ß on https://x/ — IDNA Nontransitional_Processing', (ctx: TestContext): void => {
     let u = URL.parse('https://x/', null);
     isTrue(u != null);
     if (u != null) {
@@ -1167,7 +1167,7 @@ export let tests = suite('WPT setters', (): void => {
       equal(out.hostname, '');
     }
   });
-  testSkip('#56 host=a%C2%ADb on https://example.com/', (ctx: TestContext): void => {
+  test('#56 host=a%C2%ADb on https://example.com/', (ctx: TestContext): void => {
     let u = URL.parse('https://example.com/', null);
     isTrue(u != null);
     if (u != null) {
@@ -1669,7 +1669,7 @@ export let tests = suite('WPT setters', (): void => {
       equal(out.hostname, '');
     }
   });
-  testSkip('#38 hostname=a%C2%ADb on https://example.com/', (ctx: TestContext): void => {
+  test('#38 hostname=a%C2%ADb on https://example.com/', (ctx: TestContext): void => {
     let u = URL.parse('https://example.com/', null);
     isTrue(u != null);
     if (u != null) {

@@ -8,32 +8,46 @@
 # There are no other known failures.
 
 # non-ASCII in host and userinfo (needs ToASCII/punycode)
-["http://é@é",null]
 # zero-width code points removed by UTS 46 mapping
-["http://GOO​⁠﻿goo.com","http://other.com/"]
 # U+3002 ideographic full stop maps to '.' under UTS 46
-["http://www.foo。bar.com","http://other.com/"]
 # fullwidth letters map to ASCII under UTS 46
-["http://Ｇｏ.com","http://other.com/"]
 # non-ASCII domain needs punycode encoding
-["http://你好你好","http://other.com/"]
 # sharp-s needs UTS 46 non-transitional mapping
-["https://faß.ExAmPlE/",null]
 # fullwidth digits map to ASCII, then parse as IPv4
-["http://０Ｘｃ０．０２５０．０１","http://other.com/"]
 # percent-decoded host is non-ASCII (needs ToASCII)
-["ftp://%e2%98%83",null]
 # percent-decoded host is non-ASCII (needs ToASCII)
-["https://%e2%98%83",null]
 # soft hyphen U+00AD is ignored by UTS 46 mapping
-["file://a­b/p",null]
 # percent-decoded soft hyphen is ignored by UTS 46 mapping
-["file://a%C2%ADb/p",null]
 # percent-decoded soft hyphen is ignored by UTS 46 mapping
-["https://a%C2%ADb/",null]
 
 # Setter cases, keyed ["setter", property, href, new_value]. All three need
 # IDNA / UTS 46 host processing, same as the parser cases above.
-["setter","host","https://x/","ß"]
-["setter","host","https://example.com/","a%C2%ADb"]
-["setter","hostname","https://example.com/","a%C2%ADb"]
+
+# ---------------------------------------------------------------------------
+# toascii.json, keyed ["toascii", input]. Every entry is a UTS 46 rule that
+# idna.zena does not implement yet; nothing here is silently wrong, each is a
+# host we accept that a fully conformant implementation would reject.
+# ---------------------------------------------------------------------------
+# NFC normalization (UTS 46 step 2) is not implemented.
+["toascii","≠"]
+["toascii","≮"]
+["toascii","≯"]
+["toascii","=­̸"]
+["toascii","<­̸"]
+["toascii",">­̸"]
+["toascii","looḱout.net"]
+["toascii","ড়.com"]
+["toascii","foò.bar.com"]
+
+# CheckBidi is not implemented.
+["toascii","يa"]
+["toascii","look־out.net"]
+
+# CheckJoiners is not implemented.
+["toascii","‍.example"]
+
+# we do not apply the UTS 46 validity criteria to a decoded ACE label; see idna.zena.
+["toascii","xn--a.ß"]
+["toascii","xn--ls8h="]
+["toascii","xn--0.com"]
+
