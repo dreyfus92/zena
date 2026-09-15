@@ -158,6 +158,29 @@ because `resolveObjectType` reads such a name out of
 `SharedCheckerState.preludeValues`; ZIR lowering has no such fallback, so
 a name-resolution bug surfaced as `zir unsupported: unresolved identifier`.
 
+Giving those modules the prelude does not make their prelude imports
+redundant, and the compiler no longer says it does. A prelude name is only
+usable once its module has been checked, and inside the prelude's load
+closure — everything the prelude's modules reach by any import — nothing
+but a real import edge orders one of those checks ahead of another. Drop
+`import { FixedArray }` from `core/growable-array-iterator.zena` and the
+name still resolves, but `zena:fixed-array` may be checked after the module
+that uses it, so `FixedArray` materializes as an empty placeholder and the
+build fails with `FixedArray<T>` not assignable to `FixedArray<T>`. So
+`Imported symbol 'X' is unnecessary because it is in the prelude` is
+withheld inside that closure. Outside it the question does not arise:
+`computeGraph` is a depth-first post-order seeded with the prelude's
+modules ahead of the entry point, so the whole prelude has a model before
+any other module is checked.
+
+The ordering itself is still fragile, and withholding the warning only
+stops the compiler recommending a change that breaks the build.
+`tryResolveWellKnownType` reads a cache the check fills in topological
+order, and prelude modules with no import edge between them are ordered by
+`getStandardPrelude`'s `HashMap` key iteration. Making that
+order-independent means resolving a well-known declaration on demand
+rather than reading a cache, which is a checker change.
+
 There is a second cost, noted already on `console`'s manifest entry: a
 prelude module loads with the entry point and shifts symbol ids for every
 component build, which breaks "the component embeds the same core module a

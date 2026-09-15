@@ -196,8 +196,27 @@ export final class ScopeBuilder {
   #allVariables = new GrowableArray<Symbol>();
   #allImportDeclarations = new GrowableArray<ImportDeclaration>();
 
-  new(modulePath: String, preludeScope: Scope | null = null, symbolIdGenerator: IdGenerator<SymbolId> | null = null)
-    : #modulePath = modulePath {
+  /**
+   * Whether an import of a prelude name still earns its place here.
+   *
+   * Inside the prelude's own load closure it does. A prelude name is
+   * checked into a usable type only once its module has a model, and
+   * within that closure nothing but a real import edge orders one of
+   * those modules ahead of another — drop the import and the name
+   * materializes as an empty placeholder (elematic/zena#594). Outside
+   * the closure the question does not arise: the prelude's modules are
+   * seeded into the graph walk first, so all of them are checked
+   * before any module that is not one of their dependencies.
+   *
+   * So the "unnecessary" warning is withheld here rather than handed
+   * out as advice that does not compile.
+   */
+  #preludeImportsAreLoadBearing: boolean;
+
+  new(modulePath: String, preludeScope: Scope | null = null, symbolIdGenerator: IdGenerator<SymbolId> | null = null,
+      preludeImportsAreLoadBearing: boolean = false)
+    : #modulePath = modulePath,
+      #preludeImportsAreLoadBearing = preludeImportsAreLoadBearing {
     if (symbolIdGenerator != null) {
       this.#symbolIdGenerator = symbolIdGenerator;
     }
@@ -278,12 +297,16 @@ export final class ScopeBuilder {
         }
         seenImportedNames.add(localName);
 
-        // 2. Check for unnecessary prelude import (only when not renamed):
+        // 2. Check for unnecessary prelude import (only when not renamed).
+        // Load-bearing here means the import orders the check, not just
+        // the name — see #preludeImportsAreLoadBearing.
         let parentScope = this.#current.parent;
         if (spec.imported.name == spec.local.name &&
             parentScope != null &&
             parentScope.resolve(localName) != null) {
-          unnecessaryImports.push(sym);
+          if (!this.#preludeImportsAreLoadBearing) {
+            unnecessaryImports.push(sym);
+          }
           hasUsedOrSuppressedOrSpecial = true;
           continue;
         }

@@ -285,5 +285,42 @@ export let tests = suite('Compiler Scope Integration', () => {
       isTrue(mainResult.rootScope.resolve("String") != null);
     });
 
+    // Also elematic/zena#594. Giving these modules the prelude made the
+    // compiler start calling their prelude imports unnecessary, which is
+    // advice that does not compile: inside the prelude's load closure the
+    // import is what orders the check, and without it the name
+    // materializes as an empty placeholder.
+    test('a prelude import inside the prelude load closure is not called unnecessary', () => {
+      let host = new MockHost();
+      let compiler = makeCompiler(host);
+      host.addFile("zena:core/helper.zena",
+          "import { Iterator } from 'zena:iterator'; export let each = (i: Iterator<i32>): void => {};");
+      // An ordinary import, so helper is in the load closure but not in
+      // the set whose exports assemble the prelude.
+      host.addFile("zena:core/string.zena",
+          "import { each } from './helper.zena'; export class String {}");
+      host.addFile("/project/main.zena", "let x = 1;");
+
+      compiler.compile("/project/main.zena");
+
+      let helper = compiler.getSourceFile("zena:core/helper.zena") as SourceFile;
+      let helperScope = helper.scopeResult as ScopeResult;
+      equal(helperScope.unnecessaryImports.length, 0);
+    });
+
+    // Outside the closure the whole prelude already has a model, so the
+    // import really is redundant and the warning still fires.
+    test('a prelude import outside the load closure is still called unnecessary', () => {
+      let host = new MockHost();
+      let compiler = makeCompiler(host);
+      host.addFile("/project/main.zena",
+          "import { Iterator } from 'zena:iterator'; export let each = (i: Iterator<i32>): void => {};");
+
+      let result = compiler.compile("/project/main.zena");
+
+      let mainScope = result.entry.scopeResult as ScopeResult;
+      equal(mainScope.unnecessaryImports.length, 1);
+    });
+
   });
 });

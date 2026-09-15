@@ -419,6 +419,13 @@ export final class Compiler {
     // ordinary code and sees the prelude exactly like user code does.
     let core = this.#preludeClosure(files);
 
+    // A wider set, and for a different purpose: everything the prelude's
+    // modules reach by any import. Those modules do take the prelude,
+    // but an import of a prelude name is still load-bearing there —
+    // it is what orders the check. See ScopeBuilder's
+    // `#preludeImportsAreLoadBearing`.
+    let loadClosure = this.#preludeLoadClosure(files);
+
     // Phase 1: scope trees for the prelude closure, with no prelude parent.
     for (let lib in files) {
       if (core.has(lib.path) && lib.scopeResult == null) {
@@ -437,7 +444,8 @@ export final class Compiler {
     // Phase 4: everything else — non-closure stdlib and user code alike.
     for (let lib in files) {
       if (!core.has(lib.path) && lib.scopeResult == null) {
-        let builder = new ScopeBuilder(lib.path, preludeScope, this.#symbolIdGenerator);
+        let builder = new ScopeBuilder(lib.path, preludeScope, this.#symbolIdGenerator,
+            loadClosure.has(lib.path));
         lib.scopeResult = builder.build(lib.ast);
         this.#snapshotLocalExports(lib);
       }
@@ -524,6 +532,64 @@ export final class Compiler {
               }
             }
             j = j + 1;
+          }
+        }
+      }
+    }
+    return closure;
+  }
+
+  /**
+   * Everything the prelude's modules reach, by any import, by path.
+   *
+   * Not the set denied the prelude — that is `#preludeClosure`, and it
+   * is a subset of this one. This is the set where an import of a
+   * prelude name still earns its place, because inside it nothing but
+   * a real import edge orders one module's check ahead of another's.
+   * Drop `import { FixedArray }` from `core/growable-array-iterator.zena`
+   * and the name still resolves, but `zena:fixed-array` may be checked
+   * after the module that uses it, so `FixedArray` materializes as an
+   * empty placeholder and the build fails with `FixedArray<T>` not
+   * assignable to `FixedArray<T>`.
+   *
+   * Outside this set the question does not arise. `computeGraph` is a
+   * depth-first post-order seeded with the prelude's modules ahead of
+   * the entry point, so every module the prelude reaches is sorted
+   * before every module it does not, and by the time ordinary stdlib
+   * or user code is checked the whole prelude has a model.
+   *
+   * The ordering itself is the fragile part, and it is not fixed here:
+   * `tryResolveWellKnownType` reads a cache that the check fills in
+   * topological order. This set is how the compiler avoids *advising*
+   * a change that would break the build in the meantime.
+   */
+  #preludeLoadClosure(files: GrowableArray<SourceFile>): HashSet<String> {
+    let byPath = new HashMap<String, SourceFile>();
+    for (let lib in files) {
+      byPath[lib.path] = lib;
+    }
+
+    let closure = new HashSet<String>();
+    let pending = new GrowableArray<String>();
+
+    let prelude = getStandardPrelude(this.#resolver.target);
+    let specifierIter = prelude.keys();
+    while (let (true, specifier) = specifierIter.next()) {
+      pending.push(this.#resolver.resolve(specifier, "").path);
+    }
+
+    while (pending.length > 0) {
+      let path = pending.pop();
+      if (!closure.has(path)) {
+        closure.add(path);
+        if (let (true, lib) = byPath.get(path)) {
+          let depIter = lib.imports.keys();
+          while (let (true, spec) = depIter.next()) {
+            if (let (true, dep) = lib.imports.get(spec)) {
+              if (!closure.has(dep)) {
+                pending.push(dep);
+              }
+            }
           }
         }
       }
