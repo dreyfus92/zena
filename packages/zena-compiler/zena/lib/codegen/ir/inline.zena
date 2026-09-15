@@ -35,7 +35,9 @@
 import { HashMap } from 'zena:map';
 import { String } from 'zena:string';
 import { IrBlock, IrBody, IrOp, IrRefFunc } from './ir.zena';
-import { WasmModule, WasmFunction } from '../wasm-module.zena';
+import {
+  WasmModule, WasmFunction, WasmSignature, asWasmSignature,
+} from '../wasm-module.zena';
 import { EscapeSummaries } from './escape.zena';
 
 /**
@@ -99,8 +101,20 @@ let inlinableSize = (body: IrBody): i32 => {
       if (op == IrOp.nop || op == IrOp.ret) {
         continue;
       }
-      if (op == IrOp.ret_multi || op == IrOp.ret_call ||
-          op == IrOp.ret_call_ref || op == IrOp.try_br ||
+      if (op == IrOp.ret_call || op == IrOp.ret_call_ref) {
+        // A tail call becomes an ordinary call at the splice. At a
+        // plain call site that costs no stack depth: the callee's
+        // frame is gone and the target's frame takes its place. Only
+        // a tail-call site keeps a constant-stack guarantee, and
+        // those sites are never inlined. Multi-value tail calls are
+        // out, like multi-value returns.
+        if (tailCallResults(body, inst) > 1) {
+          return -1;
+        }
+        count += 1;
+        continue;
+      }
+      if (op == IrOp.ret_multi || op == IrOp.try_br ||
           op == IrOp.yield_ || op == IrOp.await_) {
         return -1;
       }
@@ -110,13 +124,39 @@ let inlinableSize = (body: IrBody): i32 => {
   return count;
 };
 
-/** A single block ending in `ret`: the straight-line shape. */
+/** A single block ending in a return or tail call: the straight-line shape. */
 let isStraightLine = (body: IrBody): boolean => {
   if (body.blocks.length != 1) {
     return false;
   }
   let insts = body.blocks[0].insts;
-  return body.op(insts[insts.length - 1]) == IrOp.ret;
+  let op = body.op(insts[insts.length - 1]);
+  return op == IrOp.ret || op == IrOp.ret_call || op == IrOp.ret_call_ref;
+};
+
+/** The number of results a tail call's target returns. */
+let tailCallResults = (body: IrBody, inst: i32): i32 => {
+  let sig = tailCallSignature(body, inst);
+  if (sig == null) {
+    return 99;
+  }
+  return sig.returns.length;
+};
+
+let tailCallSignature = (body: IrBody, inst: i32): WasmSignature | null => {
+  if (body.op(inst) == IrOp.ret_call) {
+    let r = body.refTable[body.b[inst]];
+    if (r is IrRefFunc) {
+      return r.target.signature;
+    }
+    return null;
+  }
+  let callee = body.extra[body.a[inst]];
+  let t = body.resultType(callee);
+  if (t == null) {
+    return null;
+  }
+  return asWasmSignature(t);
 };
 
 /**
@@ -208,6 +248,55 @@ final class Splice {
     this.caller.typeId.push(this.callee.typeId[calleeParam] + this.typeOffset);
     this.caller.a.push(-1);
     this.caller.b.push(-1);
+    this.caller.instBlock.push(block);
+    return id;
+  }
+
+  /**
+   * The callee's tail call `ci` as an ordinary call appended to the
+   * caller: same arguments (mapped), the target's single result as
+   * the value, or no value for a void target.
+   */
+  newCallFromTailCall(ci: i32, block: i32): i32 {
+    let op = this.callee.op(ci);
+    let av = this.callee.a[ci];
+    let sig = tailCallSignature(this.callee, ci);
+    if (sig == null) {
+      throw new Error('inline: tail call without a signature');
+    }
+    var ty = -1;
+    if (sig.returns.length == 1) {
+      this.caller.typeTable.push(sig.returns[0]);
+      ty = this.caller.typeTable.length - 1;
+    }
+    let idx = this.caller.extra.length;
+    var newB = -1;
+    var newOp = IrOp.call;
+    if (op == IrOp.ret_call) {
+      let argc = this.callee.extra[av];
+      this.caller.extra.push(argc);
+      var i = 0;
+      while (i < argc) {
+        this.caller.extra.push(this.mapValue(this.callee.extra[av + 1 + i]));
+        i += 1;
+      }
+      newB = this.callee.b[ci] + this.refOffset;
+    } else {
+      newOp = IrOp.call_ref;
+      this.caller.extra.push(this.mapValue(this.callee.extra[av]));
+      let argc = this.callee.extra[av + 1];
+      this.caller.extra.push(argc);
+      var i = 0;
+      while (i < argc) {
+        this.caller.extra.push(this.mapValue(this.callee.extra[av + 2 + i]));
+        i += 1;
+      }
+    }
+    let id = this.caller.opcode.length;
+    this.caller.opcode.push(newOp as i32);
+    this.caller.typeId.push(ty);
+    this.caller.a.push(idx);
+    this.caller.b.push(newB);
     this.caller.instBlock.push(block);
     return id;
   }
@@ -435,8 +524,20 @@ let spliceStraight = (caller: IrBody, callee: IrBody, b: i32, j: i32,
     caller.instBlock[newId] = b;
     copied.push(newId);
   }
-  let retVal = callee.a[term];
-  let result = if (retVal >= 0) sp.mapValue(retVal) else -1;
+  var result = -1;
+  if (callee.op(term) == IrOp.ret) {
+    let retVal = callee.a[term];
+    if (retVal >= 0) {
+      result = sp.mapValue(retVal);
+    }
+  } else {
+    // A tail call: the call itself is the returned value.
+    let callId = sp.newCallFromTailCall(term, b);
+    copied.push(callId);
+    if (caller.typeId[callId] >= 0) {
+      result = callId;
+    }
+  }
   nopOut(caller, inst);
   // Rebuild the block: prefix, copies, the nop-ed call, suffix.
   let blk = caller.blocks[b];
@@ -513,24 +614,41 @@ let spliceGeneral = (caller: IrBody, callee: IrBody, b: i32, j: i32,
   let order = new GrowableArray<i32>();
   for (var k = 0; k < nb; k += 1) {
     for (let ci in callee.blocks[k].insts) {
-      if (callee.op(ci) == IrOp.nop) {
+      let op = callee.op(ci);
+      if (op == IrOp.nop) {
         continue;
       }
       sp.map[ci] = next;
-      next += 1;
+      // A tail call copies as two instructions: the call, then the
+      // branch to the continuation carrying its value.
+      next += if (op == IrOp.ret_call || op == IrOp.ret_call_ref) 2 else 1;
       order.push(ci);
     }
   }
   for (let ci in order) {
     let dstBlock = mapBlock(callee.instBlock[ci]);
+    let op = callee.op(ci);
     var newId = -1;
-    if (callee.op(ci) == IrOp.ret) {
+    if (op == IrOp.ret) {
       let brArgs = new GrowableArray<i32>();
       let rv = callee.a[ci];
       if (rv >= 0 && result >= 0) {
         brArgs.push(sp.mapValue(rv));
       }
       newId = sp.newBr(contId, brArgs, dstBlock);
+    } else if (op == IrOp.ret_call || op == IrOp.ret_call_ref) {
+      newId = sp.newCallFromTailCall(ci, dstBlock);
+      caller.blocks[dstBlock].insts.push(newId);
+      let brArgs = new GrowableArray<i32>();
+      if (caller.typeId[newId] >= 0 && result >= 0) {
+        brArgs.push(newId);
+      }
+      let brId = sp.newBr(contId, brArgs, dstBlock);
+      if (newId != sp.map[ci] || brId != sp.map[ci] + 1) {
+        throw new Error('inline: copied id does not match its assignment');
+      }
+      caller.blocks[dstBlock].insts.push(brId);
+      continue;
     } else {
       newId = caller.copyFrom(callee, ci, (v: i32): i32 => sp.mapValue(v),
           sp.typeOffset, sp.refOffset, sp.varOffset, mapBlock);

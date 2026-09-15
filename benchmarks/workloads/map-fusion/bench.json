@@ -1,0 +1,14 @@
+{
+  "suite": "map-fusion",
+  "options": {
+    "minSamples": 50,
+    "extraSamples": 10,
+    "warmupRuns": 5,
+    "timeBudgetMs": 60000,
+    "horizons": ["0%"]
+  },
+  "variants": [
+    {"name": "zena-map", "wasm": "../../out/map-fusion/zena.wasm"},
+    {"name": "zena-loop", "wasm": "../../out/map-loop/zena.wasm"}
+  ]
+}

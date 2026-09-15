@@ -46,6 +46,8 @@ npm run bench:speed
 | **`minimal`**     | Runtime & prelude baseline           | Smallest valid module returning integer `42`.   |
 | **`hello-world`** | String literals & host boundary      | Program returning string `"Hello World"`.       |
 | **`array-sum`**   | Collections & iteration              | Fixed array literal `[1, 2, 3]` summed in loop. |
+| **`map-fusion`**  | Interface dispatch, closures, inlining | `xs.map(x => ...)` through the `Array` interface with a closure literal; compares itself against `map-loop`. |
+| **`map-loop`**    | Baseline for `map-fusion`            | The same computation as a loop written by hand.  |
 | **`fib`**         | Function calls & recursion           | Recursive `fib(27)`.                            |
 | **`sum-loop`**    | Branching & integer arithmetic       | Iterative loop accumulation up to 5,000,000.    |
 | **`sieve`**       | Memory / array allocation & indexing | Sieve of Eratosthenes up to 300,000.            |

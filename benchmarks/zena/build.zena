@@ -16,6 +16,8 @@ let workloads = [
   'fib',
   'sum-loop',
   'sieve',
+  'map-fusion',
+  'map-loop',
 ];
 
 let ensureDir = (path: String): void => {
@@ -48,6 +50,8 @@ let buildZena = (workload: String): boolean => {
   }
   let argv = new GrowableArray<String>();
   argv.push('./target/release/zena-cli');
+  // Benchmarks measure the optimizing build (docs/design/optimization-pipeline.md).
+  argv.push('-O2');
   argv.push('build');
   argv.push(src);
   argv.push('-o');

@@ -737,6 +737,27 @@ export let tests = suite('zir backend', (): void => {
         'the closure body is inlined into the loop');
   });
 
+  test('-O2 inlines through an argument-adapted closure', (ctx: TestContext): void => {
+    // The lambda takes one parameter where the callback type takes
+    // two, so the closure wraps an adapter that tail-calls the lambda.
+    // Inlining converts the adapter's tail call into a call, and the
+    // rounds carry on: the loop ends up calling nothing at all.
+    let result = compileWithZirAt(
+        'let apply = (f: (a: i32, b: i32) => i32, n: i32): i32 => {\n' +
+        '  var s = 0;\n' +
+        '  var i = 0;\n' +
+        '  while (i < n) { s += f(i, 1); i += 1; }\n' +
+        '  return s;\n' +
+        '};\n' +
+        'export let main = (): i32 => apply((x: i32): i32 => x * 2, 10);', 2);
+    assertNoAllocation(result, '$main',
+        'neither the closure nor its adapter is allocated');
+    let absent = new GrowableArray<String>();
+    absent.push('call');
+    assertFunctionOmits(result, '$main', absent,
+        'the adapter and the lambda are both inlined into the loop');
+  });
+
   test('-O2 treats a named closure like a closure literal', (ctx: TestContext): void => {
     // `let g = ...; each(g, n)` binds the closure value to a name; the
     // call passes that same value, so the argument rule sees exactly

@@ -877,36 +877,14 @@ export final class ModuleGenerator {
       for (var i = 0; i < bodies.length; i += 1) {
         changed.push(false);
       }
-      var round = 0;
-      while (round < 4) {
-        for (var i = 0; i < bodies.length; i += 1) {
-          changed[i] = false;
-        }
-        // Inline first, then devirtualize: inlining exposes the
-        // provenance devirtualization reads, and the direct calls
-        // devirtualization creates are the next round's inline sites.
-        // Escape summaries are recomputed per round: bodies change,
-        // and a parameter can stop escaping once the call it was
-        // passed to has been inlined and simplified.
-        let escapes = new EscapeSummaries(wasm, bodies);
-        let inlined = runInline(wasm, bodies, changed, escapes);
-        var devirtualized = 0;
-        for (var i = 0; i < bodies.length; i += 1) {
-          let d = runDevirt(devirtCx, bodies[i]);
-          if (d > 0) {
-            changed[i] = true;
-            devirtualized += d;
-          }
-        }
-        if (inlined == 0 && devirtualized == 0) {
-          break;
-        }
-        zirInlined += inlined;
-        zirDevirtualized += devirtualized;
+      // Re-runs the cleanup passes on every body a sweep changed, and
+      // clears the flags.
+      let cleanupChanged = (what: String): void => {
         for (var i = 0; i < bodies.length; i += 1) {
           if (!changed[i]) {
             continue;
           }
+          changed[i] = false;
           let body = bodies[i];
           zirSimplified += runSimplify(body);
           zirBlocksRemoved += runBlockCleanup(body);
@@ -915,13 +893,40 @@ export final class ModuleGenerator {
           let errors = verifyIr(body);
           if (errors.length > 0) {
             let f = wasm.functions[i];
-            var message = "zir verify failed after inlining into " +
+            var message = "zir verify failed after " + what + " into " +
                 (if (f.name != null) f.name as String else "<unnamed>") + ":";
             for (let e in errors) {
               message = message + "\n  " + e;
             }
             throw new Error(message);
           }
+        }
+      };
+      // Each round: inline, clean up, devirtualize, clean up. The
+      // cleanup between the two matters: forwarding a closure's
+      // function field off its allocation is what lets devirtualization
+      // see the function, and the direct call that produces is what
+      // the next round's inline sweep consumes. Escape summaries are
+      // recomputed per round, since a parameter can stop escaping once
+      // the call it was passed to has been inlined and simplified.
+      var round = 0;
+      while (round < 6) {
+        let escapes = new EscapeSummaries(wasm, bodies);
+        let inlined = runInline(wasm, bodies, changed, escapes);
+        cleanupChanged("inlining");
+        var devirtualized = 0;
+        for (var i = 0; i < bodies.length; i += 1) {
+          let d = runDevirt(devirtCx, bodies[i]);
+          if (d > 0) {
+            changed[i] = true;
+            devirtualized += d;
+          }
+        }
+        cleanupChanged("devirtualization");
+        zirInlined += inlined;
+        zirDevirtualized += devirtualized;
+        if (inlined == 0 && devirtualized == 0) {
+          break;
         }
         round += 1;
       }

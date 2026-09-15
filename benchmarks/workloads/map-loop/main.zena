@@ -1,0 +1,25 @@
+// The map-fusion workload written as a loop by hand: same arrays, same
+// arithmetic, no interface call and no closure. map-fusion compares
+// itself against this build.
+export let main = (): i32 => {
+  let src = new FixedArray<i32>(1024, 0);
+  var i = 0;
+  while (i < 1024) {
+    src[i] = i;
+    i += 1;
+  }
+  var total = 0;
+  var round = 0;
+  while (round < 4000) {
+    let k = round;
+    let ys = new FixedArray<i32>(1024, 0);
+    var j = 0;
+    while (j < 1024) {
+      ys[j] = src[j] * 3 + k;
+      j += 1;
+    }
+    total = (total + ys[round & 1023]) & 16777215;
+    round += 1;
+  }
+  return total & 255;
+};

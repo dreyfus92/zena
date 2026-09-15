@@ -1,0 +1,24 @@
+// Map over an array through the Array interface with a closure literal.
+// The paired workload, map-loop, writes the same computation as a loop by
+// hand. The two should run at the same speed: the optimizer is expected
+// to make the interface call direct, inline map, call the closure
+// directly, and never allocate the closure. (The result array is real
+// work in both.)
+export let main = (): i32 => {
+  let src = new FixedArray<i32>(1024, 0);
+  var i = 0;
+  while (i < 1024) {
+    src[i] = i;
+    i += 1;
+  }
+  let xs: Array<i32> = src;
+  var total = 0;
+  var round = 0;
+  while (round < 4000) {
+    let k = round;
+    let ys = xs.map((x: i32): i32 => x * 3 + k);
+    total = (total + ys[round & 1023]) & 16777215;
+    round += 1;
+  }
+  return total & 255;
+};
