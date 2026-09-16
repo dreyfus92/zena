@@ -171,7 +171,15 @@ This document tracks completed work and planned features. For project instructio
     suspension points are where cancellation delivers, and loop
     syntax should not hide one. Early exit disposes through the
     generator-disposal machinery, which for an async generator is
-    exactly right: its pending `next()` is real work. 4. **`await` on tuple and record literals of futures** —
+    exactly right: its pending `next()` is real work. Flipping the
+    stdlib's iterators to return `Step<T>` (the shared sync-or-async
+    protocol) is currently gated on a batch compile-time regression —
+    the whole execution suite compiles ~120× slower with `Step`
+    iterators than with the boolean tuple, from instantiations
+    accumulating across a shared compiler rather than any per-site cost.
+    See "Compile-time cost of the Step protocol" in
+    `docs/design/async-iteration.md` and the `iter-*` compile benchmarks
+    (`npm run benchmark -w @zena-lang/zena-compiler -- --compiler --filter iter`). 4. **`await` on tuple and record literals of futures** —
     `let (a, b) = await (getA(), getB());` and
     `let {x, y} = await {x: fx(), y: fy()};` — the typed form of
     JS's `all`/`allKeyed`/`await*`, heterogeneous and with no
