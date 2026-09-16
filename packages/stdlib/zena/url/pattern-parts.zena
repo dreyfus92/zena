@@ -1,0 +1,573 @@
+// The URLPattern pattern-string parser: pattern text in, `Part`s out.
+//
+// This is the shared front end. `URLPattern` compiles these parts into
+// matchers, and `URLPatternList` builds a prefix tree over them, so the
+// parsing lives here rather than inside either one.
+//
+// Ported from url-pattern-list (https://github.com/justinfagnani/url-pattern-list),
+// MIT, Copyright 2025 Justin Fagnani.
+//
+// It is deliberately not a transcription of the spec's algorithm
+// (https://urlpattern.spec.whatwg.org/#parsing-pattern-strings). Separators
+// are handled in the parser, so a run of fixed text becomes one Part per path
+// segment — that is what lets a prefix tree share common prefixes across
+// patterns. The parts are otherwise the spec's, and should be equivalent.
+//
+// Two things differ from the TypeScript, both forced:
+//
+//   - Group names are ASCII identifiers. The original tests them with
+//     `\p{ID_Start}` and `\p{ID_Continue}`; zena:regex has no property
+//     escapes. A non-ASCII group name is not something the spec's own test
+//     data reaches, so this is a smaller gap than it sounds.
+//   - A positional part carries its index as a string rather than a number.
+//     That is what a match reports in its groups either way.
+//
+// Where the original has one `Part` shape with a `type` tag, this has a
+// sealed hierarchy: the fields that only mean something for one kind live on
+// that kind. A `FixedPart` has no name, a wildcard has no value, and neither
+// is representable. Downstream that turns a tag comparison into a `match`
+// the compiler checks for exhaustiveness.
+//
+// The cursor is a StringReader, read a BYTE at a time rather than a code
+// point at a time. Every decision the syntax makes is on an ASCII character,
+// and a multi-byte UTF-8 sequence has all bytes >= 0x80, so it can never
+// collide with one — which is also what lets `#parseRegex` reject a non-ASCII
+// character by testing a single lead byte.
+
+import { HashSet } from 'zena:set';
+import { StringBuilder } from 'zena:string-builder';
+import { StringReader } from 'zena:string-reader';
+
+// The pattern syntax's own punctuation, as bytes.
+let COLON = 0x3A;
+let ASTERISK = 0x2A;
+let OPEN_PAREN = 0x28;
+let CLOSE_PAREN = 0x29;
+let OPEN_BRACE = 0x7B;
+let CLOSE_BRACE = 0x7D;
+let BACKSLASH = 0x5C;
+let QUESTION_MARK = 0x3F;
+let PLUS = 0x2B;
+let SLASH = 0x2F;
+let FULL_STOP = 0x2E;
+let DOLLAR = 0x24;
+let UNDERSCORE = 0x5F;
+
+/** How many times a part may repeat. */
+export enum Modifier {
+  None,
+  Optional,
+  ZeroOrMore,
+  OneOrMore
+}
+
+/** Which URL component a pattern was written for. */
+export enum URLComponentType {
+  Protocol,
+  Username,
+  Password,
+  Hostname,
+  Port,
+  Pathname,
+  Search,
+  Hash
+}
+
+/** Raised for a pattern string that cannot be parsed. */
+export class PatternSyntaxError extends Error {
+  new(message: String) : super(message);
+}
+
+/**
+ * One piece of a parsed pattern.
+ *
+ * `prefix` and `suffix` are the literal text bound to the part rather than
+ * standing on its own — the `/` in `/users/:id` belongs to the `id` part, so
+ * that an optional part takes its separator with it when it is absent. Both
+ * are empty when there is none, which is a real answer rather than an absent
+ * one, so they live on the base alongside the modifier and the component.
+ *
+ * The variants are suffixed `Part` because `Regex` alone would collide with
+ * zena:regex's, and `URLPattern` will import both.
+ */
+export sealed class Part {
+  /** Literal text matched as-is. Carries no name: nothing captures it. */
+  case FixedPart(
+    value: String,
+    prefix: String,
+    suffix: String,
+    modifier: Modifier,
+    urlComponentType: URLComponentType
+  )
+
+  /** `:name` — everything up to the next separator. */
+  case SegmentWildcardPart(
+    name: String,
+    prefix: String,
+    suffix: String,
+    modifier: Modifier,
+    urlComponentType: URLComponentType
+  )
+
+  /** `*` — everything, separators included. */
+  case FullWildcardPart(
+    name: String,
+    prefix: String,
+    suffix: String,
+    modifier: Modifier,
+    urlComponentType: URLComponentType
+  )
+
+  /** `(regex)` — whatever `source` matches. */
+  case RegexPart(
+    name: String,
+    source: String,
+    prefix: String,
+    suffix: String,
+    modifier: Modifier,
+    urlComponentType: URLComponentType
+  )
+
+  abstract prefix: String;
+  abstract suffix: String;
+  abstract modifier: Modifier;
+  abstract urlComponentType: URLComponentType;
+}
+
+/**
+ * What the parser has decided a braced group is, so far.
+ *
+ * The group's kind is settled progressively — `:` makes it a segment
+ * wildcard, a following `(` makes it a regex, a `*` makes it a full wildcard
+ * — so the decision needs somewhere to live before the part is built. It is
+ * bookkeeping, not API, which is why it does not leave this file.
+ */
+enum PendingKind {
+  Fixed,
+  SegmentWildcard,
+  FullWildcard,
+  Regex
+}
+
+/** `$`, `_`, or an ASCII letter — see the header on the non-ASCII gap. */
+let isIdentifierStart = (b: i32): boolean =>
+  b == DOLLAR || b == UNDERSCORE ||
+  (b >= 0x41 && b <= 0x5A) || (b >= 0x61 && b <= 0x7A);
+
+/** An identifier start, or an ASCII digit. */
+let isIdentifierPart = (b: i32): boolean =>
+  isIdentifierStart(b) || (b >= 0x30 && b <= 0x39);
+
+final class Parser {
+  #reader: StringReader;
+  #componentType: URLComponentType;
+  #result: GrowableArray<Part> = new GrowableArray<Part>();
+
+  /** Names already used, so a duplicate can be reported. */
+  #names: HashSet<String> = new HashSet<String>();
+
+  /**
+   * Fixed text seen but not yet emitted, held until a pattern ends it.
+   *
+   * A String rather than a StringBuilder: this is inspected as much as it is
+   * appended to — split on `/`, tested for a leading or trailing slash, and
+   * shortened by one character when a part claims its prefix.
+   */
+  var #pending: String = '';
+
+  /** Next index to hand an unnamed part. */
+  var #positional: i32 = 0;
+
+  new(path: String, componentType: URLComponentType)
+    : #reader = new StringReader(path), #componentType = componentType;
+
+  /** Consumes the current byte and returns it as a one-byte string. */
+  #takeByteAsString(): String {
+    let start = this.#reader.mark();
+    this.#reader.advanceByte();
+    return this.#reader.sliceFrom(start);
+  }
+
+  #pushFixed(value: String): void {
+    this.#result.push(
+      new FixedPart(value, '', '', Modifier.None, this.#componentType)
+    );
+  }
+
+  /**
+   * Claims `name`, or reports it as a duplicate.
+   *
+   * Fixed parts never call this: they capture nothing, so two of them can
+   * hold the same text without colliding.
+   */
+  #claimName(name: String): void {
+    if (this.#names.has(name)) {
+      throw new PatternSyntaxError("Duplicate name '" + name + "'.");
+    }
+    this.#names.add(name);
+  }
+
+  /** The next positional name, and it is now taken. */
+  #nextPositionalName(): String {
+    let name = i32ToString(this.#positional);
+    this.#positional += 1;
+    return name;
+  }
+
+  /**
+   * Emits the pending fixed text, one part per path segment.
+   *
+   * Splitting here is what the prefix tree needs: `/foo/bar` becomes `/foo`
+   * and `/bar` rather than one part, so two patterns sharing `/foo` share a
+   * node.
+   */
+  #flushFixedPart(): void {
+    if (this.#pending.length == 0) return;
+
+    // The root path is a segment in its own right.
+    if (this.#pending == '/') {
+      this.#pushFixed('/');
+      this.#pending = '';
+      return;
+    }
+
+    let segments = this.#pending.split('/');
+    if (this.#pending.startsWith('/')) {
+      // A leading slash puts an empty string first; every later segment
+      // carries the separator that preceded it.
+      for (var j = 1; j < segments.length; j += 1) {
+        let segment = segments[j];
+        if (segment.length > 0) this.#pushFixed('/' + segment);
+      }
+      // A trailing slash is its own segment, but only when it is not the
+      // leading one counted above.
+      if (this.#pending.endsWith('/') && this.#pending.length > 1) {
+        this.#pushFixed('/');
+      }
+    } else {
+      for (var j = 0; j < segments.length; j += 1) {
+        let segment = segments[j];
+        if (segment.length > 0) {
+          this.#pushFixed(if (j == 0) segment else '/' + segment);
+        }
+      }
+    }
+
+    this.#pending = '';
+  }
+
+  #parseModifier(): Modifier {
+    if (this.#reader.matchByte(QUESTION_MARK)) return Modifier.Optional;
+    if (this.#reader.matchByte(ASTERISK)) return Modifier.ZeroOrMore;
+    if (this.#reader.matchByte(PLUS)) return Modifier.OneOrMore;
+    return Modifier.None;
+  }
+
+  #parseName(): String {
+    let start = this.#reader.mark();
+    if (!isIdentifierStart(this.#reader.peekByte())) {
+      throw new PatternSyntaxError(
+        'Missing parameter name at ' + i32ToString(start - 1)
+      );
+    }
+    // An identifier start is also an identifier part, so this covers the
+    // first byte too.
+    //
+    // The predicate is wrapped rather than passed by name: referencing a
+    // module-level function as a value from inside a method fails to lower
+    // with "zir unsupported: non-local identifier", because reachability
+    // registers no function-value wrapper for it. Calling it from a closure
+    // built here sidesteps that.
+    this.#reader.skipBytesWhile((b: i32): boolean => isIdentifierPart(b));
+    return this.#reader.sliceFrom(start);
+  }
+
+  /** Reads a `(...)` group, returning its contents without the parens. */
+  #parseRegex(): String {
+    if (!this.#reader.matchByte(OPEN_PAREN)) {
+      throw new PatternSyntaxError(
+        "Expected '(' at " + i32ToString(this.#reader.position)
+      );
+    }
+    let start = this.#reader.mark();
+    var depth = 1;
+    let source = new StringBuilder(16);
+
+    if (this.#reader.peekByte() == QUESTION_MARK) {
+      throw new PatternSyntaxError(
+        'Pattern cannot start with "?" at ' + i32ToString(this.#reader.position)
+      );
+    }
+
+    while (!this.#reader.isAtEnd && depth > 0) {
+      let c = this.#reader.peekByte();
+      // The regex is handed to a regex engine as text, and the spec keeps it
+      // ASCII; a lead byte here starts a character that cannot be in one. The
+      // position is reported rather than the character, which at this point
+      // is a byte rather than something printable.
+      if (c >= 0x80) {
+        throw new PatternSyntaxError(
+          'Invalid character at ' + i32ToString(this.#reader.position) + '.'
+        );
+      }
+
+      if (c == BACKSLASH) {
+        source.appendByte(this.#reader.advanceByte());
+        if (!this.#reader.isAtEnd) {
+          source.appendByte(this.#reader.advanceByte());
+        }
+        continue;
+      }
+
+      if (c == CLOSE_PAREN) {
+        depth -= 1;
+        if (depth == 0) {
+          this.#reader.advanceByte();
+          break;
+        }
+      } else if (c == OPEN_PAREN) {
+        depth += 1;
+        // A nested group has to be non-capturing: the compiled matcher owns
+        // its capture numbering, so a group here would shift it.
+        if (this.#reader.peekByteAt(1) != QUESTION_MARK &&
+            this.#reader.peekByteAt(1) != -1) {
+          throw new PatternSyntaxError(
+            'Capturing groups are not allowed at ' +
+            i32ToString(this.#reader.position)
+          );
+        }
+      }
+
+      source.appendByte(this.#reader.advanceByte());
+    }
+
+    if (depth != 0) {
+      throw new PatternSyntaxError(
+        'Unbalanced pattern at ' + i32ToString(start - 1)
+      );
+    }
+    let text = source.toString();
+    if (text.length == 0) {
+      throw new PatternSyntaxError(
+        'Missing pattern at ' + i32ToString(start - 1)
+      );
+    }
+    return text;
+  }
+
+  /**
+   * Takes a trailing `/` or `.` off the pending text to use as a part's
+   * prefix, so an absent optional part takes its separator with it.
+   */
+  #extractPrefix(): String {
+    if (this.#pending.length == 0) return '';
+    let last = this.#pending.getByteAt(this.#pending.length - 1);
+    if (last == SLASH || last == FULL_STOP) {
+      let prefix = this.#pending.sliceBytes(
+        this.#pending.length - 1, this.#pending.length
+      );
+      this.#pending = this.#pending.sliceBytes(0, this.#pending.length - 1);
+      return prefix;
+    }
+    return '';
+  }
+
+  /** Reads text until `isStop` says so, honouring backslash escapes. */
+  #readEscapedUntil(isStop: (b: i32) => boolean): String {
+    let out = new StringBuilder(16);
+    while (!this.#reader.isAtEnd) {
+      let c = this.#reader.peekByte();
+      if (isStop(c)) break;
+      if (c == BACKSLASH) {
+        this.#reader.advanceByte();
+        if (!this.#reader.isAtEnd) {
+          out.appendByte(this.#reader.advanceByte());
+        }
+      } else {
+        out.appendByte(this.#reader.advanceByte());
+      }
+    }
+    return out.toString();
+  }
+
+  /** Reads a braced group's `{prefix:name(regex)suffix}modifier` form. */
+  #parseBracedGroup(): void {
+    this.#flushFixedPart();
+    this.#reader.advanceByte();
+
+    // The prefix runs up to whatever starts the group's body.
+    var prefix = this.#readEscapedUntil((b: i32): boolean =>
+      b == CLOSE_BRACE || b == COLON || b == ASTERISK || b == OPEN_PAREN);
+
+    var name = '';
+    var hasName = false;
+    var source = '';
+    var kind = PendingKind.Fixed;
+
+    if (this.#reader.matchByte(COLON)) {
+      name = this.#parseName();
+      hasName = true;
+      kind = PendingKind.SegmentWildcard;
+    }
+
+    if (this.#reader.peekByte() == OPEN_PAREN) {
+      source = this.#parseRegex();
+      kind = PendingKind.Regex;
+    }
+
+    if (this.#reader.matchByte(ASTERISK)) {
+      if (!hasName) {
+        name = this.#nextPositionalName();
+        hasName = true;
+      }
+      kind = PendingKind.FullWildcard;
+    }
+
+    let suffix = this.#readEscapedUntil((b: i32): boolean => b == CLOSE_BRACE);
+
+    if (!this.#reader.matchByte(CLOSE_BRACE)) {
+      throw new PatternSyntaxError(
+        "Unbalanced '{' at " + i32ToString(this.#reader.position)
+      );
+    }
+
+    let modifier = this.#parseModifier();
+
+    if (!hasName && source.length == 0 && kind == PendingKind.Fixed &&
+        modifier == Modifier.None) {
+      // Just literal text in braces — it groups nothing, so it rejoins the
+      // pending run.
+      this.#pending = this.#pending + prefix;
+      return;
+    }
+    if (!hasName && source.length == 0 && prefix.length == 0) {
+      // An empty group matches nothing and names nothing.
+      return;
+    }
+
+    // Literal text with a modifier is a Fixed part in its own right, and its
+    // text is a value rather than a prefix.
+    if (kind == PendingKind.Fixed && source.length == 0 && prefix.length > 0) {
+      source = prefix;
+      prefix = '';
+    }
+    if (!hasName &&
+        (kind == PendingKind.SegmentWildcard || kind == PendingKind.Regex)) {
+      name = this.#nextPositionalName();
+    }
+
+    match (kind) {
+      case PendingKind.Fixed: {
+        this.#result.push(
+          new FixedPart(source, prefix, suffix, modifier, this.#componentType)
+        );
+      }
+      case PendingKind.SegmentWildcard: {
+        this.#claimName(name);
+        this.#result.push(new SegmentWildcardPart(
+          name, prefix, suffix, modifier, this.#componentType));
+      }
+      case PendingKind.FullWildcard: {
+        this.#claimName(name);
+        this.#result.push(new FullWildcardPart(
+          name, prefix, suffix, modifier, this.#componentType));
+      }
+      case PendingKind.Regex: {
+        this.#claimName(name);
+        this.#result.push(new RegexPart(
+          name, source, prefix, suffix, modifier, this.#componentType));
+      }
+    }
+  }
+
+  parse(): GrowableArray<Part> {
+    while (!this.#reader.isAtEnd) {
+      let c = this.#reader.peekByte();
+
+      if (c == OPEN_BRACE) {
+        this.#parseBracedGroup();
+        continue;
+      }
+
+      // A named parameter: ":name" with an optional "(regex)".
+      if (c == COLON) {
+        let prefix = this.#extractPrefix();
+        this.#flushFixedPart();
+
+        this.#reader.advanceByte();
+        let name = this.#parseName();
+        this.#claimName(name);
+
+        if (this.#reader.peekByte() == OPEN_PAREN) {
+          let source = this.#parseRegex();
+          let modifier = this.#parseModifier();
+          this.#result.push(new RegexPart(
+            name, source, prefix, '', modifier, this.#componentType));
+        } else {
+          let modifier = this.#parseModifier();
+          this.#result.push(new SegmentWildcardPart(
+            name, prefix, '', modifier, this.#componentType));
+        }
+        continue;
+      }
+
+      // A bare regex group.
+      if (c == OPEN_PAREN) {
+        let prefix = this.#extractPrefix();
+        this.#flushFixedPart();
+
+        let source = this.#parseRegex();
+        let modifier = this.#parseModifier();
+        let name = this.#nextPositionalName();
+        this.#claimName(name);
+        this.#result.push(new RegexPart(
+          name, source, prefix, '', modifier, this.#componentType));
+        continue;
+      }
+
+      // A bare wildcard.
+      if (c == ASTERISK) {
+        let prefix = this.#extractPrefix();
+        this.#flushFixedPart();
+
+        this.#reader.advanceByte();
+        let modifier = this.#parseModifier();
+        let name = this.#nextPositionalName();
+        this.#claimName(name);
+        this.#result.push(new FullWildcardPart(
+          name, prefix, '', modifier, this.#componentType));
+        continue;
+      }
+
+      // An escape: the next byte is literal text, whatever it is. An escaped
+      // slash is still a slash, and still separates segments.
+      if (c == BACKSLASH) {
+        this.#reader.advanceByte();
+        if (!this.#reader.isAtEnd) {
+          this.#pending = this.#pending + this.#takeByteAsString();
+        }
+        continue;
+      }
+
+      this.#pending = this.#pending + this.#takeByteAsString();
+    }
+
+    this.#flushFixedPart();
+    return this.#result;
+  }
+}
+
+/**
+ * Parses one component's pattern string into its parts.
+ *
+ * `componentType` is carried on every part rather than used during parsing:
+ * a prefix tree spanning a whole URL needs to know which component a part
+ * came from, and the caller knows it here.
+ */
+export let parsePattern = (
+  pattern: String,
+  componentType: URLComponentType = URLComponentType.Pathname
+): Array<Part> => {
+  let parser = new Parser(pattern, componentType);
+  return parser.parse();
+};

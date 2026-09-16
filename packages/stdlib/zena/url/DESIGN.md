@@ -68,6 +68,7 @@ packages/stdlib/zena/url/
   punycode.zena          # RFC 3492 codec
   idna.zena              # UTS 46 host processing
   idna-table.zena        # GENERATED mapping table
+  pattern-parts.zena     # pattern-string parser, shared by the two below
   pattern.zena           # URLPattern (later)
   pattern-list.zena      # URLPatternList (later)
 ```

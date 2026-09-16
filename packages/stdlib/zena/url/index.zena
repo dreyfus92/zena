@@ -13,5 +13,16 @@ export {
 
 export { URL } from './url.zena';
 export { url } from './tag.zena';
+export {
+  parsePattern,
+  Part,
+  FixedPart,
+  SegmentWildcardPart,
+  FullWildcardPart,
+  RegexPart,
+  Modifier,
+  URLComponentType,
+  PatternSyntaxError
+} from './pattern-parts.zena';
 export { punycodeEncode, punycodeDecode } from './punycode.zena';
 export { URLSearchParams, ConcurrentModificationError } from './search-params.zena';
