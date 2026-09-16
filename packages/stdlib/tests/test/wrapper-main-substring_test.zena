@@ -1,0 +1,40 @@
+// A suite that merely MENTIONS a main-like substring must still be run.
+//
+// `zena-cli test` compiles each suite in the compiler's test mode, which
+// appends a generated entry point calling runAndReport. That wrapper is
+// skipped for a file that already declares its own entry point, and the check
+// for "already declares one" is a substring scan of the raw source, performed
+// before anything is parsed.
+//
+// The scan used to look for `main(` anywhere at all — including inside a
+// string literal, where `domain(` contains it. A suite carrying such a string
+// therefore compiled to a module with no entry point and failed with
+// "Failed to find `main` export", which says nothing about the suite and
+// points at no line in it. The WPT URLPattern data contains `:domain(.*)`,
+// which is how this was found.
+//
+// The strings below are the trap, one per substring the scan used to match.
+// The assertions on them are incidental: if the wrapper is skipped, this file
+// does not run at all, and that is the failure this test exists to catch.
+
+import { suite, test, TestContext } from 'zena:test';
+import { isTrue } from 'zena:assert';
+
+export let tests = suite('test wrapper vs main-like substrings', (): void => {
+  test('a string containing a call-shaped mention still runs', (ctx: TestContext): void => {
+    let pattern = ':domain(.*)';
+    isTrue(pattern.contains('main('));
+  });
+
+  test('a string containing an assignment-shaped mention still runs', (ctx: TestContext): void => {
+    let assignment = 'domain = example.com';
+    isTrue(assignment.contains('main ='));
+  });
+
+  test('a string containing a binding-shaped mention still runs', (ctx: TestContext): void => {
+    // `mainland` is an ordinary identifier that the old scan read as a
+    // declaration of the entry point.
+    let phrase = 'let mainland';
+    isTrue(phrase.contains('let main'));
+  });
+});

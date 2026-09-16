@@ -44,7 +44,19 @@ class WasiHost implements CompilerHost {
     }
     let content = readFile(actualPath);
     if (this.testMode && path == this.entryPath) {
-      if (content.contains("let main") || content.contains("main =") || content.contains("main(")) {
+      // A file that declares its own entry point is left alone. This runs
+      // before the source is parsed, so the test is textual; what matters is
+      // that it be narrow enough not to fire on ordinary prose or data.
+      //
+      // It used to look for "let main", "main =" or "main(" anywhere in the
+      // file, which matched far more than declarations: `let mainScope`, and
+      // — inside a string literal — the `domain(` of a URL pattern. A suite
+      // that merely mentioned one got no entry point and then failed with
+      // "Failed to find `main` export", naming nothing in the file that
+      // caused it. See tests/test/wrapper-main-substring_test.zena.
+      if (content.contains("export let main ") ||
+          content.contains("export let main=") ||
+          content.contains("export function main(")) {
         return content;
       }
       return "import {runAndReport} from 'zena:test';\n" + 
