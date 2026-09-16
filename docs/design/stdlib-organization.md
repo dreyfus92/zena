@@ -79,9 +79,17 @@ A type may be exported by more than one entrypoint.
 | `async`                                                                                                             | —                                                                                                                                                                                                                                                                                                                                                 | absorbs nothing; the prelude names it, so it holds only what `Future` needs                                                                 |
 | `stream`                                                                                                            | —                                                                                                                                                                                                                                                                                                                                                 | its own entrypoint, for the same reason; see "Libraries the target list omits"                                                              |
 | `bench`                                                                                                             | `benchmark`                                                                                                                                                                                                                                                                                                                                       | done; `benchmark`'s clock and formatter duplicated `bench`'s, so only `runTest` moved                                                       |
-| `assert`, `cli`, `console`, `fs`, `js`, `json`, `math`, `memory`, `process`, `regex`, `simd`, `test`, `time`, `url` | —                                                                                                                                                                                                                                                                                                                                                 | unchanged apart from moving implementation files into directories                                                                           |
+| `assert`, `cli`, `console`, `fs`, `js`, `json`, `math`, `memory`, `process`, `regex`, `simd`, `test`, `time`, `url`, `path`, `glob`, `args` | —                                                                                                                                                                                                                                                                                                                                                 | unchanged apart from moving implementation files into directories                                                                           |
 
 `fetch` is unresolved; see "Open decisions".
+
+A library with a namespace worth having stays its own entrypoint, and new
+ones keep arriving: `url` has landed, and `path`, `glob` and `args` are on
+their way. None of them is a candidate for folding into a facade. The count
+this plan reduces is the implementation modules that were published one class
+at a time — `fixed-array`, `string-convert`, `template-strings-array` and
+their twenty siblings — and a library named for a subject a reader would look
+it up under is the opposite of that.
 
 ### What `core` contains
 

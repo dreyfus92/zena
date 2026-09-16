@@ -1,4 +1,4 @@
-import { Encoding } from 'zena:string';
+import { String, Encoding } from 'zena:string';
 
 /**
  * Type alias for template tag functions.
