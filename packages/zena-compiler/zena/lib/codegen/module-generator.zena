@@ -32,6 +32,7 @@ import { runDce } from './ir/dce.zena';
 import { runInline } from './ir/inline.zena';
 import { DevirtContext, runDevirt } from './ir/devirt.zena';
 import { EscapeSummaries } from './ir/escape.zena';
+import { pruneUnreachedFunctions } from './ir/harvest.zena';
 import { printIr } from './ir/printer.zena';
 import { IrCfg } from './ir/cfg.zena';
 import { emitZirFunction } from './ir/emit.zena';
@@ -129,7 +130,131 @@ export final class ModuleGenerator {
     this.emitter.emitSimdBytes(instr.opcode, zeros);
   }
 
-  
+  /**
+   * The module's function exports: the user's, the runtime's string
+   * helpers, the async host entry points, and the component
+   * machinery. Built before the optimization loop because harvest
+   * roots liveness in this list, and the export section emits from
+   * the same list afterwards.
+   */
+  #collectFunctionExports(wasm: WasmModule): GrowableArray<WasmExport> {
+    let memoryImported =
+        targetEmitsComponent(this.target) && wasm.hasMemory;
+    let exports = new GrowableArray<WasmExport>();
+    let expKeys = wasm.exportMap.keys();
+    while (let (true, k) = expKeys.next()) {
+      let f = wasm.exportMap[k];
+      exports.push(new WasmExport(k as String, f));
+    }
+
+    // Export synthesized runtime string helpers if present
+    let {stringCreateFunc} = wasm;
+    if (stringCreateFunc != null) {
+      exports.push(new WasmExport("$stringCreate", stringCreateFunc));
+    }
+    let {stringSetByteFunc} = wasm;
+    if (stringSetByteFunc != null) {
+      exports.push(new WasmExport("$stringSetByte", stringSetByteFunc));
+    }
+    let {stringGetByteFunc} = wasm;
+    if (stringGetByteFunc != null) {
+      exports.push(new WasmExport("$stringGetByte", stringGetByteFunc));
+    }
+    let {stringGetLengthFunc} = wasm;
+    if (stringGetLengthFunc != null) {
+      exports.push(new WasmExport("$stringGetLength", stringGetLengthFunc));
+    }
+
+    // __zena_drain — the re-entry point for a host that cannot wait
+    // synchronously (async.md §4). On such a host `drainMicrotasks()`
+    // unwinds when the only remaining work is a future deadline, and
+    // the host pings this to resume once the deadline arrives. Exported
+    // whenever zena:async is reached; harmless where nothing calls it.
+    let asyncDrain = wasm.getStdlibFunc('async', 'drainMicrotasks');
+    if (asyncDrain != null) {
+      exports.push(new WasmExport("__zena_drain", asyncDrain));
+    }
+
+    // __zena_complete_* — how a host settles a future it was handed a
+    // handle for (async.md §4, Level 2). Present exactly when the
+    // program imports zena:js, whose exports RTA roots for this
+    // reason; absent, and costing nothing, otherwise.
+    let completeEntries = [
+      ("__zena_complete_void", "completeVoid"),
+      ("__zena_complete_i32", "completeI32"),
+      ("__zena_complete_f64", "completeF64"),
+      ("__zena_complete_string", "completeString"),
+      ("__zena_complete_extern", "completeExtern"),
+      ("__zena_complete_error", "completeError"),
+    ];
+    for (let entry in completeEntries) {
+      let (exportName, zenaName) = entry;
+      let f = wasm.getStdlibFunc('js', zenaName);
+      if (f != null) {
+        exports.push(new WasmExport(exportName, f));
+      }
+    }
+    let {componentEntryFunc} = wasm;
+    if (componentEntryFunc != null) {
+      exports.push(new WasmExport(componentEntryExport,
+          componentEntryFunc));
+    }
+    let {componentCallbackFunc} = wasm;
+    if (componentCallbackFunc != null) {
+      exports.push(new WasmExport(componentCallbackExport,
+          componentCallbackFunc));
+    }
+    // The async export adapters, by their own names: the component
+    // aliases each out to lift it with the callback.
+    for (let asyncExport in wasm.componentAsyncExports) {
+      let adapterName = asyncExport.adapter.name;
+      if (adapterName != null) {
+        exports.push(new WasmExport(adapterName as String,
+            asyncExport.adapter));
+      }
+    }
+    // The wrappers, and the two functions the canonical options name.
+    // They are core-module exports and not component ones: the component
+    // aliases them back out to build its lifts, and nothing outside sees
+    // them.
+    // Walked through `exportMap` rather than over the wrapper map's own
+    // keys, so the order is the one the user exports are already in: a
+    // hash map's iteration order is stable for a given set of keys, but
+    // tying the two together is what makes it obviously so.
+    let wrapperKeys = wasm.exportMap.keys();
+    while (let (true, wrapperKey) = wrapperKeys.next()) {
+      if (let (true, wrapper) = wasm.componentExportWrappers.get(wrapperKey)) {
+        let wrapperName = wrapper.name;
+        if (wrapperName == null) {
+          throw new Error('a component export wrapper has no name');
+        }
+        exports.push(new WasmExport(wrapperName, wrapper));
+      }
+    }
+    // `cabi_realloc` is not exported when the memory is imported: the
+    // canonical options name the runtime memory module's own realloc,
+    // which is the allocator this module already delegates to.
+    let {componentReallocFunc} = wasm;
+    if (componentReallocFunc != null && !memoryImported) {
+      exports.push(new WasmExport(componentReallocExport,
+          componentReallocFunc));
+    }
+    let {componentPostReturnFunc} = wasm;
+    if (componentPostReturnFunc != null) {
+      exports.push(new WasmExport(componentPostReturnExport,
+          componentPostReturnFunc));
+    }
+    let {asyncMainStartFunc} = wasm;
+    if (asyncMainStartFunc != null) {
+      exports.push(new WasmExport("__zena_main_start", asyncMainStartFunc));
+    }
+    let {asyncMainResultFunc} = wasm;
+    if (asyncMainResultFunc != null) {
+      exports.push(new WasmExport("__zena_main_result", asyncMainResultFunc));
+    }
+    return exports;
+  }
+
   compile(): void {
     // Uids are hashCode for WasmType and WasmFunction, so they order
     // every hash container keyed by one, and that order reaches the
@@ -410,6 +535,139 @@ export final class ModuleGenerator {
     wasm.layout();
     performance.end(tLayout);
 
+    // Every body is lowered, optimized, and verified before any
+    // section is emitted: the module loop needs all bodies at once,
+    // and harvest deletes functions, which the function section, the
+    // vtable initializers, the exports, and the element segment all
+    // name by index. The export list is built now for the same reason
+    // — harvest roots liveness in it — and emitted later unchanged.
+    let functionExports = this.#collectFunctionExports(wasm);
+    let tLower = performance.start("codegen-lower-optimize");
+    var zirLowered = 0;
+    var zirGraduated = 0;
+    var zirDemoted = 0;
+    var zirSimplified = 0;
+    var zirBlocksRemoved = 0;
+    var zirDceRemoved = 0;
+    let bodies = new GrowableArray<IrBody>();
+    for (let wasmFunc in wasm.functions) {
+      // Lowering failures throw: a bail is a compiler bug, not a
+      // coverage gap.
+      let body = lowerFunction(wasm, wasmFunc);
+      // Cleanup order: simplify folds (and may strand blocks via
+      // branch folding), block cleanup removes what it stranded,
+      // GVN deduplicates the folded constants, DCE sweeps whatever
+      // ended up unused. GVN runs at every level — emission quality
+      // and the narrowing cast-dedup contract depend on it.
+      if (this.optLevel >= 1) {
+        zirSimplified += runSimplify(body);
+        zirBlocksRemoved += runBlockCleanup(body);
+      }
+      runGvn(body, new IrCfg(body));
+      if (this.optLevel >= 1) {
+        zirDceRemoved += runDce(body);
+      }
+      // Loud on verifier failure: a broken lowering must never limp
+      // into emission.
+      let verifyErrors = verifyIr(body);
+      if (verifyErrors.length > 0) {
+        let fname = if (wasmFunc.name != null) wasmFunc.name as String else "<unnamed>";
+        var message = "zir verify failed for " + fname + ":";
+        for (let e in verifyErrors) {
+          message = message + "\n  " + e;
+        }
+        if (this.zirStats) {
+          // The body as the passes left it: the ids the errors name
+          // are meaningless without it.
+          message = message + "\n" + printIr(body, fname);
+        }
+        throw new Error(message);
+      }
+      bodies.push(body);
+      zirLowered += 1;
+    }
+    performance.end(tLower);
+
+    // The module loop (-O2): inline sweeps to a fixpoint with a round
+    // cap, re-running the cleanup passes on every caller a sweep
+    // changed. Chains (an adapter calling an accessor) resolve across
+    // rounds rather than by a topological order.
+    var zirInlined = 0;
+    var zirDevirtualized = 0;
+    if (this.optLevel >= 2) {
+      let tLoop = performance.start("codegen-optimize-loop");
+      let devirtCx = new DevirtContext(wasm);
+      let changed = new GrowableArray<boolean>();
+      for (var i = 0; i < bodies.length; i += 1) {
+        changed.push(false);
+      }
+      // Re-runs the cleanup passes on every body a sweep changed, and
+      // clears the flags.
+      let cleanupChanged = (what: String): void => {
+        for (var i = 0; i < bodies.length; i += 1) {
+          if (!changed[i]) {
+            continue;
+          }
+          changed[i] = false;
+          let body = bodies[i];
+          zirSimplified += runSimplify(body);
+          zirBlocksRemoved += runBlockCleanup(body);
+          runGvn(body, new IrCfg(body));
+          zirDceRemoved += runDce(body);
+          let errors = verifyIr(body);
+          if (errors.length > 0) {
+            let f = wasm.functions[i];
+            var message = "zir verify failed after " + what + " into " +
+                (if (f.name != null) f.name as String else "<unnamed>") + ":";
+            for (let e in errors) {
+              message = message + "\n  " + e;
+            }
+            throw new Error(message);
+          }
+        }
+      };
+      // Each round: inline, clean up, devirtualize, clean up. The
+      // cleanup between the two matters: forwarding a closure's
+      // function field off its allocation is what lets devirtualization
+      // see the function, and the direct call that produces is what
+      // the next round's inline sweep consumes. Escape summaries are
+      // recomputed per round, since a parameter can stop escaping once
+      // the call it was passed to has been inlined and simplified.
+      var round = 0;
+      while (round < 6) {
+        let escapes = new EscapeSummaries(wasm, bodies);
+        let inlined = runInline(wasm, bodies, changed, escapes);
+        cleanupChanged("inlining");
+        var devirtualized = 0;
+        for (var i = 0; i < bodies.length; i += 1) {
+          let d = runDevirt(devirtCx, bodies[i]);
+          if (d > 0) {
+            changed[i] = true;
+            devirtualized += d;
+          }
+        }
+        cleanupChanged("devirtualization");
+        zirInlined += inlined;
+        zirDevirtualized += devirtualized;
+        if (inlined == 0 && devirtualized == 0) {
+          break;
+        }
+        round += 1;
+      }
+      performance.end(tLoop);
+    }
+
+    // Harvest: delete the functions the loop left unreachable and
+    // rebind function indices, before any section names one.
+    var zirHarvested = 0;
+    if (this.optLevel >= 1) {
+      let roots = new GrowableArray<WasmFunction>();
+      for (let e in functionExports) {
+        roots.push(e.func);
+      }
+      zirHarvested = pruneUnreachedFunctions(wasm, bodies, roots);
+    }
+
     let tEmitOther = performance.start("codegen-emit-other");
     this.emitter.emitModuleStart();
     // Rec groups come from layout()'s SCC pass: one group per
@@ -645,119 +903,8 @@ export final class ModuleGenerator {
     }
     this.emitter.emitGlobalSectionEnd();
     
-    let exports = new GrowableArray<WasmExport>();
-    let expKeys = wasm.exportMap.keys();
-    while (let (true, k) = expKeys.next()) {
-      let f = wasm.exportMap[k];
-      exports.push(new WasmExport(k as String, f));
-    }
+    let exports = functionExports;
 
-    // Export synthesized runtime string helpers if present
-    let {stringCreateFunc} = wasm;
-    if (stringCreateFunc != null) {
-      exports.push(new WasmExport("$stringCreate", stringCreateFunc));
-    }
-    let {stringSetByteFunc} = wasm;
-    if (stringSetByteFunc != null) {
-      exports.push(new WasmExport("$stringSetByte", stringSetByteFunc));
-    }
-    let {stringGetByteFunc} = wasm;
-    if (stringGetByteFunc != null) {
-      exports.push(new WasmExport("$stringGetByte", stringGetByteFunc));
-    }
-    let {stringGetLengthFunc} = wasm;
-    if (stringGetLengthFunc != null) {
-      exports.push(new WasmExport("$stringGetLength", stringGetLengthFunc));
-    }
-
-    // __zena_drain — the re-entry point for a host that cannot wait
-    // synchronously (async.md §4). On such a host `drainMicrotasks()`
-    // unwinds when the only remaining work is a future deadline, and
-    // the host pings this to resume once the deadline arrives. Exported
-    // whenever zena:async is reached; harmless where nothing calls it.
-    let asyncDrain = wasm.getStdlibFunc('async', 'drainMicrotasks');
-    if (asyncDrain != null) {
-      exports.push(new WasmExport("__zena_drain", asyncDrain));
-    }
-
-    // __zena_complete_* — how a host settles a future it was handed a
-    // handle for (async.md §4, Level 2). Present exactly when the
-    // program imports zena:js, whose exports RTA roots for this
-    // reason; absent, and costing nothing, otherwise.
-    let completeEntries = [
-      ("__zena_complete_void", "completeVoid"),
-      ("__zena_complete_i32", "completeI32"),
-      ("__zena_complete_f64", "completeF64"),
-      ("__zena_complete_string", "completeString"),
-      ("__zena_complete_extern", "completeExtern"),
-      ("__zena_complete_error", "completeError"),
-    ];
-    for (let entry in completeEntries) {
-      let (exportName, zenaName) = entry;
-      let f = wasm.getStdlibFunc('js', zenaName);
-      if (f != null) {
-        exports.push(new WasmExport(exportName, f));
-      }
-    }
-    let {componentEntryFunc} = wasm;
-    if (componentEntryFunc != null) {
-      exports.push(new WasmExport(componentEntryExport,
-          componentEntryFunc));
-    }
-    let {componentCallbackFunc} = wasm;
-    if (componentCallbackFunc != null) {
-      exports.push(new WasmExport(componentCallbackExport,
-          componentCallbackFunc));
-    }
-    // The async export adapters, by their own names: the component
-    // aliases each out to lift it with the callback.
-    for (let asyncExport in wasm.componentAsyncExports) {
-      let adapterName = asyncExport.adapter.name;
-      if (adapterName != null) {
-        exports.push(new WasmExport(adapterName as String,
-            asyncExport.adapter));
-      }
-    }
-    // The wrappers, and the two functions the canonical options name.
-    // They are core-module exports and not component ones: the component
-    // aliases them back out to build its lifts, and nothing outside sees
-    // them.
-    // Walked through `exportMap` rather than over the wrapper map's own
-    // keys, so the order is the one the user exports are already in: a
-    // hash map's iteration order is stable for a given set of keys, but
-    // tying the two together is what makes it obviously so.
-    let wrapperKeys = wasm.exportMap.keys();
-    while (let (true, wrapperKey) = wrapperKeys.next()) {
-      if (let (true, wrapper) = wasm.componentExportWrappers.get(wrapperKey)) {
-        let wrapperName = wrapper.name;
-        if (wrapperName == null) {
-          throw new Error('a component export wrapper has no name');
-        }
-        exports.push(new WasmExport(wrapperName, wrapper));
-      }
-    }
-    // `cabi_realloc` is not exported when the memory is imported: the
-    // canonical options name the runtime memory module's own realloc,
-    // which is the allocator this module already delegates to.
-    let {componentReallocFunc} = wasm;
-    if (componentReallocFunc != null && !memoryImported) {
-      exports.push(new WasmExport(componentReallocExport,
-          componentReallocFunc));
-    }
-    let {componentPostReturnFunc} = wasm;
-    if (componentPostReturnFunc != null) {
-      exports.push(new WasmExport(componentPostReturnExport,
-          componentPostReturnFunc));
-    }
-    let {asyncMainStartFunc} = wasm;
-    if (asyncMainStartFunc != null) {
-      exports.push(new WasmExport("__zena_main_start", asyncMainStartFunc));
-    }
-    let {asyncMainResultFunc} = wasm;
-    if (asyncMainResultFunc != null) {
-      exports.push(new WasmExport("__zena_main_result", asyncMainResultFunc));
-    }
-    
     // Compute total exports = functions + globals + tags
     var totalExports = exports.length;
     let globalExports = new GrowableArray<WasmGlobal>();
@@ -813,126 +960,6 @@ export final class ModuleGenerator {
     
     performance.end(tEmitOther);
 
-    // Two phases, not one loop: every body is lowered, optimized, and
-    // verified before any is emitted, so passes that need the whole
-    // set of bodies at once (inlining, the callgraph, the harvest
-    // sweep) have a place to run between the phases. Emission order
-    // and bytes are unchanged.
-    let tLower = performance.start("codegen-lower-optimize");
-    var zirLowered = 0;
-    var zirGraduated = 0;
-    var zirDemoted = 0;
-    var zirSimplified = 0;
-    var zirBlocksRemoved = 0;
-    var zirDceRemoved = 0;
-    let bodies = new GrowableArray<IrBody>();
-    for (let wasmFunc in wasm.functions) {
-      // Lowering failures throw: a bail is a compiler bug, not a
-      // coverage gap.
-      let body = lowerFunction(wasm, wasmFunc);
-      // Cleanup order: simplify folds (and may strand blocks via
-      // branch folding), block cleanup removes what it stranded,
-      // GVN deduplicates the folded constants, DCE sweeps whatever
-      // ended up unused. GVN runs at every level — emission quality
-      // and the narrowing cast-dedup contract depend on it.
-      if (this.optLevel >= 1) {
-        zirSimplified += runSimplify(body);
-        zirBlocksRemoved += runBlockCleanup(body);
-      }
-      runGvn(body, new IrCfg(body));
-      if (this.optLevel >= 1) {
-        zirDceRemoved += runDce(body);
-      }
-      // Loud on verifier failure: a broken lowering must never limp
-      // into emission.
-      let verifyErrors = verifyIr(body);
-      if (verifyErrors.length > 0) {
-        let fname = if (wasmFunc.name != null) wasmFunc.name as String else "<unnamed>";
-        var message = "zir verify failed for " + fname + ":";
-        for (let e in verifyErrors) {
-          message = message + "\n  " + e;
-        }
-        if (this.zirStats) {
-          // The body as the passes left it: the ids the errors name
-          // are meaningless without it.
-          message = message + "\n" + printIr(body, fname);
-        }
-        throw new Error(message);
-      }
-      bodies.push(body);
-      zirLowered += 1;
-    }
-    performance.end(tLower);
-
-    // The module loop (-O2): inline sweeps to a fixpoint with a round
-    // cap, re-running the cleanup passes on every caller a sweep
-    // changed. Chains (an adapter calling an accessor) resolve across
-    // rounds rather than by a topological order.
-    var zirInlined = 0;
-    var zirDevirtualized = 0;
-    if (this.optLevel >= 2) {
-      let tLoop = performance.start("codegen-optimize-loop");
-      let devirtCx = new DevirtContext(wasm);
-      let changed = new GrowableArray<boolean>();
-      for (var i = 0; i < bodies.length; i += 1) {
-        changed.push(false);
-      }
-      // Re-runs the cleanup passes on every body a sweep changed, and
-      // clears the flags.
-      let cleanupChanged = (what: String): void => {
-        for (var i = 0; i < bodies.length; i += 1) {
-          if (!changed[i]) {
-            continue;
-          }
-          changed[i] = false;
-          let body = bodies[i];
-          zirSimplified += runSimplify(body);
-          zirBlocksRemoved += runBlockCleanup(body);
-          runGvn(body, new IrCfg(body));
-          zirDceRemoved += runDce(body);
-          let errors = verifyIr(body);
-          if (errors.length > 0) {
-            let f = wasm.functions[i];
-            var message = "zir verify failed after " + what + " into " +
-                (if (f.name != null) f.name as String else "<unnamed>") + ":";
-            for (let e in errors) {
-              message = message + "\n  " + e;
-            }
-            throw new Error(message);
-          }
-        }
-      };
-      // Each round: inline, clean up, devirtualize, clean up. The
-      // cleanup between the two matters: forwarding a closure's
-      // function field off its allocation is what lets devirtualization
-      // see the function, and the direct call that produces is what
-      // the next round's inline sweep consumes. Escape summaries are
-      // recomputed per round, since a parameter can stop escaping once
-      // the call it was passed to has been inlined and simplified.
-      var round = 0;
-      while (round < 6) {
-        let escapes = new EscapeSummaries(wasm, bodies);
-        let inlined = runInline(wasm, bodies, changed, escapes);
-        cleanupChanged("inlining");
-        var devirtualized = 0;
-        for (var i = 0; i < bodies.length; i += 1) {
-          let d = runDevirt(devirtCx, bodies[i]);
-          if (d > 0) {
-            changed[i] = true;
-            devirtualized += d;
-          }
-        }
-        cleanupChanged("devirtualization");
-        zirInlined += inlined;
-        zirDevirtualized += devirtualized;
-        if (inlined == 0 && devirtualized == 0) {
-          break;
-        }
-        round += 1;
-      }
-      performance.end(tLoop);
-    }
-
     let tEmitCode = performance.start("codegen-emit-code");
     this.emitter.emitCodeSectionStart(wasm.functions.length);
     var bodyIndex = 0;
@@ -954,6 +981,8 @@ export final class ModuleGenerator {
           " call sites inlined");
       console.log("zir devirt: " + i32ToString(zirDevirtualized) +
           " call_ref sites made direct");
+      console.log("zir harvest: " + i32ToString(zirHarvested) +
+          " unreachable functions removed");
       console.log("zir locals: " + i32ToString(zirGraduated) +
           " ref locals non-null, " + i32ToString(zirDemoted) +
           " kept nullable (init rollback)");

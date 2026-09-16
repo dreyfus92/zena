@@ -551,17 +551,14 @@ export let tests = suite('zir backend', (): void => {
         '}\n' +
         'let f = (p: P): i32 => p.sum();\n' +
         'export let main = (): i32 => f(new P());', 2);
-    var sumName = '';
-    for (let chunk in result.split('(func $')) {
-      if (chunk.startsWith('P_') && chunk.contains('.sum')) {
-        sumName = '$' + chunk.split(' ')[0];
-      }
-    }
-    isTrue(sumName.length > 0, 'no P.sum function in the emitted module');
+    // Nothing dispatches on P, so sum and #twice are direct calls that
+    // inline all the way into main, and harvest then deletes both.
     let absent = new GrowableArray<String>();
     absent.push('call ');
-    assertFunctionOmits(result, sumName, absent,
-        'the private accessor call is inlined');
+    assertFunctionOmits(result, '$main', absent,
+        'the method and its private helper are inlined into main');
+    isTrue(!result.contains('.sum'),
+        'the fully inlined method is deleted from the module');
   });
 
   test('-O2 devirtualizes an interface call with one implementer', (ctx: TestContext): void => {
@@ -575,7 +572,7 @@ export let tests = suite('zir backend', (): void => {
         '  new(this.r);\n' +
         '  area(): i32 { return this.r * this.r; }\n' +
         '}\n' +
-        'let measure = (s: Shape): i32 => s.area();\n' +
+        'export let measure = (s: Shape): i32 => s.area();\n' +
         'export let main = (): i32 => measure(new Circle(3));', 2);
     let absent = new GrowableArray<String>();
     absent.push('call_ref');
@@ -596,7 +593,7 @@ export let tests = suite('zir backend', (): void => {
         '  new(this.s);\n' +
         '  area(): i32 { return this.s * 4; }\n' +
         '}\n' +
-        'let measure = (s: Shape): i32 => s.area();\n' +
+        'export let measure = (s: Shape): i32 => s.area();\n' +
         'export let main = (): i32 => measure(new Circle(3)) + measure(new Square(2));', 2);
     let present = new GrowableArray<String>();
     present.push('call_ref');
@@ -659,7 +656,7 @@ export let tests = suite('zir backend', (): void => {
         '  new(this.s);\n' +
         '  area(): i32 { return this.s * 4; }\n' +
         '}\n' +
-        'let measure = (c: Circle): i32 => { let s: Shape = c; return s.area(); };\n' +
+        'export let measure = (c: Circle): i32 => { let s: Shape = c; return s.area(); };\n' +
         'export let main = (): i32 => measure(new Circle(3)) + (new Square(2)).area();', 2);
     assertNoAllocation(result, '$measure',
         'the fat pointer never escapes, so it is never allocated');
@@ -680,7 +677,7 @@ export let tests = suite('zir backend', (): void => {
         '  while (i < n) { s += i; i += 1; }\n' +
         '  return s;\n' +
         '};\n' +
-        'let f = (k: i32): i32 => sum(k) + 1;\n' +
+        'export let f = (k: i32): i32 => sum(k) + 1;\n' +
         'export let main = (): i32 => f(10);', 2);
     let present = new GrowableArray<String>();
     present.push('loop');
@@ -722,7 +719,7 @@ export let tests = suite('zir backend', (): void => {
         '  while (i < n) { s += f(i); i += 1; }\n' +
         '  return s;\n' +
         '};\n' +
-        'let a = (n: i32): i32 => each((x: i32): i32 => x * 2, n);\n' +
+        'export let a = (n: i32): i32 => each((x: i32): i32 => x * 2, n);\n' +
         'let b = (n: i32): i32 => each((x: i32): i32 => x + 1, n);\n' +
         'export let main = (): i32 => a(10) + b(10);', 2);
     let present = new GrowableArray<String>();
@@ -769,7 +766,7 @@ export let tests = suite('zir backend', (): void => {
         '  while (i < n) { s += f(i); i += 1; }\n' +
         '  return s;\n' +
         '};\n' +
-        'let a = (n: i32): i32 => {\n' +
+        'export let a = (n: i32): i32 => {\n' +
         '  let g = (x: i32): i32 => x * 2;\n' +
         '  return each(g, n);\n' +
         '};\n' +
@@ -802,7 +799,7 @@ export let tests = suite('zir backend', (): void => {
         '  while (i < n) { t += s.area(); i += 1; }\n' +
         '  return t;\n' +
         '};\n' +
-        'let c = (n: i32): i32 => total(new Circle(3), n);\n' +
+        'export let c = (n: i32): i32 => total(new Circle(3), n);\n' +
         'let q = (n: i32): i32 => total(new Square(2), n);\n' +
         'export let main = (): i32 => c(10) + q(10);', 2);
     let absent = new GrowableArray<String>();
@@ -814,12 +811,32 @@ export let tests = suite('zir backend', (): void => {
   test('-O2 does not inline a callee containing try', (ctx: TestContext): void => {
     let result = compileWithZirAt(
         'let guarded = (x: i32): i32 => { try { return x + 1; } catch { return 0; } };\n' +
-        'let f = (k: i32): i32 => guarded(k);\n' +
+        'export let f = (k: i32): i32 => guarded(k);\n' +
         'export let main = (): i32 => f(10);', 2);
     let present = new GrowableArray<String>();
     present.push('call $guarded');
     assertFunctionUses(result, '$f', present,
         'a protected region is not spliced into another body');
+  });
+
+  test('-O2 deletes a function once every call to it is inlined', (ctx: TestContext): void => {
+    let result = compileWithZirAt(
+        'let inc = (x: i32): i32 => x + 1;\n' +
+        'export let main = (): i32 => inc(41);', 2);
+    isTrue(!result.contains('(func $inc'),
+        'inc has no callers left and is not exported, so harvest removes it');
+    let present = new GrowableArray<String>();
+    present.push('i32.const 42');
+    assertFunctionUses(result, '$main', present,
+        'the inlined call folded');
+  });
+
+  test('-O1 keeps a function that is still called', (ctx: TestContext): void => {
+    let result = compileWithZir(
+        'let inc = (x: i32): i32 => x + 1;\n' +
+        'export let main = (): i32 => inc(41);');
+    isTrue(result.contains('(func $inc'),
+        'without inlining, inc is called and stays');
   });
 
   test('-O1 does not inline', (ctx: TestContext): void => {

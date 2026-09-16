@@ -1,0 +1,148 @@
+/**
+ * Harvest (docs/design/optimization-pipeline.md §Harvest and layout
+ * feedback), first stage: after the optimization loop, delete the
+ * functions nothing can reach any more. The loop inlines bodies and
+ * makes calls direct without touching the callee, so a function whose
+ * every call site was inlined is still in the module until this runs.
+ *
+ * Reachability starts from the roots — every exported function, the
+ * start function, and every function a vtable global installs (all
+ * globals count as live in this stage) — and follows direct calls,
+ * tail calls, and `ref_func` in the bodies it reaches. Nothing else
+ * can name a function: dispatch goes through vtables, and vtables are
+ * globals.
+ *
+ * Removal rebinds function indices, mirroring layout's assignment
+ * (imports first, then the surviving functions in order), and
+ * recomputes which functions need an element-segment entry. Emission
+ * reads indices off the function objects, so it needs no other
+ * change; this runs before any section is emitted.
+ *
+ * Determinism: the worklist is seeded in root order and follows
+ * bodies in instruction order; the function map is used for lookups
+ * only.
+ */
+import { HashMap } from 'zena:map';
+import { IrBody, IrOp, IrRefFunc } from './ir.zena';
+import { WasmModule, WasmFunction } from '../wasm-module.zena';
+
+/**
+ * Deletes unreachable functions from `wasm.functions` and `bodies`
+ * (kept parallel) and rebinds function indices. Returns how many were
+ * removed.
+ */
+export let pruneUnreachedFunctions = (wasm: WasmModule,
+    bodies: GrowableArray<IrBody>,
+    roots: GrowableArray<WasmFunction>): i32 => {
+  let count = wasm.functions.length;
+  let bodyIndex = new HashMap<WasmFunction, i32>();
+  for (var i = 0; i < count; i += 1) {
+    bodyIndex[wasm.functions[i]] = i;
+  }
+  let live = new GrowableArray<boolean>();
+  for (var i = 0; i < count; i += 1) {
+    live.push(false);
+  }
+  let work = new GrowableArray<i32>();
+  let mark = (f: WasmFunction): void => {
+    if (let (true, idx) = bodyIndex.get(f)) {
+      if (!live[idx]) {
+        live[idx] = true;
+        work.push(idx);
+      }
+    }
+  };
+  for (let r in roots) {
+    mark(r);
+  }
+  let start = wasm.startFunction;
+  if (start != null) {
+    mark(start);
+  }
+  for (let g in wasm.globals) {
+    let init = g.initVTable;
+    if (init != null) {
+      for (let f in init.funcs) {
+        mark(f);
+      }
+    }
+  }
+  while (work.length > 0) {
+    let idx = work.pop();
+    let body = bodies[idx];
+    let n = body.instCount();
+    for (var inst = 0; inst < n; inst += 1) {
+      let op = body.op(inst);
+      if (op == IrOp.call || op == IrOp.ret_call || op == IrOp.ref_func) {
+        let r = body.refTable[body.b[inst]];
+        if (r is IrRefFunc) {
+          mark(r.target);
+        }
+      }
+    }
+  }
+
+  var removed = 0;
+  let keptFunctions = new GrowableArray<WasmFunction>();
+  let keptBodies = new GrowableArray<IrBody>();
+  for (var i = 0; i < count; i += 1) {
+    if (live[i]) {
+      keptFunctions.push(wasm.functions[i]);
+      keptBodies.push(bodies[i]);
+    } else {
+      removed += 1;
+    }
+  }
+  if (removed == 0) {
+    return 0;
+  }
+  while (wasm.functions.length > 0) {
+    wasm.functions.pop();
+  }
+  while (bodies.length > 0) {
+    bodies.pop();
+  }
+  for (let f in keptFunctions) {
+    wasm.functions.push(f);
+  }
+  for (let b in keptBodies) {
+    bodies.push(b);
+  }
+
+  // Rebind indices the way layout does.
+  var functionIndex = 0;
+  for (let f in wasm.functionImports) {
+    f.index = functionIndex;
+    functionIndex += 1;
+  }
+  for (let f in wasm.functions) {
+    f.index = functionIndex;
+    functionIndex += 1;
+  }
+
+  // The element segment lists the functions ref_func names, plus the
+  // vtable installs; recompute it from what survived.
+  for (let f in wasm.functions) {
+    f.isReferenceTaken = false;
+  }
+  for (let g in wasm.globals) {
+    let init = g.initVTable;
+    if (init != null) {
+      for (let f in init.funcs) {
+        f.isReferenceTaken = true;
+      }
+    }
+  }
+  for (let body in bodies) {
+    let n = body.instCount();
+    for (var inst = 0; inst < n; inst += 1) {
+      if (body.op(inst) == IrOp.ref_func) {
+        let r = body.refTable[body.b[inst]];
+        if (r is IrRefFunc) {
+          r.target.isReferenceTaken = true;
+        }
+      }
+    }
+  }
+  return removed;
+};
