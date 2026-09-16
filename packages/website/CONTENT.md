@@ -307,7 +307,7 @@ To add a page: add it to the sidebar with an `outline`, then run
     - Indexing and slicing
     - Comparison and equality
     - Encodings and representation
-  - 📝 [Records](src/reference/records.md) — `/reference/records/`
+  - ✅ [Records](src/reference/records.md) — `/reference/records/`
     - Record literals
     - Record types
     - Spread
@@ -628,4 +628,4 @@ To add a page: add it to the sidebar with an `outline`, then run
 
 ---
 
-42 of 95 pages written; 53 still placeholders.
+43 of 95 pages written; 52 still placeholders.
