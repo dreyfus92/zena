@@ -7,8 +7,9 @@
 // sequence has all bytes >= 0x80 and can never collide with an ASCII
 // delimiter. Percent-encoding is likewise bytewise (see encoding.zena).
 //
-// NOT YET IMPLEMENTED: IDNA/UTS 46. A non-ASCII domain is a parse failure
-// rather than a silently wrong host, until the UTS 46 mapping tables land.
+// A non-ASCII domain goes through UTS 46 in idna.zena, which the host parser
+// below calls for every special-scheme host. What that still leaves out — NFC
+// normalization, CheckBidi, CheckJoiners — is listed in DESIGN.md phase 6.
 
 import { asciiLowerByte, StringBuilder } from 'zena:core';
 import { URLSearchParams } from './search-params.zena';

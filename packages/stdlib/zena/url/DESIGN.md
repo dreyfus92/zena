@@ -564,8 +564,8 @@ wpt_percent_encoding_test.zena`, 7 cases). Only each fixture's `utf-8`
    The tag returns `URL | null` rather than the `TemplateTag<URL>` sketched
    above, for the same reason `URL.parse` does: this library does not throw.
 
-6. **IDNA / UTS 46** — punycode **done** (`punycode.zena`); the UTS 46
-   mapping tables still to come (size-conscious; see Open Questions).
+6. **IDNA / UTS 46** — **DONE**: the punycode codec (`punycode.zena`) and the
+   UTS 46 mapping tables (`idna.zena`, plus the generated `idna-table.zena`).
 
    `punycodeEncode`/`punycodeDecode` are the RFC 3492 Bootstring codec for a
    single label, with no `xn--` prefix handling and none of the UTS 46
@@ -586,8 +586,8 @@ wpt_percent_encoding_test.zena`, 7 cases). Only each fixture's `utf-8`
      so `"-"` alone must be rejected rather than decoding to the empty
      string. This is pinned by a test.
 
-   The mapping tables landed too (`idna.zena` + generated `idna-table.zena`;
-   see UNICODE.md). **The urltestdata skip list is now empty**: all 871
+   How the table is generated, and what it costs, is in UNICODE.md.
+   **The urltestdata skip list is now empty**: all 871
    parser cases, 277 setter cases, and 7 percent-encoding cases pass with
    nothing skipped, where 15 entries were skipped before.
 
