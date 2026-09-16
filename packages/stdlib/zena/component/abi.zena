@@ -22,12 +22,7 @@
  */
 
 import { Memory, defaultAllocator } from 'zena:memory';
-import { String, Encoding } from 'zena:string';
-import { newByteArray } from 'zena:byte-array';
-import { Error } from 'zena:error';
-import { FixedArray } from 'zena:fixed-array';
-import { Array } from 'zena:array';
-import { GrowableArray } from 'zena:growable-array';
+import { String, Encoding, newByteArray, Error, FixedArray, Array, GrowableArray } from 'zena:core';
 
 let mem = Memory.default;
 

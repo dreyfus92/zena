@@ -7,7 +7,7 @@
  * ordinary WASI imports.
  */
 import { Memory, defaultAllocator } from 'zena:memory';
-import { Error } from 'zena:error';
+import { Error } from 'zena:core';
 import { Clock, installClock, sleep as sleepImpl } from './queue.zena';
 import { Instant, Duration } from './types.zena';
 

@@ -1,9 +1,7 @@
 // The Map interface and the entry it yields. The hash tables that implement
 // it live in hash-map.zena.
 
-import { Option } from 'zena:option';
-import { Iterable, Iterator } from 'zena:iterator';
-import { Hashable } from 'zena:hashable';
+import { Option, Iterable, Iterator, Hashable } from 'zena:core';
 
 /**
  * The link from one entry to the next in its bucket.

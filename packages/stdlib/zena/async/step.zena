@@ -18,7 +18,7 @@
  */
 
 import { Future } from './future.zena';
-import { Option } from 'zena:option';
+import { Option } from 'zena:core';
 
 export type Step<V> =
     inline (0, _, _)                    // Done

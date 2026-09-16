@@ -9,7 +9,7 @@
 // Zena strings are UTF-8 and Bootstring works on code points, so both
 // directions convert through an Array<i32> of code points.
 
-import { StringBuilder } from 'zena:string-builder';
+import { StringBuilder } from 'zena:core';
 
 // The Bootstring parameters RFC 3492 section 5 fixes for Punycode.
 let BASE = 36;

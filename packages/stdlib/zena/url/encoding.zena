@@ -5,7 +5,7 @@
 // is a plain bytewise operation here: every byte outside 0x20..0x7E is in the
 // C0 control percent-encode set, which all other sets include.
 
-import { StringBuilder } from 'zena:string-builder';
+import { StringBuilder } from 'zena:core';
 
 /**
  * The percent-encode sets defined by the URL Standard. Each set includes all

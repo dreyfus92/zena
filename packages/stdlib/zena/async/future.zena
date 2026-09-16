@@ -19,12 +19,8 @@
  * and allocates nothing at all when a future settles.
  */
 
-import { Error } from 'zena:error';
-import { i32ToString } from 'zena:string-convert';
-import { GrowableArray } from 'zena:growable-array';
-import { Box } from 'zena:box';
+import { Error, i32ToString, GrowableArray, Box, Outcome, Ok, Err } from 'zena:core';
 import { Waiter, scheduleTask, drainMicrotasks } from './executor.zena';
-import { Outcome, Ok, Err } from 'zena:result';
 
 /**
  * Raises on the cancellation channel (docs/design/cancellation.md).

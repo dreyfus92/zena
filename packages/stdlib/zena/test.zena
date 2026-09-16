@@ -1,5 +1,4 @@
-import { StringBuilder } from 'zena:string-builder';
-import { StringReader } from 'zena:string-reader';
+import { StringBuilder, StringReader } from 'zena:core';
 
 /**
  * Test context passed to each test function

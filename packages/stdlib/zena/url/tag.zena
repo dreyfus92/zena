@@ -5,8 +5,7 @@
 // sits in. Which component that is comes from scanning the literal parts, so
 // the same value encodes differently depending on where it lands.
 
-import { StringBuilder } from 'zena:string-builder';
-import { TemplateStringsArray } from 'zena:template-strings-array';
+import { StringBuilder, TemplateStringsArray } from 'zena:core';
 import { EncodeSet, percentEncode } from './encoding.zena';
 import { URL } from './url.zena';
 

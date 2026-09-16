@@ -7,13 +7,8 @@
 // maintained through three extension points — an entry factory, a removal
 // notification, and a rehash strategy — leaving every lookup path shared.
 
-import { FixedArray } from 'zena:fixed-array';
-import { KeyNotFoundError } from 'zena:error';
-import { Option, some, none } from 'zena:option';
-import { Iterable, Iterator } from 'zena:iterator';
-import { Hashable, hash, equals } from 'zena:hashable';
+import { FixedArray, KeyNotFoundError, Option, some, none, Iterable, Iterator, Hashable, hash, equals, IterableUtils } from 'zena:core';
 import { clz } from 'zena:math';
-import { IterableUtils } from 'zena:iterable-utils';
 import { Map, MapEntry, next } from './map.zena';
 
 /** HashMap's extension points, overridden by OrderedMap. */

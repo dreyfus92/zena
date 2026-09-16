@@ -10,8 +10,7 @@
 // NOT YET IMPLEMENTED: IDNA/UTS 46. A non-ASCII domain is a parse failure
 // rather than a silently wrong host, until the UTS 46 mapping tables land.
 
-import { asciiLowerByte } from 'zena:string';
-import { StringBuilder } from 'zena:string-builder';
+import { asciiLowerByte, StringBuilder } from 'zena:core';
 import { URLSearchParams } from './search-params.zena';
 import {
   EncodeSet, percentEncode, percentDecode, encodeByteInto, byteNeedsPercentEncoding

@@ -1,4 +1,4 @@
-import { IterableUtils } from 'zena:iterable-utils';
+import { IterableUtils } from 'zena:core';
 import { parseFormUrlencoded, serializeFormUrlencoded } from './encoding.zena';
 
 /**

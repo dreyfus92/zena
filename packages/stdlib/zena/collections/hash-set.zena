@@ -6,9 +6,7 @@
 // that field holds either, and both leaves are final, so the forwarding calls
 // devirtualize.
 
-import { Hashable } from 'zena:hashable';
-import { Iterable, Iterator } from 'zena:iterator';
-import { IterableUtils } from 'zena:iterable-utils';
+import { Hashable, Iterable, Iterator, IterableUtils } from 'zena:core';
 import { HashMap, OrderedMap } from './hash-map.zena';
 import { Set } from './set.zena';
 

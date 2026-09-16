@@ -23,7 +23,7 @@
  * WASI-only, like zena:fs: it imports the WASI monotonic clock directly.
  */
 
-import { StringBuilder } from 'zena:string-builder';
+import { StringBuilder } from 'zena:core';
 import { JsonBuilder } from 'zena:json';
 import { Memory, defaultAllocator } from 'zena:memory';
 import { readFile, isFile } from 'zena:fs';

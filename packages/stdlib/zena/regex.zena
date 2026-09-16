@@ -1,6 +1,4 @@
-import { StringBuilder } from 'zena:string-builder';
-import { asciiLowerByte, asciiUpperByte } from 'zena:string';
-import { TemplateStringsArray } from 'zena:template-strings-array';
+import { StringBuilder, asciiLowerByte, asciiUpperByte, TemplateStringsArray } from 'zena:core';
 
 // ============================================================================
 // Zena Regular Expression Engine

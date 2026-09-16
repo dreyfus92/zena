@@ -8,7 +8,7 @@
 
 // Import String class so that 'string' type alias resolves correctly
 // (stdlib modules don't get automatic prelude imports)
-import { String } from 'zena:string';
+import { String } from 'zena:core';
 
 // Import the shared Console interface
 import { Console } from './interface.zena';

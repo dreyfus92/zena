@@ -19,7 +19,7 @@
  */
 import { URL } from 'zena:url';
 import { Completer } from 'zena:async';
-import { Outcome, Ok, Err } from 'zena:result';
+import { Outcome, Ok, Err } from 'zena:core';
 import { readAllBytes } from 'zena:stream';
 import {
   Fields, Request, Response as WireResponse, ErrorCode, Scheme,

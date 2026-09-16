@@ -29,14 +29,13 @@
  * the policies a Task runs it under.
  */
 
-import { Error } from 'zena:error';
+import { Error, i64ToString } from 'zena:core';
 import {
   Future, Completer, TaskGroup, CancelScope, scheduleMicrotask,
 } from 'zena:async';
 import {
   sleep, monotonic, milliseconds, Instant, Duration,
 } from 'zena:time';
-import { i64ToString } from 'zena:string-convert';
 import { div } from 'zena:math';
 
 /** An operation that can be attempted. Each call starts one fresh

@@ -1,7 +1,7 @@
 // Console Interface
 // Shared interface for console implementations (host and WASI)
 
-import { String } from 'zena:string';
+import { String } from 'zena:core';
 
 // Console interface - matches JavaScript's Console API (subset)
 export interface Console {

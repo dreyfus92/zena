@@ -7,7 +7,7 @@
  * surface; not importable as a module of its own.
  */
 
-import { GrowableArray } from 'zena:growable-array';
+import { GrowableArray } from 'zena:core';
 
 // The executor: a FIFO queue of runnable tasks.
 // ---------------------------------------------------------------------------

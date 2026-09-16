@@ -27,8 +27,7 @@
  * access all available directories, or work with `Descriptor` objects directly.
  */
 
-import { newByteArray } from 'zena:byte-array';
-import { Encoding } from 'zena:string';
+import { newByteArray, Encoding } from 'zena:core';
 import { Memory, defaultAllocator } from 'zena:memory';
 
 // ============================================================================

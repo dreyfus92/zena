@@ -31,9 +31,7 @@
  * written as classes rather than callbacks.
  */
 
-import { Error } from 'zena:error';
-import { GrowableArray } from 'zena:growable-array';
-import { Disposable } from 'zena:ownership';
+import { Error, GrowableArray, Disposable } from 'zena:core';
 import { Waiter, scheduleTask } from './async/executor.zena';
 import {
   subscribe, result, tryComplete, tryFail,

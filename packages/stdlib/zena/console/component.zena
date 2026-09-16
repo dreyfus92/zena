@@ -20,7 +20,7 @@
 // stdout, and the write itself already fails loudly when the host end
 // is gone. The handle it leaks is one per standard stream per program.
 
-import { String } from 'zena:string';
+import { String } from 'zena:core';
 import {
   ByteStreamPair, ReadableByteStream, WritableByteStream,
   newByteStreamPair, writeStringBlocking

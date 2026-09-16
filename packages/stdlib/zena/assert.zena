@@ -1,5 +1,5 @@
 import { JsonValue, JsonObject, JsonArray, SourceLocation, stringify } from 'zena:json';
-import { StringBuilder } from 'zena:string-builder';
+import { StringBuilder } from 'zena:core';
 
 export class AssertionError extends Error {
   op: String;

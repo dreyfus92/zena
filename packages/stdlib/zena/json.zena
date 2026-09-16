@@ -1,11 +1,6 @@
 import {HashMap} from 'zena:map';
 import {OrderedMap} from './collections/hash-map.zena';
-import {GrowableArray} from 'zena:growable-array';
-import {Box} from 'zena:box';
-import {Error} from 'zena:error';
-import {StringReader} from 'zena:string-reader';
-import {StringBuilder} from 'zena:string-builder';
-import {parseF64} from 'zena:string-convert';
+import {GrowableArray, Box, Error, StringReader, StringBuilder, parseF64} from 'zena:core';
 import {div} from 'zena:math';
 
 // === Source Location ===
