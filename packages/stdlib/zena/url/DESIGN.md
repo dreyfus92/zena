@@ -96,7 +96,9 @@ the two classes the platform supplies.
 
 The tables come out of the JS build because nothing imports them, not because
 the entry point hides them. That relies on DCE being precise about which
-module-level values a program actually reaches; see the measurements below.
+module-level values a program actually reaches, which the measurements below
+confirm it now is: a program using only the percent-encode helpers carries
+neither the table nor the parser.
 
 Three things have to be true before this is worth building:
 
@@ -111,9 +113,11 @@ Three things have to be true before this is worth building:
    make the same program behave differently per target, which is a materially
    higher bar. Reconcile them — most likely by conforming to JS — before
    splitting.
-3. **A size number worth having.** See the measurements below: the current
-   figures cannot separate the library's real cost from DCE retaining things a
-   program cannot reach, so there is nothing yet to justify the split against.
+3. **A size win worth the coupling.** The measurements below now say what the
+   split would save: about 82.6 KB for a program that parses URLs, over half
+   of it the IDNA table. That is a real number rather than the upper bound of
+   unknown tightness it used to be, so this precondition is met — what remains
+   is whether 82.6 KB is worth a per-target behavioural seam.
 
 Note also that WPT stops being a signal for the JS build, since it would be
 testing the host's own URL. The Zena implementation stays the conformance
@@ -628,39 +632,39 @@ Phases 1–4 are the meat of "a URL object in `zena:url`"; 5 is cheap polish;
 ## Binary size
 
 Measured with the self-hosted compiler, Unicode 17.0, against a baseline that
-imports only `zena:console`:
+prints one line and reaches nothing else:
 
-| program                     | total    | data    | code    | funcs |
-| --------------------------- | -------- | ------- | ------- | ----- |
-| baseline (`console` only)   | 34.0 KB  | 60 B    | 17.6 KB | 227   |
-| `punycodeEncode` only       | 162.8 KB | 43.7 KB | 74.1 KB | 742   |
-| `percentEncode` only        | 162.8 KB | 43.7 KB | 74.1 KB | 743   |
-| `URL.parse`, ASCII host     | 160.7 KB | 43.7 KB | 73.6 KB | 704   |
-| `URL.parse`, non-ASCII host | 160.7 KB | 43.7 KB | 73.6 KB | 704   |
+| program                     | total   | data    | code    | funcs |
+| --------------------------- | ------- | ------- | ------- | ----- |
+| baseline (`console` only)   | 633 B   | 6 B     | 358 B   | 7     |
+| `percentEncode` only        | 5.4 KB  | 26 B    | 4.1 KB  | 74    |
+| `punycodeEncode` only       | 11.2 KB | 30 B    | 8.5 KB  | 166   |
+| `URL.parse`, ASCII host     | 83.2 KB | 42.6 KB | 34.2 KB | 397   |
+| `URL.parse`, non-ASCII host | 83.2 KB | 42.6 KB | 34.2 KB | 397   |
 
-The encoded table lands in the binary 1:1 — 43,484 bytes of payload become a
-43.7 KB data section, with only segment framing on top. That is what the
-printable-ASCII, no-decode-pass encoding bought.
+**DCE cuts at the right granularity.** A program that uses only
+`percentEncode`, or only `punycodeEncode`, carries neither the parser nor the
+IDNA table: 74 and 166 functions against 397, and no table bytes in the data
+segment at all. An earlier revision of this section recorded the opposite —
+both narrow programs dragged in the whole library and came out _larger_ than
+the one that actually parses a URL. The DCE work on main closed that, so the
+JS-host variant above can no longer claim it as part of its case.
 
-**These numbers do not yet say what the library costs**, for two reasons.
+For a program that does parse URLs, `zena:url` costs about 82.6 KB over the
+baseline, and rather more than half of that is the table: 42.6 KB of data
+against 34.2 KB of code. The table still lands about 1:1 — 43,484 bytes of
+payload inside a 43,607-byte data segment, the remainder being that program's
+own string literals — which is what the printable-ASCII, no-decode-pass
+encoding bought.
 
-The first is a DCE gap: a program whose only use of `zena:url` is
-`punycodeEncode` cannot reach `IDNA_TABLE`, `domainToASCII`, or the parser,
-and still carries all of them. Both narrow programs are _larger_ than the one
-that actually parses a URL — using less of the library costs more, which is
-backwards. Until that is fixed, every row above is an upper bound of unknown
-tightness.
+Reaching a non-ASCII host costs nothing extra. The two `URL.parse` rows differ
+by a single byte, and that byte is the length of the literal in the test
+program rather than anything the library adds: the table is reachable from any
+special-scheme host, ASCII or not.
 
-The second is the baseline: `console.log` and nothing else is unrealistically
-bare, so some of the ~84 KB of code and types is string and collection
-machinery that any real program pays for anyway. The marginal cost of adding
-`zena:url` to a program that already does work is smaller than the 127 KB
-delta suggests.
-
-Both need fixing before the JS-host variant above can be justified on size.
-Note that fixing the first may deliver much of the same win with no host
-coupling at all, by letting a program that wants only percent-encoding drop
-the parser and the table.
+The baseline is deliberately bare, but that no longer makes the deltas an
+overstatement the way it did when DCE was retaining unreachable code. What a
+program pays for `zena:url` here is `zena:url`.
 
 ## Open questions
 
