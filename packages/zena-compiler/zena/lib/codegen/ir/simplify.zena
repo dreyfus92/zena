@@ -437,6 +437,17 @@ export let runSimplify = (body: IrBody): i32 => {
       }
       continue;
     }
+    if (op == IrOp.ref_is_null) {
+      // A non-null-typed value is never null. This is what folds the
+      // null guard an interface trampoline puts around a pack, and
+      // with it the guard's branch and the dead arm.
+      let from = body.resultType(av);
+      if (from != null && from is ValTypeRef) {
+        foldToBool(inst, false);
+        continue;
+      }
+      continue;
+    }
     if (op == IrOp.ref_as_non_null) {
       // Same test as the cast: the operand's type must already be a
       // subtype of this instruction's (non-null) result type. A class

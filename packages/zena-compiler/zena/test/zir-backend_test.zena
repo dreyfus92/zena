@@ -839,6 +839,39 @@ export let tests = suite('zir backend', (): void => {
         'without inlining, inc is called and stays');
   });
 
+  test('-O2 sees through an allocation returned by an inlined callee', (ctx: TestContext): void => {
+    // make has a loop, so it inlines through a continuation block; its
+    // one return passes the packed Circle as the continuation's
+    // parameter. Deleting that parameter lets the dispatch resolve
+    // and the pack die: main allocates the Circle and nothing else.
+    let result = compileWithZirAt(
+        'interface Shape { area(): i32; }\n' +
+        'class Circle implements Shape {\n' +
+        '  r: i32;\n' +
+        '  new(this.r);\n' +
+        '  area(): i32 { return this.r * this.r; }\n' +
+        '}\n' +
+        'class Square implements Shape {\n' +
+        '  s: i32;\n' +
+        '  new(this.s);\n' +
+        '  area(): i32 { return this.s * 4; }\n' +
+        '}\n' +
+        'let make = (n: i32): Shape => {\n' +
+        '  var i = 0;\n' +
+        '  while (i < n) { i += 1; }\n' +
+        '  return new Circle(i);\n' +
+        '};\n' +
+        'export let main = (): i32 => make(3).area() + (new Square(2)).area();', 2);
+    let absent = new GrowableArray<String>();
+    absent.push('call_ref');
+    assertFunctionOmits(result, '$main', absent,
+        'the dispatch on the returned value resolves through the deleted parameter');
+    // Even the Circle and the Square go: their fields forward into the
+    // inlined area bodies, and nothing else reads them.
+    assertNoAllocation(result, '$main',
+        'neither the objects nor their fat pointers are allocated');
+  });
+
   test('-O1 does not inline', (ctx: TestContext): void => {
     let result = compileWithZir(
         'let inc = (x: i32): i32 => x + 1;\n' +

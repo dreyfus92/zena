@@ -610,6 +610,10 @@ export final class ModuleGenerator {
           }
           changed[i] = false;
           let body = bodies[i];
+          // Block cleanup runs before simplify as well as after:
+          // deleting a continuation's parameter is what lets the
+          // forwarding rules see the allocation behind it.
+          zirBlocksRemoved += runBlockCleanup(body);
           zirSimplified += runSimplify(body);
           zirBlocksRemoved += runBlockCleanup(body);
           runGvn(body, new IrCfg(body));

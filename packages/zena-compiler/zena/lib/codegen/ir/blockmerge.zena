@@ -16,9 +16,18 @@
  * too, later; the pass counters decide when they are worth adding.
  */
 import { IrBlock, IrBody, IrOp } from './ir.zena';
+import { isValSubtype } from '../wasm-module.zena';
 
 /** Runs the pass; returns the number of blocks removed. */
+/**
+ * Runs both cleanups; returns the number of blocks removed plus the
+ * number of block parameters deleted.
+ */
 export let runBlockCleanup = (body: IrBody): i32 => {
+  return removeUnreachable(body) + removeTrivialParams(body);
+};
+
+let removeUnreachable = (body: IrBody): i32 => {
   let nb = body.blocks.length;
   if (nb == 0) {
     return 0;
@@ -159,6 +168,163 @@ export let runBlockCleanup = (body: IrBody): i32 => {
     body.blocks.push(blk);
   }
   return removedCount;
+};
+
+/**
+ * Deletes every block parameter that every incoming edge passes the
+ * same value for (a back edge passing the parameter itself does not
+ * count): uses of the parameter become that value, the parameter
+ * leaves the block, and its argument leaves every incoming branch.
+ * The value dominates the block because it dominates each
+ * predecessor.
+ *
+ * The common case is the continuation block an inlined callee returns
+ * through: its parameter is the callee's one returned value, and once
+ * the parameter is gone the forwarding rules in simplify see the
+ * allocation behind it. (Redirecting uses while leaving the parameter
+ * in place was tried first and made emission worse — the emitter
+ * coalesces a parameter with its incoming copies, and a redirected
+ * use defeats that — so the parameter and the arguments go too.)
+ */
+let removeTrivialParams = (body: IrBody): i32 => {
+  let nb = body.blocks.length;
+  let incoming = new GrowableArray<GrowableArray<i32>>();
+  for (var i = 0; i < nb; i += 1) {
+    incoming.push(new GrowableArray<i32>());
+  }
+  for (let blk in body.blocks) {
+    if (blk.insts.length == 0) {
+      continue;
+    }
+    let term = blk.insts[blk.insts.length - 1];
+    for (let s in body.successors(term)) {
+      incoming[s.target].push(term);
+    }
+  }
+  let count = body.instCount();
+  let repl = new GrowableArray<i32>();
+  for (var i = 0; i < count; i += 1) {
+    repl.push(i);
+  }
+  let canon = (v: i32): i32 => {
+    var c = v;
+    while (c >= 0 && c < count && repl[c] != c) {
+      c = repl[c];
+    }
+    return c;
+  };
+  var removed = 0;
+  // Block 0 holds the function's parameters, which have no incoming
+  // edges; every other block's parameters are candidates. Higher
+  // indices first, so removing one leaves the lower indices intact.
+  for (var b = 1; b < nb; b += 1) {
+    let edges = incoming[b];
+    if (edges.length == 0) {
+      continue;
+    }
+    let params = body.blocks[b].params;
+    var j = params.length - 1;
+    while (j >= 0) {
+      let p = params[j];
+      var value = -1;
+      var trivial = true;
+      for (let term in edges) {
+        for (let s in body.successors(term)) {
+          if (s.target != b) {
+            continue;
+          }
+          let arg = canon(body.extra[s.argStart + j]);
+          if (arg == p) {
+            continue;
+          }
+          if (value < 0) {
+            value = arg;
+          } else if (arg != value) {
+            trivial = false;
+          }
+        }
+      }
+      if (trivial && value >= 0) {
+        let from = body.resultType(value);
+        let to = body.resultType(p);
+        if (from != null && to != null && isValSubtype(from, to)) {
+          repl[p] = value;
+          nopOut(body, p);
+          dropParamAt(body.blocks[b], j);
+          for (let term in edges) {
+            dropBranchArg(body, term, b, j);
+          }
+          removed += 1;
+        }
+      }
+      j -= 1;
+    }
+  }
+  if (removed > 0) {
+    for (var i = 0; i < count; i += 1) {
+      if (body.op(i) != IrOp.nop) {
+        body.rewriteValueOperands(i, canon);
+      }
+    }
+  }
+  return removed;
+};
+
+let dropParamAt = (blk: IrBlock, j: i32): void => {
+  let kept = new GrowableArray<i32>();
+  for (var k = 0; k < blk.params.length; k += 1) {
+    if (k != j) {
+      kept.push(blk.params[k]);
+    }
+  }
+  while (blk.params.length > 0) {
+    blk.params.pop();
+  }
+  for (let p in kept) {
+    blk.params.push(p);
+  }
+};
+
+/**
+ * Rebuilds a terminator's successor records without argument `j` of
+ * every successor targeting `target`. Records live inline in `extra`,
+ * so the rebuilt record is appended and the terminator repointed.
+ * Every branch shape is [prefix] ([target, argc, args…])*: no prefix
+ * for br/br_if/try_br, the target type for br_on_cast, the count for
+ * br_table (see the encoding table in ir.zena).
+ */
+let dropBranchArg = (body: IrBody, term: i32, target: i32, j: i32): void => {
+  let op = body.op(term);
+  var prefixLen = 0;
+  if (op == IrOp.br_on_cast || op == IrOp.br_on_cast_fail ||
+      op == IrOp.br_table) {
+    prefixLen = 1;
+  }
+  let recordStart = if (op == IrOp.br) body.a[term] else body.b[term];
+  let succs = body.successors(term);
+  let idx = body.extra.length;
+  var p = 0;
+  while (p < prefixLen) {
+    body.extra.push(body.extra[recordStart + p]);
+    p += 1;
+  }
+  for (let s in succs) {
+    body.extra.push(s.target);
+    let drop = s.target == target;
+    body.extra.push(if (drop) s.argCount - 1 else s.argCount);
+    var i = 0;
+    while (i < s.argCount) {
+      if (!(drop && i == j)) {
+        body.extra.push(body.extra[s.argStart + i]);
+      }
+      i += 1;
+    }
+  }
+  if (op == IrOp.br) {
+    body.a[term] = idx;
+  } else {
+    body.b[term] = idx;
+  }
 };
 
 let nopOut = (body: IrBody, inst: i32): void => {
