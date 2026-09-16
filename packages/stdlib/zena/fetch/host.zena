@@ -42,6 +42,11 @@ declare function __response_status(response: JsResponse): i32;
 @external("web", "response_text")
 declare function __response_text(handle: i32, response: JsResponse): void;
 
+/** Retrieves the value of the named response header from the host,
+ * or null if absent. */
+@external("web", "response_header")
+declare function __response_header(response: JsResponse, name: String, len: i32): String | null;
+
 /**
  * An HTTP response: the status, and a one-shot handle on the body.
  *
@@ -64,6 +69,14 @@ export class Response {
     }
   }
 
+  /**
+   * The first value of the response header `name`, or null when the
+   * response carries none. Header names are case-insensitive.
+   */
+  header(name: String): String | null {
+    return __response_header(this.#response, name, name.length);
+  }
+
   /** The response body, decoded as text. */
   text(): Future<String> {
     if (this.#bodyUsed) {
@@ -76,6 +89,7 @@ export class Response {
     return p.future;
   }
 }
+
 
 /**
  * Starts fetching `url` with a GET request, returning a future that

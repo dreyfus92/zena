@@ -1,18 +1,49 @@
-// An HTTP GET with `zena:fetch`, as a WebAssembly component over
-// `wasi:http@0.3.0`.
+// An HTTP GET with `zena:fetch`.
 //
-// Build it as a component and run it under wasmtime with the p3 and
-// http worlds enabled (from `packages/zena-cli`, where `npm run zena`
-// resolves paths; the output lands there too):
+// This example can be compiled and executed across runtimes:
 //
-//   npm run zena -w @zena-lang/zena-cli -- build ../../examples/fetch.zena --target component -o fetch.wasm
-//   wasmtime run -W gc=y,function-references=y,exceptions=y -S p3=y,http=y --invoke 'main()' packages/zena-cli/fetch.wasm
+// 1. In Wasmtime (as a WebAssembly component over `wasi:http@0.3.0`):
 //
-// `main` is async, so the component's `main` is lifted async: wasmtime
-// hands control back to the host while the request is in flight and
-// re-enters the component as the response arrives. On the `js` target
-// the same code runs over the host's own fetch().
+//      npm run zena -w @zena-lang/zena-cli -- build ../../examples/fetch.zena --target component -o fetch.wasm
+//      wasmtime run -S http=y --invoke 'main()' packages/zena-cli/fetch.wasm
+//
+//    `main` is async, so the component's `main` is lifted async: wasmtime
+//    hands control back to the host while the request is in flight and
+//    re-enters the component as the response arrives.
+//
+// 2. In Node.js:
+//
+//    Compile with `--target js`:
+//
+//      npm run zena -w @zena-lang/zena-cli -- build ../../examples/fetch.zena --target js -o ../../examples/fetch.wasm
+//
+//    Then run with the companion script `fetch.js`:
+//
+//      node examples/fetch.js
+//
+//    Or load directly from host JavaScript using `@zena-lang/runtime`:
+//
+//      import { readFileSync } from 'node:fs';
+//      import { instantiate, run } from '@zena-lang/runtime';
+//
+//      const wasm = readFileSync('examples/fetch.wasm');
+//      const { instance } = await instantiate(wasm, { fetch: true });
+//      await run(instance);
+//
+// 3. In Browsers:
+//
+//    Compile with `--target js` as above, then instantiate and run using
+//    `@zena-lang/runtime`:
+//
+//      import { instantiate, run } from '@zena-lang/runtime';
+//      const response = await fetch('fetch.wasm');
+//      const { instance } = await instantiate(await response.arrayBuffer(), {
+//        fetch: true,
+//      });
+//      await run(instance);
+//
 import { fetch } from 'zena:fetch';
+
 
 export async function main(): Future<void> {
   let response = await fetch('http://example.com/');

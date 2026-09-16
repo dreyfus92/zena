@@ -3,10 +3,19 @@ export interface ZenaImports {
   console?: Record<string, Function>;
   // Values may be `WebAssembly.Suspending` objects, not just functions.
   time?: Record<string, unknown>;
-  /** The imports behind `zena:fetch`. Supplied by default from the
-   * host's own `fetch()`; replace them to reroute network access
-   * (stubbing `globalThis.fetch` is usually easier — the tests do). */
-  web?: Record<string, unknown>;
+  /**
+   * The imports behind `zena:fetch`.
+   * Pass `false` to completely omit the `web` namespace from imports (causing LinkError if imported).
+   * Pass an object to override specific `web.*` functions.
+   */
+  web?: Record<string, unknown> | boolean;
+  /**
+   * Controls the `fetch` import in the `web` namespace:
+   * - `true`: enable using `globalThis.fetch`
+   * - `false` or `undefined` (default): fetch is disabled (opt-in)
+   * - `Function`: custom or mock fetch implementation, e.g. `(url: string, init?: RequestInit) => Promise<Response>`
+   */
+  fetch?: boolean | typeof globalThis.fetch;
   /**
    * Promise-returning host functions, exposed to Zena as async imports
    * (async.md §4, Level 2). Keyed by import module, then by name.
@@ -561,6 +570,21 @@ export function createHostAsync(
   };
 }
 
+export interface WebHostOptions {
+  /**
+   * Controls the `fetch` implementation:
+   * - `true`: use `globalThis.fetch`
+   * - `false` or `undefined` (default): fetch is disabled (opt-in)
+   * - `Function`: custom or mock fetch function, e.g. `(url: string, init?: RequestInit) => Promise<Response>`
+   */
+  fetch?: boolean | typeof globalThis.fetch;
+
+  /**
+   * Custom overrides for specific `web.*` import functions (e.g. `response_header`, `response_status`, etc.).
+   */
+  overrides?: Record<string, unknown>;
+}
+
 export interface WebHost {
   imports: Record<string, unknown>;
   /** Resolves once no request is outstanding. */
@@ -570,11 +594,11 @@ export interface WebHost {
 /**
  * The `web` host backing `zena:fetch` on a JS host.
  *
- * `fetch_start` runs the host's own `fetch()` and settles the handle
+ * `fetch_start` runs the configured `fetch()` and settles the handle
  * with the `Response` object itself, as an `extern` completion — so a
  * non-2xx status is a normal completion the Zena side inspects, exactly
  * like the web, and only "no response at all" (network error, CORS
- * refusal, no `fetch()` on this host) fails the future. Zena holds the
+ * refusal, fetch disabled on this host) fails the future. Zena holds the
  * reference in its GC heap and passes it back to `response_status` and
  * `response_text`; the engine's unified garbage collector releases the
  * object when the Zena side drops it, so there is no registry here and
@@ -584,6 +608,7 @@ export function createWebHost(
   getExports?: () => WebAssembly.Exports | undefined,
   work: PendingWork = createPendingWork(),
   hostAsync: HostAsync = createHostAsync(getExports, work),
+  options: WebHostOptions = {},
 ): WebHost {
   let readString: ((ref: unknown, len: number) => string) | null = null;
   const readZena = (ref: unknown, len: number): string => {
@@ -597,21 +622,67 @@ export function createWebHost(
     return readString(ref, len);
   };
 
+  let writeString: ((s: string) => unknown) | null = null;
+  const writeZena = (s: string): unknown => {
+    if (!writeString) {
+      const exports = getExports?.();
+      if (!exports) {
+        throw new Error('web: cannot write a Zena string before instantiation');
+      }
+      writeString = createStringWriter(exports);
+    }
+    return writeString(s);
+  };
+
+  const fetchFn =
+    typeof options.fetch === 'function'
+      ? options.fetch
+      : options.fetch === true
+        ? (url: string) => {
+            if (typeof globalThis.fetch !== 'function') {
+              throw new Error('globalThis.fetch is not available on this host');
+            }
+            return globalThis.fetch(url);
+          }
+        : () => {
+            throw new Error(
+              'fetch is not enabled on this host: pass {fetch: true} to instantiate() to enable network access',
+            );
+          };
+
   return {
     imports: {
       fetch_start: hostAsync.wrap(
-        (ref: unknown, len: number) => globalThis.fetch(readZena(ref, len)),
+        (ref: unknown, len: number) => fetchFn(readZena(ref, len)),
         'extern',
       ),
       response_status: (response: unknown): number =>
         (response as Response).status,
+      response_header: (
+        response: unknown,
+        ref: unknown,
+        len: number,
+      ): unknown => {
+        const name = readZena(ref, len);
+        const value = (response as Response).headers.get(name);
+        return value !== null ? writeZena(value) : null;
+      },
       response_text: hostAsync.wrap(
         (response: unknown) => (response as Response).text(),
         'string',
       ),
+      ...options.overrides,
     },
     idle: work.idle,
   };
+}
+
+/** The `web` imports alone, for callers assembling their own object. */
+export function createWebImports(
+  getExports?: () => WebAssembly.Exports | undefined,
+  options?: WebHostOptions,
+): Record<string, unknown> {
+  return createWebHost(getExports, undefined, undefined, options).imports;
 }
 
 /** The `time` imports alone, for callers assembling their own object. */
@@ -753,23 +824,39 @@ export async function instantiate(
   const pending = createPendingWork();
   const hostAsync = createHostAsync(() => instanceExports, pending);
   const timeHost = createTimeHost(() => instanceExports, pending, hostAsync);
-  const webHost = createWebHost(() => instanceExports, pending, hostAsync);
-  const defaultImports = {
+  const webOverrides =
+    typeof userImports.web === 'object' && userImports.web !== null
+      ? (userImports.web as Record<string, unknown>)
+      : undefined;
+  const webHost = createWebHost(() => instanceExports, pending, hostAsync, {
+    fetch: userImports.fetch,
+    overrides: webOverrides,
+  });
+  const defaultImports: Record<string, Record<string, unknown>> = {
     env: envImports,
     console: createConsoleImports(() => instanceExports),
     time: timeHost.imports,
-    web: webHost.imports,
   };
+  if (userImports.web !== false) {
+    defaultImports.web = webHost.imports;
+  }
 
-  const {asyncImports, ...plainUserImports} = userImports;
+  const {
+    asyncImports,
+    fetch: _fetch,
+    web: _web,
+    ...plainUserImports
+  } = userImports;
   const imports: Record<string, Record<string, unknown>> = {
     ...defaultImports,
     ...plainUserImports,
     env: {...defaultImports.env, ...userImports.env},
     console: {...defaultImports.console, ...userImports.console},
     time: {...defaultImports.time, ...userImports.time},
-    web: {...defaultImports.web, ...userImports.web},
   };
+  if (userImports.web !== false) {
+    imports.web = {...defaultImports.web, ...webOverrides};
+  }
 
   // Promise-returning imports become handle-taking void imports, sharing
   // the tracker above so `run()` waits for them.

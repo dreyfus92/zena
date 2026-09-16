@@ -12,35 +12,31 @@
  * request has come back, and the outstanding-work accounting is part of
  * what is under test here.
  */
-import {suite, test, afterEach} from 'node:test';
+import {suite, test} from 'node:test';
 import assert from 'node:assert';
 
 import {compile} from './compile-zena.js';
-import {instantiate, run} from '../index.js';
+import {instantiate, run, type ZenaImports} from '../index.js';
 
-const hosted = async (source: string) => {
+const hosted = async (source: string, options?: ZenaImports) => {
   const wasm = compile(source);
-  const result = await instantiate(wasm);
+  const result = await instantiate(wasm, options);
   const instance =
     (result as {instance?: WebAssembly.Instance}).instance ??
     (result as WebAssembly.Instance);
   return {instance, main: () => run(instance) as Promise<number>};
 };
 
-const realFetch = globalThis.fetch;
-afterEach(() => {
-  globalThis.fetch = realFetch;
-});
-
 suite('Runtime - zena:fetch', () => {
   test('fetch resolves with status, ok, and a readable body', async () => {
     const requested: string[] = [];
-    globalThis.fetch = (async (url: string | URL | Request) => {
+    const mockFetch = (async (url: string | URL | Request) => {
       requested.push(String(url));
       return new Response('pong');
     }) as typeof fetch;
 
-    const {main} = await hosted(`
+    const {main} = await hosted(
+      `
       import { Future } from 'zena:async';
       import { fetch } from 'zena:fetch';
 
@@ -55,19 +51,22 @@ suite('Runtime - zena:fetch', () => {
         }
         return body.length;
       }
-    `);
+    `,
+      {fetch: mockFetch},
+    );
     assert.strictEqual(await main(), 4);
     assert.deepStrictEqual(requested, ['https://example.test/ping']);
   });
 
   test('a 404 is a normal completion, like the web', async () => {
-    globalThis.fetch = (async () =>
+    const mockFetch = (async () =>
       new Response('not here', {
         status: 404,
         statusText: 'Not Found',
       })) as typeof fetch;
 
-    const {main} = await hosted(`
+    const {main} = await hosted(
+      `
       import { Future } from 'zena:async';
       import { fetch } from 'zena:fetch';
 
@@ -83,16 +82,19 @@ suite('Runtime - zena:fetch', () => {
         }
         return response.status;
       }
-    `);
+    `,
+      {fetch: mockFetch},
+    );
     assert.strictEqual(await main(), 404);
   });
 
   test('a network rejection fails the future, caught around the await', async () => {
-    globalThis.fetch = (async () => {
+    const mockFetch = (async () => {
       throw new TypeError('network unreachable');
     }) as typeof fetch;
 
-    const {main} = await hosted(`
+    const {main} = await hosted(
+      `
       import { Future } from 'zena:async';
       import { fetch } from 'zena:fetch';
 
@@ -104,13 +106,14 @@ suite('Runtime - zena:fetch', () => {
           return 1;
         }
       }
-    `);
+    `,
+      {fetch: mockFetch},
+    );
     assert.strictEqual(await main(), 1);
   });
 
-  test('a host with no fetch() fails the future, not instantiation', async () => {
-    globalThis.fetch = undefined as unknown as typeof fetch;
-
+  test('fetch is disabled by default (opt-in), failing the future', async () => {
+    // Calling instantiate without {fetch: ...} disables fetch by default
     const {main} = await hosted(`
       import { Future } from 'zena:async';
       import { fetch } from 'zena:fetch';
@@ -127,14 +130,75 @@ suite('Runtime - zena:fetch', () => {
     assert.strictEqual(await main(), 1);
   });
 
+  test('fetch: false explicitly disables fetch', async () => {
+    const {main} = await hosted(
+      `
+      import { Future } from 'zena:async';
+      import { fetch } from 'zena:fetch';
+
+      export async function main(): Future<i32> {
+        try {
+          await fetch('https://example.test/disabled');
+          return 0 - 1;
+        } catch (e) {
+          return 1;
+        }
+      }
+    `,
+      {fetch: false},
+    );
+    assert.strictEqual(await main(), 1);
+  });
+
+  test('fetch: true uses globalThis.fetch', async () => {
+    const realFetch = globalThis.fetch;
+    try {
+      globalThis.fetch = (async () => new Response('global')) as typeof fetch;
+      const {main} = await hosted(
+        `
+        import { Future } from 'zena:async';
+        import { fetch } from 'zena:fetch';
+
+        export async function main(): Future<i32> {
+          let response = await fetch('https://example.test/global');
+          let body = await response.text();
+          return body.length;
+        }
+      `,
+        {fetch: true},
+      );
+      assert.strictEqual(await main(), 6);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  test('web: false omits web namespace, causing link failure', async () => {
+    const wasm = compile(`
+      import { Future } from 'zena:async';
+      import { fetch } from 'zena:fetch';
+
+      export async function main(): Future<i32> {
+        let response = await fetch('https://example.test/link-error');
+        return response.status;
+      }
+    `);
+    await assert.rejects(
+      async () => instantiate(wasm, {web: false}),
+      (err: unknown) =>
+        err instanceof TypeError || err instanceof WebAssembly.LinkError,
+    );
+  });
+
   test('the body reads once; a second text() throws', async () => {
-    globalThis.fetch = (async () => new Response('once')) as typeof fetch;
+    const mockFetch = (async () => new Response('once')) as typeof fetch;
 
     // A local carried across a try that holds an await and a return —
     // the shape that once miscompiled by silently skipping the catch
     // (found by this very test, fixed 2026-08-14). Kept in its direct
     // form as the regression guard.
-    const {main} = await hosted(`
+    const {main} = await hosted(
+      `
       import { Future } from 'zena:async';
       import { fetch } from 'zena:fetch';
 
@@ -148,18 +212,21 @@ suite('Runtime - zena:fetch', () => {
           return first.length;
         }
       }
-    `);
+    `,
+      {fetch: mockFetch},
+    );
     assert.strictEqual(await main(), 4);
   });
 
   test('a status-only response carries no release obligation', async () => {
-    globalThis.fetch = (async () =>
+    const mockFetch = (async () =>
       new Response('unread', {status: 202})) as typeof fetch;
 
     // The response crosses as a reference the unified GC owns, so a
     // caller that never reads the body holds nothing that needs
     // releasing — no `using`, no dispose().
-    const {main} = await hosted(`
+    const {main} = await hosted(
+      `
       import { Future } from 'zena:async';
       import { fetch } from 'zena:fetch';
 
@@ -167,7 +234,67 @@ suite('Runtime - zena:fetch', () => {
         let response = await fetch('https://example.test/head');
         return response.status;
       }
-    `);
+    `,
+      {fetch: mockFetch},
+    );
     assert.strictEqual(await main(), 202);
+  });
+
+  test('response.header(name) reads headers case-insensitively and returns null when missing', async () => {
+    const mockFetch = (async () =>
+      new Response('ok', {
+        headers: {
+          'Content-Type': 'text/plain',
+          'X-Custom': 'custom-value',
+        },
+      })) as typeof fetch;
+
+    const {main} = await hosted(
+      `
+      import { Future } from 'zena:async';
+      import { fetch } from 'zena:fetch';
+
+      export async function main(): Future<i32> {
+        let response = await fetch('https://example.test/headers');
+        let contentType = response.header('content-type');
+        let xCustom = response.header('X-Custom');
+        let missing = response.header('x-missing');
+        if (contentType == null || !(contentType == 'text/plain')) {
+          return 0 - 1;
+        }
+        if (xCustom == null || !(xCustom == 'custom-value')) {
+          return 0 - 2;
+        }
+        if (missing != null) {
+          return 0 - 3;
+        }
+        return 0;
+      }
+    `,
+      {fetch: mockFetch},
+    );
+    assert.strictEqual(await main(), 0);
+  });
+
+  test('web imports can be directly overridden', async () => {
+    const {main} = await hosted(
+      `
+      import { Future } from 'zena:async';
+      import { fetch } from 'zena:fetch';
+
+      export async function main(): Future<i32> {
+        let response = await fetch('https://example.test/override');
+        return response.status;
+      }
+    `,
+      {
+        fetch: async () => new Response(null, {status: 200}),
+        web: {
+          response_status: () => 999,
+        },
+      },
+    );
+    // Overridden response_status returns 999
+    assert.strictEqual(await main(), 999);
   });
 });
