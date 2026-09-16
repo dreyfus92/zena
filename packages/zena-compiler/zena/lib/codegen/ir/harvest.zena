@@ -1,100 +1,162 @@
 /**
  * Harvest (docs/design/optimization-pipeline.md §Harvest and layout
- * feedback), first stage: after the optimization loop, delete the
- * functions nothing can reach any more. The loop inlines bodies and
- * makes calls direct without touching the callee, so a function whose
- * every call site was inlined is still in the module until this runs.
+ * feedback): after the optimization loop, delete the functions and
+ * globals nothing can reach any more. The loop inlines bodies, makes
+ * calls direct, and forwards fat pointers away without touching the
+ * callee or the vtable, so a function whose every call site was
+ * inlined, or an interface pair whose every pack was forwarded, is
+ * still in the module until this runs.
  *
- * Reachability starts from the roots — every exported function, the
- * start function, and every function a vtable global installs (all
- * globals count as live in this stage) — and follows direct calls,
- * tail calls, and `ref_func` in the bodies it reaches. Nothing else
- * can name a function: dispatch goes through vtables, and vtables are
- * globals.
+ * Reachability starts from the roots — the exported functions and
+ * globals and the start function — and follows, in the bodies it
+ * reaches, direct calls, tail calls, `ref_func`, and global reads,
+ * writes, and packs; a live vtable global makes the functions it
+ * installs live, and a live singleton global makes its class's vtable
+ * global live. Nothing else can name a function or a global.
  *
- * Removal rebinds function indices, mirroring layout's assignment
- * (imports first, then the surviving functions in order), and
- * recomputes which functions need an element-segment entry. Emission
- * reads indices off the function objects, so it needs no other
- * change; this runs before any section is emitted.
+ * Removal rebinds function and global indices the way layout assigns
+ * them (imports first, then survivors in order) and recomputes which
+ * functions need an element-segment entry. Emission reads indices off
+ * the objects, so it needs no other change; this runs before any
+ * section is emitted.
+ *
+ * The caller feeds the result back: with vtable globals gone,
+ * devirtualization has fewer candidates per slot, so another round
+ * can make more calls direct.
  *
  * Determinism: the worklist is seeded in root order and follows
- * bodies in instruction order; the function map is used for lookups
- * only.
+ * bodies in instruction order; the maps are used for lookups only.
  */
 import { HashMap } from 'zena:map';
-import { IrBody, IrOp, IrRefFunc } from './ir.zena';
-import { WasmModule, WasmFunction } from '../wasm-module.zena';
+import { IrBody, IrOp, IrRefFunc, IrRefGlobal } from './ir.zena';
+import { WasmModule, WasmFunction, WasmGlobal } from '../wasm-module.zena';
+import { getClassKey } from '../codegen-utils.zena';
+
+/** What one harvest removed. */
+export final class HarvestResult {
+  functions: i32;
+  globals: i32;
+  new(this.functions, this.globals);
+}
 
 /**
- * Deletes unreachable functions from `wasm.functions` and `bodies`
- * (kept parallel) and rebinds function indices. Returns how many were
- * removed.
+ * Deletes unreachable functions (from `wasm.functions` and `bodies`,
+ * kept parallel) and globals, and rebinds their indices.
  */
-export let pruneUnreachedFunctions = (wasm: WasmModule,
+export let pruneUnreached = (wasm: WasmModule,
     bodies: GrowableArray<IrBody>,
-    roots: GrowableArray<WasmFunction>): i32 => {
-  let count = wasm.functions.length;
+    roots: GrowableArray<WasmFunction>): HarvestResult => {
+  let fcount = wasm.functions.length;
   let bodyIndex = new HashMap<WasmFunction, i32>();
-  for (var i = 0; i < count; i += 1) {
+  for (var i = 0; i < fcount; i += 1) {
     bodyIndex[wasm.functions[i]] = i;
   }
-  let live = new GrowableArray<boolean>();
-  for (var i = 0; i < count; i += 1) {
-    live.push(false);
+  // Globals are looked up by their index, which layout assigned as
+  // the position in wasm.globals and which this pass rebinds the same
+  // way, so it stays the position across harvests.
+  let gcount = wasm.globals.length;
+  let liveF = new GrowableArray<boolean>();
+  for (var i = 0; i < fcount; i += 1) {
+    liveF.push(false);
   }
+  let liveG = new GrowableArray<boolean>();
+  for (var i = 0; i < gcount; i += 1) {
+    liveG.push(false);
+  }
+  // One worklist for both kinds: function entries are their body
+  // index, global entries are offset past the function count.
   let work = new GrowableArray<i32>();
-  let mark = (f: WasmFunction): void => {
+  let markFunction = (f: WasmFunction): void => {
     if (let (true, idx) = bodyIndex.get(f)) {
-      if (!live[idx]) {
-        live[idx] = true;
+      if (!liveF[idx]) {
+        liveF[idx] = true;
         work.push(idx);
       }
     }
   };
+  let markGlobal = (g: WasmGlobal): void => {
+    let idx = g.index;
+    if (idx < 0 || idx >= gcount) {
+      throw new Error('harvest: a global outside the module');
+    }
+    if (!liveG[idx]) {
+      liveG[idx] = true;
+      work.push(fcount + idx);
+    }
+  };
   for (let r in roots) {
-    mark(r);
+    markFunction(r);
   }
   let start = wasm.startFunction;
   if (start != null) {
-    mark(start);
+    markFunction(start);
   }
-  for (let g in wasm.globals) {
-    let init = g.initVTable;
-    if (init != null) {
-      for (let f in init.funcs) {
-        mark(f);
-      }
-    }
+  let exportedGlobals = wasm.exportGlobalMap.keys();
+  while (let (true, key) = exportedGlobals.next()) {
+    markGlobal(wasm.exportGlobalMap[key]);
   }
   while (work.length > 0) {
-    let idx = work.pop();
-    let body = bodies[idx];
+    let item = work.pop();
+    if (item >= fcount) {
+      let g = wasm.globals[item - fcount];
+      let init = g.initVTable;
+      if (init != null) {
+        for (let f in init.funcs) {
+          markFunction(f);
+        }
+      }
+      let singleton = g.initSingletonStruct;
+      if (singleton != null) {
+        if (let (true, info) = wasm.classInfos.get(getClassKey(singleton))) {
+          let vt = info.vtableGlobal;
+          if (vt != null) {
+            markGlobal(vt);
+          }
+        }
+      }
+      continue;
+    }
+    let body = bodies[item];
     let n = body.instCount();
     for (var inst = 0; inst < n; inst += 1) {
       let op = body.op(inst);
       if (op == IrOp.call || op == IrOp.ret_call || op == IrOp.ref_func) {
         let r = body.refTable[body.b[inst]];
         if (r is IrRefFunc) {
-          mark(r.target);
+          markFunction(r.target);
+        }
+      } else if (op == IrOp.global_get || op == IrOp.global_set ||
+          op == IrOp.iface_pack) {
+        let r = body.refTable[body.b[inst]];
+        if (r is IrRefGlobal) {
+          markGlobal(r.target);
         }
       }
     }
   }
 
-  var removed = 0;
+  var removedF = 0;
   let keptFunctions = new GrowableArray<WasmFunction>();
   let keptBodies = new GrowableArray<IrBody>();
-  for (var i = 0; i < count; i += 1) {
-    if (live[i]) {
+  for (var i = 0; i < fcount; i += 1) {
+    if (liveF[i]) {
       keptFunctions.push(wasm.functions[i]);
       keptBodies.push(bodies[i]);
     } else {
-      removed += 1;
+      removedF += 1;
     }
   }
-  if (removed == 0) {
-    return 0;
+  var removedG = 0;
+  let keptGlobals = new GrowableArray<WasmGlobal>();
+  for (var i = 0; i < gcount; i += 1) {
+    if (liveG[i]) {
+      keptGlobals.push(wasm.globals[i]);
+    } else {
+      removedG += 1;
+    }
+  }
+  if (removedF == 0 && removedG == 0) {
+    return new HarvestResult(0, 0);
   }
   while (wasm.functions.length > 0) {
     wasm.functions.pop();
@@ -108,6 +170,12 @@ export let pruneUnreachedFunctions = (wasm: WasmModule,
   for (let b in keptBodies) {
     bodies.push(b);
   }
+  while (wasm.globals.length > 0) {
+    wasm.globals.pop();
+  }
+  for (let g in keptGlobals) {
+    wasm.globals.push(g);
+  }
 
   // Rebind indices the way layout does.
   var functionIndex = 0;
@@ -118,6 +186,9 @@ export let pruneUnreachedFunctions = (wasm: WasmModule,
   for (let f in wasm.functions) {
     f.index = functionIndex;
     functionIndex += 1;
+  }
+  for (var i = 0; i < wasm.globals.length; i += 1) {
+    wasm.globals[i].index = i;
   }
 
   // The element segment lists the functions ref_func names, plus the
@@ -144,5 +215,5 @@ export let pruneUnreachedFunctions = (wasm: WasmModule,
       }
     }
   }
-  return removed;
+  return new HarvestResult(removedF, removedG);
 };

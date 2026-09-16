@@ -32,7 +32,7 @@ import { runDce } from './ir/dce.zena';
 import { runInline } from './ir/inline.zena';
 import { DevirtContext, runDevirt } from './ir/devirt.zena';
 import { EscapeSummaries } from './ir/escape.zena';
-import { pruneUnreachedFunctions } from './ir/harvest.zena';
+import { pruneUnreached } from './ir/harvest.zena';
 import { printIr } from './ir/printer.zena';
 import { IrCfg } from './ir/cfg.zena';
 import { emitZirFunction } from './ir/emit.zena';
@@ -594,9 +594,17 @@ export final class ModuleGenerator {
     // rounds rather than by a topological order.
     var zirInlined = 0;
     var zirDevirtualized = 0;
+    var zirHarvestedFunctions = 0;
+    var zirHarvestedGlobals = 0;
+    // Harvest roots: the exported functions (exported globals and the
+    // start function are found inside the pass).
+    let roots = new GrowableArray<WasmFunction>();
+    for (let e in functionExports) {
+      roots.push(e.func);
+    }
     if (this.optLevel >= 2) {
       let tLoop = performance.start("codegen-optimize-loop");
-      let devirtCx = new DevirtContext(wasm);
+      var devirtCx = new DevirtContext(wasm);
       let changed = new GrowableArray<boolean>();
       for (var i = 0; i < bodies.length; i += 1) {
         changed.push(false);
@@ -637,8 +645,9 @@ export final class ModuleGenerator {
       // the next round's inline sweep consumes. Escape summaries are
       // recomputed per round, since a parameter can stop escaping once
       // the call it was passed to has been inlined and simplified.
+      let runRounds = (maxRounds: i32): void => {
       var round = 0;
-      while (round < 6) {
+      while (round < maxRounds) {
         let escapes = new EscapeSummaries(wasm, bodies);
         let inlined = runInline(wasm, bodies, changed, escapes);
         cleanupChanged("inlining");
@@ -658,18 +667,30 @@ export final class ModuleGenerator {
         }
         round += 1;
       }
-      performance.end(tLoop);
-    }
-
-    // Harvest: delete the functions the loop left unreachable and
-    // rebind function indices, before any section names one.
-    var zirHarvested = 0;
-    if (this.optLevel >= 1) {
-      let roots = new GrowableArray<WasmFunction>();
-      for (let e in functionExports) {
-        roots.push(e.func);
+      };
+      runRounds(6);
+      // Harvest with feedback: deleting the vtable globals nothing
+      // reads any more shrinks the candidate set devirtualization
+      // consults, so a further round can make more calls direct — and
+      // that can strand more globals. Stops when a harvest deletes no
+      // global, or after a few passes.
+      var pass = 0;
+      while (pass < 3) {
+        let harvested = pruneUnreached(wasm, bodies, roots);
+        zirHarvestedFunctions += harvested.functions;
+        zirHarvestedGlobals += harvested.globals;
+        if (harvested.globals == 0) {
+          break;
+        }
+        devirtCx = new DevirtContext(wasm);
+        runRounds(2);
+        pass += 1;
       }
-      zirHarvested = pruneUnreachedFunctions(wasm, bodies, roots);
+      performance.end(tLoop);
+    } else if (this.optLevel >= 1) {
+      let harvested = pruneUnreached(wasm, bodies, roots);
+      zirHarvestedFunctions = harvested.functions;
+      zirHarvestedGlobals = harvested.globals;
     }
 
     let tEmitOther = performance.start("codegen-emit-other");
@@ -985,8 +1006,9 @@ export final class ModuleGenerator {
           " call sites inlined");
       console.log("zir devirt: " + i32ToString(zirDevirtualized) +
           " call_ref sites made direct");
-      console.log("zir harvest: " + i32ToString(zirHarvested) +
-          " unreachable functions removed");
+      console.log("zir harvest: " + i32ToString(zirHarvestedFunctions) +
+          " unreachable functions and " + i32ToString(zirHarvestedGlobals) +
+          " globals removed");
       console.log("zir locals: " + i32ToString(zirGraduated) +
           " ref locals non-null, " + i32ToString(zirDemoted) +
           " kept nullable (init rollback)");

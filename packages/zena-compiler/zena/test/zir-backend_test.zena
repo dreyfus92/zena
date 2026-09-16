@@ -664,6 +664,11 @@ export let tests = suite('zir backend', (): void => {
     absent.push('call_ref');
     assertFunctionOmits(result, '$measure', absent,
         'the dispatch through the pack is direct');
+    // With no pack of Circle as Shape left anywhere, the pair's vtable
+    // global is unreachable, and harvest deletes it with the
+    // trampolines it installed.
+    isTrue(!result.contains('_trampoline'),
+        'no interface trampoline survives once every pack is forwarded');
   });
 
   test('-O2 inlines a callee with a loop', (ctx: TestContext): void => {
