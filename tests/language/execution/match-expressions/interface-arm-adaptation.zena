@@ -1,0 +1,15 @@
+// @mode: run
+// @result: 3
+
+// A match arm checked against a contextual type adapts to it, the way
+// an initializer does. Without that, an arm holding a class instance
+// and an arm holding the interface give the match two representations
+// for one value, and reading the result back traps.
+
+export let main = () => {
+  let pick = (n: i32): Array<String> => match (n) {
+    case 0: []
+    case _: ['a', 'b', 'c']
+  };
+  return (pick(0).length + pick(1).length) as i32;
+};

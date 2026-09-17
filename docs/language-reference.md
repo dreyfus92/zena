@@ -331,6 +331,19 @@ specific WASM conversion instructions (e.g., `i64.extend_i32_s`,
 All other mixed arithmetic (e.g., `i32` + `i64`, `f32` + `f64`) requires
 explicit casting.
 
+**Contextual typing through a cast**: a cast to a reference type gives its
+operand the target as a contextual type, so an empty array literal can take its
+element type from the cast:
+
+```zena
+let names = [] as Array<String>;   // ImmutableArray<String>
+```
+
+A cast to a primitive type does not. There the cast is a conversion, and typing
+the operand as the target would change what is being converted: `-1 as u32`
+reinterprets the bits of an `i32`, and `-1` has to stay an `i32` for that to
+mean anything.
+
 However, if the source type and the target type are identical (e.g. casting a
 value to its own type, or casting between a distinct type and its underlying
 type), the cast is **elided** at runtime. In these cases, the cast serves purely
@@ -1832,6 +1845,18 @@ maybe-forms (patterns are the general way to consume them):
   regardless of why"; use `if let` or `match` to observe the error.
 
 In all three forms the right side stays lazily evaluated.
+
+The default takes its type from whatever context types the `??` as a whole, so
+a literal there does not have to spell out a type it could infer:
+
+```zena
+getTags(name: String): Array<String> {
+  return this.#tags.get(name) ?? [];   // the empty literal is an Array<String>
+}
+```
+
+The arms of an `if` expression and of a `match` expression are typed the same
+way.
 
 ### Optional Chaining (`?.`, `?[]`, `?()`)
 

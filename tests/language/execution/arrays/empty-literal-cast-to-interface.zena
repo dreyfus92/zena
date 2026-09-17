@@ -1,0 +1,13 @@
+// @mode: run
+// @result: 0
+
+// A cast to a reference type supplies a contextual type to its operand,
+// so the empty literal's element type comes from the cast target. It
+// used to infer nothing, produce an array of an error element type, and
+// crash codegen looking for the interface vtable of a type that was
+// never built.
+
+export let main = () => {
+  let a = [] as Array<String>;
+  return a.length as i32;
+};

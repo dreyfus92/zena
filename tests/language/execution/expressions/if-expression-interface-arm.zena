@@ -1,0 +1,15 @@
+// @mode: run
+// @result: 1
+
+// An `if` branch checked against a contextual type is in the same
+// position as the whole expression, so a class instance there has to
+// reach the consumer as a fat pointer. Otherwise the branches type as
+// `Array<String> | ImmutableArray<String>` — two representations for
+// one value — and reading the result back as the interface traps.
+
+export let main = () => {
+  let arr: Array<String> = ['a'];
+  let empty: Array<String> = if (arr.length == 0) arr else [];
+  let some: Array<String> = if (arr.length == 0) [] else arr;
+  return (empty.length + some.length) as i32;
+};

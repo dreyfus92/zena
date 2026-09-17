@@ -500,7 +500,12 @@ let name: String? = null;
 let display = name ?? 'Anonymous'; // 'Anonymous'
 ```
 
-`??` has the same precedence as `||`.
+`??` has the same precedence as `||`. The default takes its type from whatever
+context types the `??` as a whole:
+
+```zena
+let tags: Array<String> = lookup(name) ?? []; // the empty literal is an Array<String>
+```
 
 ### Optional Chaining
 
@@ -2144,6 +2149,9 @@ let id = 42 as ID;
 // Reference types (checked at runtime)
 let obj: any = getObject();
 let p = obj as Point;         // Throws if not a Point
+
+// A cast to a reference type also types its operand
+let names = [] as Array<String>;   // the literal's element type comes from the cast
 ```
 
 ## Standard Library

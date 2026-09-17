@@ -1,0 +1,17 @@
+// @mode: run
+// @result: 3
+
+// The right operand of `??` sits in the same type position as the whole
+// expression, so the context that types the `??` also types the default.
+// Without that, an empty array literal there has nothing to infer its
+// element type from.
+
+let pick = (a: Array<String> | null): Array<String> => {
+  return a ?? [];
+};
+
+export let main = () => {
+  let empty = pick(null);
+  let full = pick(['a', 'b', 'c']);
+  return (empty.length + full.length) as i32;
+};

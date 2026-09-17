@@ -7147,6 +7147,33 @@ let checkAndRegisterInterfaceAdaptation = (ctx: CheckerContext, node: Node, sour
   }
 };
 
+/**
+ * Adapts one arm of a multi-arm expression to the type its context
+ * asked for, and reports the arm as having that type.
+ *
+ * An arm checked against a contextual type is in the same position as
+ * the expression that holds it, so a class instance there has to reach
+ * its consumer as a fat pointer, exactly as an initializer does. Left
+ * alone, `a ?? []` in an `Array<String>` context types as
+ * `Array<String> | ImmutableArray<String>` — two arms with two
+ * different representations, one of which traps the moment the value
+ * is read back as an interface.
+ */
+let adaptArmToContext = (
+  ctx: CheckerContext,
+  node: Node,
+  armType: Type,
+  expectedType: Type | null
+): Type => {
+  if (expectedType == null) { return armType; }
+  let target = expectedType;
+  if (!(target is InterfaceType)) { return armType; }
+  if (!(baseType(armType) is ClassType)) { return armType; }
+  if (!isAssignableTo(ctx, armType, target)) { return armType; }
+  checkAndRegisterInterfaceAdaptation(ctx, node, armType, target);
+  return target;
+};
+
 let inferTypeParameter = (sourceType: Type, targetType: Type, tpName: String, inferred: HashMap<String, Type>): boolean => {
   if (sourceType is TypeParameterType && sourceType.name == tpName) {
     inferred[tpName] = targetType;
@@ -10400,7 +10427,9 @@ let checkIfBranchNode = (ctx: CheckerContext, node: Node, expectedType: Type | n
       let statement = node.body[i];
       let isLast = i == node.body.length - 1;
       if (isLast && statement is ExpressionStatement) {
-        resultType = checkExpression(ctx, statement.expression, expectedType);
+        resultType = adaptArmToContext(ctx, statement.expression,
+            checkExpression(ctx, statement.expression, expectedType),
+            expectedType);
       } else {
         checkStatement(ctx, statement);
       }
@@ -10410,7 +10439,8 @@ let checkIfBranchNode = (ctx: CheckerContext, node: Node, expectedType: Type | n
     return resultType;
   }
   if (node is Expression) {
-    return checkExpression(ctx, node, expectedType);
+    return adaptArmToContext(ctx, node,
+        checkExpression(ctx, node, expectedType), expectedType);
   }
   return new VoidType();
 };
@@ -11350,8 +11380,19 @@ let checkExpressionInner = (ctx: CheckerContext, expr: Expression, expectedType:
     wrapResourceInOwn(ctx, constructed, newExpr.loc)
   }
   case AsExpression {expression, typeAnnotation, loc}: {
-    let sourceType = checkExpression(ctx, expression, null);
     let targetType = resolveTypeAnnotation(ctx, typeAnnotation);
+    // A cast to a reference type hands its operand a contextual type:
+    // `[] as Array<String>` has no other way to learn its element type,
+    // and without one it builds an array over an error type that codegen
+    // later has no vtable for. Casts to primitives stay uncontextual,
+    // because there the cast is a conversion and typing the operand as
+    // the target would change what is being converted — `-1 as u32`
+    // reinterprets an i32, it does not range-check a u32 literal.
+    var castContext: Type | null = null;
+    if (isReferenceType(representationOf(targetType))) {
+      castContext = targetType;
+    }
+    let sourceType = checkExpression(ctx, expression, castContext);
     let isNarrowed = ctx.isExpressionNarrowed(expression);
     let isAutoCasted = if (expression is Identifier) {
       targetType is ClassType || targetType is InterfaceType
@@ -17409,8 +17450,13 @@ let checkBinaryExpression = (
     ctx.nullishSanctioned.add(left.id as i32);
     let leftType = checkExpression(ctx, left, null);
     // The right operand runs conditionally (only when left is null).
+    // It also sits in the same type position as the whole `??`, so the
+    // context that types the expression types the default too: without
+    // it `m.get(k) ?? []` has nothing to infer the literal's element
+    // type from.
     let preRight = ctx.currentFlow;
-    let rightType = checkExpression(ctx, right, null);
+    let rightType = adaptArmToContext(ctx, right,
+        checkExpression(ctx, right, expectedType), expectedType);
     ctx.mergeFlow(preRight, ctx.currentFlow);
 
     // Optional record field read (member check returned the field type
@@ -17986,7 +18032,8 @@ let checkMatchCaseBody = (ctx: CheckerContext, body: Node, expectedType: Type | 
         let et = if (isLast) { expectedType } else { new VoidType() as Type };
         match (stmts[si]) {
           case ExpressionStatement {expression}: {
-            lastType = checkExpression(ctx, expression, et);
+            lastType = adaptArmToContext(ctx, expression,
+                checkExpression(ctx, expression, et), et);
           }
           case _: {
             // A `return` lands here too: checkStatement gives it the
@@ -18008,7 +18055,9 @@ let checkMatchCaseBody = (ctx: CheckerContext, body: Node, expectedType: Type | 
     }
     case _: {
       // Expression body.
-      return checkExpression(ctx, body as Expression, expectedType);
+      let bodyExpr = body as Expression;
+      return adaptArmToContext(ctx, bodyExpr,
+          checkExpression(ctx, bodyExpr, expectedType), expectedType);
     }
   }
 };
