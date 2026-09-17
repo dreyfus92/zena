@@ -406,8 +406,15 @@ export final class ScopeBuilder {
         this.#current.declare(name.name, false, stmt, this.#modulePath);
         this.#symbols.record(stmt, this.#current.getLocal(name.name) as Symbol);
         if (exported) {
-          let info = new Symbol(name.name, stmt, this.#modulePath, false, this.#symbolIdGenerator.next());
-          this.#exports[name.name] = info;
+          // The declaration's own symbol, for the reason spelled out
+          // under `InterfaceDeclaration` below: a class materializes to
+          // a nominal type keyed by symbol id, so a separate export
+          // symbol is a second identity that the origin never fills.
+          // `zena:core` re-exporting `./error.zena` was enough to hand a
+          // program on the freestanding target an `Error` with no
+          // constructor, and `zena:zb` a `FixedArray` with no
+          // constructor and no indexing.
+          this.#exports[name.name] = this.#current.getLocal(name.name) as Symbol;
         }
         // Export sealed variant names so they can be imported individually.
         if (sealedVariants != null) {

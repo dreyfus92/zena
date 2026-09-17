@@ -1,0 +1,7 @@
+import { compute } from './user.zena';
+export class Cell {
+  value: i32;
+  new(this.value);
+  operator [](i: i32): i32 { return this.value + i; }
+}
+export let start = (): i32 => compute();

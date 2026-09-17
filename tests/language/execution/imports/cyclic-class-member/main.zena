@@ -1,0 +1,13 @@
+// @mode: run
+// @result: 42
+// Classes crossing an import cycle's back edge
+// (docs/design/import-cycles.md). holder.zena declares `Cell` and imports
+// `compute` back from user.zena, closing a cycle; user.zena imports `Cell`,
+// constructs one and indexes it, so both the constructor and an operator
+// method have to be visible on the identity the importer resolves.
+// Interfaces have the same test next door in cyclic-iface-method, where a
+// separate export symbol split the identity and left the importer an empty
+// interface.
+import { start } from './holder.zena';
+
+export let main = (): i32 => start();

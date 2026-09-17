@@ -1,0 +1,5 @@
+import { Cell } from './holder.zena';
+export let compute = (): i32 => {
+  let cell = new Cell(40);
+  return cell[2];
+};
