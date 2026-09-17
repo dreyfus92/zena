@@ -313,7 +313,7 @@ To add a page: add it to the sidebar with an `outline`, then run
     - Spread
     - Structural typing
     - Representation
-  - 📝 [Tuples](src/reference/tuples.md) — `/reference/tuples/`
+  - ✅ [Tuples](src/reference/tuples.md) — `/reference/tuples/`
     - Tuple literals
     - Inline tuples
     - Multi-value returns
@@ -472,49 +472,27 @@ To add a page: add it to the sidebar with an `outline`, then run
     - What ships with Zena
     - Importing
     - Stability
-  - ⚙️ zena:array — `/reference/stdlib/array/`
-  - ⚙️ zena:array-iterator — `/reference/stdlib/array-iterator/`
   - ⚙️ zena:assert — `/reference/stdlib/assert/`
   - ⚙️ zena:async — `/reference/stdlib/async/`
   - ⚙️ zena:bench — `/reference/stdlib/bench/`
-  - ⚙️ zena:box — `/reference/stdlib/box/`
-  - ⚙️ zena:byte-array — `/reference/stdlib/byte-array/`
-  - ⚙️ zena:byte-buffer — `/reference/stdlib/byte-buffer/`
   - ⚙️ zena:cli — `/reference/stdlib/cli/`
   - ⚙️ zena:collections — `/reference/stdlib/collections/`
   - ⚙️ zena:component-abi — `/reference/stdlib/component-abi/`
   - ⚙️ zena:console — `/reference/stdlib/console/`
   - ⚙️ zena:core — `/reference/stdlib/core/`
-  - ⚙️ zena:error — `/reference/stdlib/error/`
   - ⚙️ zena:error-stack — `/reference/stdlib/error-stack/`
-  - ⚙️ zena:fixed-array — `/reference/stdlib/fixed-array/`
   - ⚙️ zena:fs — `/reference/stdlib/fs/`
-  - ⚙️ zena:growable-array — `/reference/stdlib/growable-array/`
-  - ⚙️ zena:growable-array-iterator — `/reference/stdlib/growable-array-iterator/`
-  - ⚙️ zena:hashable — `/reference/stdlib/hashable/`
-  - ⚙️ zena:immutable-array — `/reference/stdlib/immutable-array/`
-  - ⚙️ zena:iterable-utils — `/reference/stdlib/iterable-utils/`
-  - ⚙️ zena:iterator — `/reference/stdlib/iterator/`
   - ⚙️ zena:json — `/reference/stdlib/json/`
   - ⚙️ zena:map — `/reference/stdlib/map/`
   - ⚙️ zena:math — `/reference/stdlib/math/`
   - ⚙️ zena:memory — `/reference/stdlib/memory/`
-  - ⚙️ zena:option — `/reference/stdlib/option/`
   - ⚙️ zena:ordered-map — `/reference/stdlib/ordered-map/`
-  - ⚙️ zena:ownership — `/reference/stdlib/ownership/`
   - ⚙️ zena:process — `/reference/stdlib/process/`
-  - ⚙️ zena:range — `/reference/stdlib/range/`
   - ⚙️ zena:regex — `/reference/stdlib/regex/`
-  - ⚙️ zena:result — `/reference/stdlib/result/`
   - ⚙️ zena:set — `/reference/stdlib/set/`
   - ⚙️ zena:simd — `/reference/stdlib/simd/`
   - ⚙️ zena:stream — `/reference/stdlib/stream/`
-  - ⚙️ zena:string — `/reference/stdlib/string/`
-  - ⚙️ zena:string-builder — `/reference/stdlib/string-builder/`
-  - ⚙️ zena:string-convert — `/reference/stdlib/string-convert/`
-  - ⚙️ zena:string-reader — `/reference/stdlib/string-reader/`
   - ⚙️ zena:task — `/reference/stdlib/task/`
-  - ⚙️ zena:template-strings-array — `/reference/stdlib/template-strings-array/`
   - ⚙️ zena:test — `/reference/stdlib/test/`
   - ⚙️ zena:time — `/reference/stdlib/time/`
   - ⚙️ zena:url — `/reference/stdlib/url/`
@@ -628,4 +606,4 @@ To add a page: add it to the sidebar with an `outline`, then run
 
 ---
 
-43 of 95 pages written; 52 still placeholders.
+44 of 95 pages written; 51 still placeholders.

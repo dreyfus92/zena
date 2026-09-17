@@ -254,18 +254,39 @@ The `??` operator handles three distinct forms:
    ```zena
    let timeout = options.timeout ?? 3000;
    ```
-3. **Protocol inline tuples**: Functions returning two-arm unions representing
-   presence (such as `Map.get()`, returning `inline (true, V) | inline (false, _)`),
-   can be coalesced directly to the payload or default:
+3. **Protocol inline tuples**: Two-arm unions of inline tuples where the first
+   element is a boolean tag (`true` or `false`) act as zero-allocation
+   maybe-forms. When `??` consumes an inline tuple union:
+   - **Tag check & unwrap**: If the discriminant tag at slot `0` is `true`, `??`
+     unwraps and yields the payload from slot `1` directly as a value (not as a
+     tuple).
+   - **Lazy fallback**: If the discriminant is `false`, `??` lazily evaluates
+     and returns the right-hand default expression.
+   - **Error lane discarded**: For `Result<V, E>` shapes (`inline (true, V, _) |
+inline (false, _, E)`), the error payload in slot `2` is discarded (`??`
+     means _"value or default, regardless of why"_). To inspect the error, use
+     pattern matching (`if let` or `match`) instead.
+   - **Contextual typing**: The fallback expression is typed contextually by the
+     surrounding expected type, allowing literals to infer their element types:
+     `let tags: Array<String> = map.get('tags') ?? [];`.
+
    ```zena
+   // Option shape (e.g. Map.get): unwraps value or returns default
    let score = scores.get('Alice') ?? 0;
+
+   // Result shape: unwraps ok payload or returns default, discarding error
+   let port = parsePort(input) ?? 8080;
    ```
+
+   See [Tuples](/reference/tuples/#nullish-coalescing-with-) for full details on
+   inline tuples, hole literals (`_`), and multi-value returns.
 
 ### Immediate coalescence for primitives
 
-In Zena, primitive types (`i32`, `f64`, `boolean`, etc.) are unboxed and cannot be
-`null`. Consequently, an optional chaining expression on a primitive result cannot
-exist independently as `i32 | null` and must immediately coalesce with `??`:
+In Zena, primitive types (`i32`, `f64`, `boolean`, etc.) are unboxed and cannot
+be `null`. Consequently, an optional chaining expression on a primitive result
+cannot exist independently as `i32 | null` and must immediately coalesce with
+`??`:
 
 ```zena
 class Point {
