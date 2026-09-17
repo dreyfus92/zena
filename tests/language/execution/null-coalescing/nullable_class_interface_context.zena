@@ -1,0 +1,17 @@
+// @mode: run
+// @result: 2
+
+// The plain form: a nullable class on the left of `??` in an interface
+// context. The value arm is the left operand with null ruled out, and
+// it has to reach the consumer as a fat pointer like the default does.
+
+let pick = (g: GrowableArray<String> | null): Array<String> => {
+  return g ?? [];
+};
+
+export let main = () => {
+  let full = new GrowableArray<String>();
+  full.push('a');
+  full.push('b');
+  return (pick(full).length + pick(null).length) as i32;
+};

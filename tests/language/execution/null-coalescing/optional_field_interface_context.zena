@@ -1,0 +1,19 @@
+// @mode: run
+// @result: 2
+
+// The optional record field under `??` is the same shape as the tuple
+// payload: the guarded read produces a value with no expression node
+// of its own, so an interface context has to pack that arm too.
+
+type Opts = {tags?: GrowableArray<String>};
+
+let tagsOf = (o: Opts): Array<String> => {
+  return o.tags ?? [];
+};
+
+export let main = () => {
+  let present = new GrowableArray<String>();
+  present.push('a');
+  present.push('b');
+  return (tagsOf({tags: present}).length + tagsOf({}).length) as i32;
+};

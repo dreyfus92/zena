@@ -36,7 +36,7 @@ import {
 } from '../type-mapping.zena';
 import { IrBody, IrOp, IrRefField, IrRefFunc, IrRefGlobal, IrRefTag } from './ir.zena';
 import { emitGeneratorDispose } from './generators.zena';
-import { inSuspensionBody, lowerExpr, lowerExprRaw, lowerStmt, multiSource, optionalHit, returnSlotVt, throwStmt, varDecl } from './lowering.zena';
+import { coalesceArmAdaptation, inSuspensionBody, lowerExpr, lowerExprRaw, lowerStmt, multiSource, optionalHit, returnSlotVt, throwStmt, varDecl } from './lowering.zena';
 import {
   FinallyScope, LetCondBinds, LoopCtx, LoweringContext, MergeState, ZirUnsupported, noValues,
 } from './lowering-context.zena';
@@ -2155,7 +2155,12 @@ let isProtocolUnion = (t: Type): boolean => {
 let coalesceMerge = (cx: LoweringContext, bin: BinaryExpression,
     overallVt: ValType, mergeSyms: GrowableArray<SymbolId>,
     rightB: i32, okValue: i32, saved: HashMap<SymbolId, i32>): i32 => {
-  var ok = okValue;
+  // The ok arm comes out of the left operand's maybe-form — a tuple
+  // slot or an optional record field — so it is not an expression the
+  // post-expression adaptation hook can reach. The checker records the
+  // pack it needs on the `??` node; apply it to the arm here. The
+  // right arm is an expression and carries its own.
+  var ok = coalesceArmAdaptation(cx, bin, okValue);
   if (!isValSubtype(cx.valueTypeOf(ok), overallVt)) {
     ok = cx.coerceTo(ok, overallVt);
   }
@@ -2291,11 +2296,16 @@ export let lowerNullishCoalesce = (cx: LoweringContext, bin: BinaryExpression): 
 
   let saved = cx.copyEnv();
   cx.b.switchTo(okB);
-  let okValue = if (leftIsOptionalChain) {
+  // The value arm is the left operand once null is ruled out. An
+  // optional chain never lowers `bin.left` as a whole — only its
+  // receiver — so neither arm can rely on the post-expression hook;
+  // the checker records the pack on the `??` and it applies here, to
+  // the value arm, for every shape alike.
+  let okValue = coalesceArmAdaptation(cx, bin, if (leftIsOptionalChain) {
     optionalHit(cx, bin.left, cx.stripNonNull(testValue))
   } else {
     cx.stripNonNull(testValue)
-  };
+  });
   if (!isValSubtype(cx.valueTypeOf(okValue), overallVt)) {
     bail(cx, 'nullish arm type');
   }

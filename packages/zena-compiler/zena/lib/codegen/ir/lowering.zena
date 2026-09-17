@@ -1024,6 +1024,17 @@ export final class FunctionLowerer {
   var #cxCache: LoweringContext | null = null;
 
   /**
+   * `??` nodes whose interface adaptation the coalesce lowering has
+   * already applied. When `??` coalesces a maybe-form, the value comes
+   * out of a tuple slot or an optional record field, which is not an
+   * expression the post-expression hook can reach, so the checker
+   * hangs that arm's adaptation on the `??` itself. The arm packs
+   * inside the coalesce; packing the merged value again here would
+   * wrap the fat pointer in a second fat pointer.
+   */
+  #coalesceArmsAdapted = new HashSet<i32>();
+
+  /**
    * Presplit-generator mode (generators.md §4): yield statements lower
    * to yield_ terminators, returns complete the generator (always
    * void), and value-block tail expressions are plain statements. The
@@ -3501,6 +3512,9 @@ export final class FunctionLowerer {
   #applyInterfaceAdaptation(expr: Expression, value: i32): i32 {
     let ia = this.func.model.getInterfaceAdaptation(expr);
     if (ia == null) {
+      return value;
+    }
+    if (this.#coalesceArmsAdapted.has(expr.id as i32)) {
       return value;
     }
     if (value < 0 || this.b.body.typeId[value] < 0) {
@@ -7141,6 +7155,20 @@ export final class FunctionLowerer {
   hostOptionalHit(expr: Expression, recv: i32): i32 {
     return this.#lowerOptionalHit(expr, recv);
   }
+  /**
+   * The value arm of a `??` over a maybe-form: packs it into the
+   * interface the context asked for, when the checker recorded one on
+   * this `??`. The node is remembered so the post-expression hook
+   * leaves the merged value alone.
+   */
+  hostCoalesceArmAdaptation(bin: BinaryExpression, value: i32): i32 {
+    if (this.func.model.getInterfaceAdaptation(bin) == null) {
+      return value;
+    }
+    let packed = this.#applyInterfaceAdaptation(bin, value);
+    this.#coalesceArmsAdapted.add(bin.id as i32);
+    return packed;
+  }
   returnSlotVt(): ValType | null {
     return this.#returnSlotVt();
   }
@@ -8149,6 +8177,11 @@ export let multiSource = (cx: LoweringContext, init: Expression): Array<i32> =>
 /** Optional-chain hit arm (member machinery). */
 export let optionalHit = (cx: LoweringContext, expr: Expression, recv: i32): i32 =>
     hostOf(cx).hostOptionalHit(expr, recv);
+
+/** Pack the value arm of a `??` over a maybe-form (control-flow). */
+export let coalesceArmAdaptation = (cx: LoweringContext,
+    bin: BinaryExpression, value: i32): i32 =>
+    hostOf(cx).hostCoalesceArmAdaptation(bin, value);
 
 let getNodeMemberName = (node: Node): String => {
   return match (node) {

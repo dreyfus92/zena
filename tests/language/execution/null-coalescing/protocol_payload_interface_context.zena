@@ -1,0 +1,33 @@
+// @mode: run
+// @result: 2
+
+// `m.get(k) ?? d` yields the tuple's payload, and in an interface
+// context that payload has to reach the consumer as a fat pointer like
+// any other class in an interface slot. The payload is a slot of the
+// left operand rather than an expression anyone wrote, so nothing
+// packed it: the function returned a raw GrowableArray and the caller
+// trapped reading it back as an Array.
+
+import {HashMap} from 'zena:collections';
+
+class MapWrapper {
+  #map = new HashMap<String, GrowableArray<String>>();
+
+  new() {
+    let list = new GrowableArray<String>();
+    list.push('hello');
+    list.push('world');
+    this.#map['key'] = list;
+  }
+
+  getItems(key: String): Array<String> {
+    return this.#map.get(key) ?? [];
+  }
+}
+
+export let main = () => {
+  let wrapper = new MapWrapper();
+  let hit = wrapper.getItems('key');
+  let miss = wrapper.getItems('absent');
+  return (hit.length + miss.length) as i32;
+};

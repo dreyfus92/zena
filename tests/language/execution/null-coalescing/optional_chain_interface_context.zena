@@ -1,0 +1,22 @@
+// @mode: run
+// @result: 2
+
+// An optional chain on the left of `??`: the chain lowers its receiver
+// rather than the whole left operand, so the value arm is reached by
+// no expression hook at all and the coalesce has to pack it.
+
+class Holder {
+  items: GrowableArray<String> | null;
+  new(this.items);
+}
+
+let pick = (h: Holder | null): Array<String> => {
+  return h?.items ?? [];
+};
+
+export let main = () => {
+  let full = new GrowableArray<String>();
+  full.push('a');
+  full.push('b');
+  return (pick(new Holder(full)).length + pick(null).length) as i32;
+};

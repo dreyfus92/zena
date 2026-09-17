@@ -7174,6 +7174,27 @@ let adaptArmToContext = (
   return target;
 };
 
+/**
+ * Adapts the value `??` pulls out of a maybe-form on its left.
+ *
+ * `m.get(k) ?? []` in an `Array<String>` context yields the tuple's
+ * payload, and when that payload is a `GrowableArray<String>` it has
+ * to reach the consumer as a fat pointer like any other class in an
+ * interface slot. The payload is a slot of the left operand rather
+ * than an expression anyone wrote, so the adaptation goes on the `??`
+ * itself and the coalesce lowering applies it to that arm alone — the
+ * default arm carries its own.
+ */
+let adaptCoalescedArm = (
+  ctx: CheckerContext,
+  node: Expression | null,
+  armType: Type,
+  expectedType: Type | null
+): Type => {
+  if (node == null) { return armType; }
+  return adaptArmToContext(ctx, node, armType, expectedType);
+};
+
 let inferTypeParameter = (sourceType: Type, targetType: Type, tpName: String, inferred: HashMap<String, Type>): boolean => {
   if (sourceType is TypeParameterType && sourceType.name == tpName) {
     inferred[tpName] = targetType;
@@ -10789,7 +10810,7 @@ let checkExpressionInner = (ctx: CheckerContext, expr: Expression, expectedType:
   // --- Binary Expressions ---
 
   case BinaryExpression {operator, left, right, loc}: {
-    checkBinaryExpression(ctx, expectedType, operator, left, right, loc)
+    checkBinaryExpression(ctx, expectedType, operator, left, right, loc, expr)
   }
 
   // --- Unary Expressions ---
@@ -11140,7 +11161,7 @@ let checkExpressionInner = (ctx: CheckerContext, expr: Expression, expectedType:
     var effectiveType = checkExpression(ctx, value, leftType);
     if (operator != null) {
       // We know op is set and not "??". Act like a binary expression: left + right.
-      effectiveType = checkBinaryExpression(ctx, leftType, operator, left, value, loc);
+      effectiveType = checkBinaryExpression(ctx, leftType, operator, left, value, loc, null);
       ctx.setNodeType(value, effectiveType);
     }
 
@@ -17119,7 +17140,14 @@ let checkBinaryExpression = (
   operator: String,
   left: Expression,
   right: Expression,
-  loc: SourceLocation | null
+  loc: SourceLocation | null,
+  // The expression itself, when there is one. `??` coalescing a
+  // maybe-form takes its value out of the left operand — a tuple slot
+  // or an optional record field — and that value has no expression
+  // node of its own to hang an interface adaptation on, so the node
+  // for the whole `??` carries it. Null from compound assignment,
+  // which never reaches the `??` branch.
+  node: Expression | null
 ): Type => {
   // For && and ||, handle short-circuit evaluation and narrowing.
   if (operator == "&&") {
@@ -17468,7 +17496,7 @@ let checkBinaryExpression = (
         let objBase = baseType(subtractNullFromType(objType));
         if (objBase is RecordT && objBase.isOptional(member.property.name)) {
           let arms = new GrowableArray<Type>();
-          arms.push(leftType);
+          arms.push(adaptCoalescedArm(ctx, node, leftType, expectedType));
           arms.push(rightType);
           return createUnionType(arms, ctx, loc);
         }
@@ -17481,7 +17509,7 @@ let checkBinaryExpression = (
     let payloadOpt = protocolPayloadType(leftType);
     if (payloadOpt != null) {
       let arms = new GrowableArray<Type>();
-      arms.push(payloadOpt as Type);
+      arms.push(adaptCoalescedArm(ctx, node, payloadOpt as Type, expectedType));
       arms.push(rightType);
       return createUnionType(arms, ctx, loc);
     }
@@ -17500,6 +17528,13 @@ let checkBinaryExpression = (
             case _: { nonNullMembers.push(members[i]); }
           }
           i += 1;
+        }
+        // The value arm is the left operand with null ruled out, and
+        // the coalesce packs it after the null test has already run,
+        // so what adapts is the non-null type.
+        if (nonNullMembers.length == 1) {
+          nonNullMembers[0] =
+              adaptCoalescedArm(ctx, node, nonNullMembers[0], expectedType);
         }
         // Result type: union of non-null left members with right type.
         nonNullMembers.push(rightType);
@@ -17521,7 +17556,7 @@ let checkBinaryExpression = (
           DiagnosticCode.UnnecessaryNullish,
           loc
         );
-        return leftType;
+        return adaptCoalescedArm(ctx, node, leftType, expectedType);
       }
     }
   }
