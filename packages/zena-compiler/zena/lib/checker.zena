@@ -46,7 +46,7 @@
 
 import { isValidIntrinsic } from './intrinsics.zena';
 import { HashSet } from 'zena:set';
-import { OrderedMap } from 'zena:ordered-map';
+import { OrderedHashMap } from 'zena:collections';
 import { StringBuilder } from 'zena:core';
 import { analyzeCaptures, analyzeTryBodyAssignments } from './analysis/capture.zena';
 import {
@@ -16127,7 +16127,7 @@ let unqualifiedSymbolRefOf = (nameNode: Node): Expression | null => {
  */
 let recordSymbolKeyedMemberIdentities = (
     ctx: CheckerContext,
-    members: OrderedMap<String, MemberInfo>,
+    members: OrderedHashMap<String, MemberInfo>,
     body: Array<Node>): void => {
   for (let member in body) {
     var nameNode: Node | null = null;

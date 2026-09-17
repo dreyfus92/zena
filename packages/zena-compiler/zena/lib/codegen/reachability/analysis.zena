@@ -11,7 +11,7 @@ import {
 } from '../../ast.zena';
 import { HashSet } from 'zena:set';
 import { StringBuilder } from 'zena:core';
-import { OrderedMap } from 'zena:ordered-map';
+import { OrderedHashMap } from 'zena:collections';
 import {
   getClassKey, getInterfaceKey, getClassMethodKey, getInterfaceMemberKey, getClassInterfaceKey, getClassInterfaceVTableName, getClassVTableName, getClassSingletonName, getInterfaceTrampolineName, getSignatureKey, collectMixinMembers, mixinScopeOfMember, mixinModelOfMember, getClassPrivateFieldKey, MixinKey, getFunctionAdaptationKey, ClassKey, ClassMethodKey, getTypeUniqueKey, getClosureSpecializationKey, isConcrete, getSpecializedName, containsErasedType, InterfaceKey,
 } from '../codegen-utils.zena';
@@ -195,8 +195,8 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
   /** Demands keyed "<interfaceKey>.<slotName>" for dedup and slot lookup. */
   #genericInterfaceDemandsByKey = new HashMap<String, GenericInterfaceMethodDemand>();
   specializedClassTypes = new HashMap<SymbolId, GrowableArray<ClassType>>();
-  reachedClassMembers = new HashMap<SymbolId, OrderedMap<i32, boolean>>();
-  reachedReachableClassMembers = new HashMap<SymbolId, OrderedMap<i32, boolean>>();
+  reachedClassMembers = new HashMap<SymbolId, OrderedHashMap<i32, boolean>>();
+  reachedReachableClassMembers = new HashMap<SymbolId, OrderedHashMap<i32, boolean>>();
 
   // Tracks for interface dispatches: which instantiated classes implement an interface
   instantiatedClassesByInterface = new HashMap<SymbolId, GrowableArray<ClassInterfacePair>>();
@@ -343,7 +343,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
   recordReachedClassMember(classSymId: SymbolId, nodeId: i32, model: SemanticModel, isReachable: boolean): void {
     if (isReachable) {
       if (!this.reachedReachableClassMembers.has(classSymId)) {
-        this.reachedReachableClassMembers[classSymId] = new OrderedMap<i32, boolean>();
+        this.reachedReachableClassMembers[classSymId] = new OrderedHashMap<i32, boolean>();
       }
       let set = this.reachedReachableClassMembers[classSymId];
       if (!set.has(nodeId)) {
@@ -356,7 +356,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
       }
     } else {
       if (!this.reachedClassMembers.has(classSymId)) {
-        this.reachedClassMembers[classSymId] = new OrderedMap<i32, boolean>();
+        this.reachedClassMembers[classSymId] = new OrderedHashMap<i32, boolean>();
       }
       let set = this.reachedClassMembers[classSymId];
       if (!set.has(nodeId)) {
@@ -2992,7 +2992,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
             // instantiated queues nothing, and the edge is lost. While
             // every method of an instantiated class was force-reached
             // that never showed (JsonObject.size reads its
-            // OrderedMap's size before any OrderedMap is
+            // OrderedHashMap's size before any OrderedHashMap is
             // instantiated). Record the member against the generic;
             // discovery and instantiation replay it per specialization.
             let recMds = cha.findImplementingMethods(targetClassType, mName);

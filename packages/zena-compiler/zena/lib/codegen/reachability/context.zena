@@ -4,7 +4,7 @@ import { SemanticModel, SymbolDependencies } from '../../semantic-model.zena';
 import { Type, ClassType, InterfaceType, FunctionType } from '../../types.zena';
 import { Node, ClassDeclaration, InterfaceDeclaration, ImportDeclaration, VariableDeclaration, FunctionDeclaration, DeclareFunction } from '../../ast.zena';
 import { HashSet } from 'zena:set';
-import { OrderedMap } from 'zena:ordered-map';
+import { OrderedHashMap } from 'zena:collections';
 import { SymbolId } from '../../scope/symbol.zena';
 import { WasmType } from '../wasm.zena';
 import { MixinKey, ClassMethodKey, ClassKey } from '../codegen-utils.zena';
@@ -186,14 +186,14 @@ export interface ReachabilityContext {
   reachablyNamedAnonStructs: HashSet<WasmStruct>;
   specializedClassTypes: HashMap<SymbolId, GrowableArray<ClassType>>;
   /**
-   * Insertion-ordered (OrderedMap, values unused): these node-id sets
+   * Insertion-ordered (OrderedHashMap, values unused): these node-id sets
    * are REPLAYED into the queues per specialization, so their
    * iteration order becomes function emission order. Node ids are a
    * relabelling across invalidate() — hashing by id made the same
    * program emit differently after an invalidate that changed nothing.
    */
-  reachedClassMembers: HashMap<SymbolId, OrderedMap<i32, boolean>>;
-  reachedReachableClassMembers: HashMap<SymbolId, OrderedMap<i32, boolean>>;
+  reachedClassMembers: HashMap<SymbolId, OrderedHashMap<i32, boolean>>;
+  reachedReachableClassMembers: HashMap<SymbolId, OrderedHashMap<i32, boolean>>;
   currentReachable: boolean;
   classDecls: HashMap<SymbolId, Node>;
   classModels: HashMap<SymbolId, SemanticModel>;

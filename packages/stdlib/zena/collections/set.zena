@@ -1,7 +1,5 @@
 // The Set interface. The hash-backed implementations live in hash-set.zena.
 
-import { Hashable, Iterable } from 'zena:core';
-
 export interface Set<T extends Hashable> extends Iterable<T> {
   size: i32 { get; }
 

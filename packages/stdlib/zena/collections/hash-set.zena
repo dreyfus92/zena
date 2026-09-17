@@ -6,8 +6,8 @@
 // that field holds either, and both leaves are final, so the forwarding calls
 // devirtualize.
 
-import { Hashable, Iterable, Iterator, IterableUtils } from 'zena:core';
-import { HashMap, OrderedMap } from './hash-map.zena';
+import { IterableUtils } from 'zena:core';
+import { OrderedMap } from './hash-map.zena';
 import { Set } from './set.zena';
 
 // The value half of the backing map. A set only cares about the keys, so every
