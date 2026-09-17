@@ -438,7 +438,8 @@ if (runCompiler && targets.length > 0) {
         return 0;
       }
     };
-    const bootBytes = hasBoot && bootOutWasm ? sizeExcludingCustom(bootOutWasm) : 0;
+    const bootBytes =
+      hasBoot && bootOutWasm ? sizeExcludingCustom(bootOutWasm) : 0;
     const selfBytes = selfOutWasm ? sizeExcludingCustom(selfOutWasm) : 0;
     void sizeOf;
     if (bootBytes > 0 && selfBytes > 0) {

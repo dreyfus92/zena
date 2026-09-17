@@ -7,7 +7,5 @@
     "timeBudgetMs": 60000,
     "horizons": ["0%"]
   },
-  "variants": [
-    {"name": "zena", "wasm": "../../out/map-loop/zena.wasm"}
-  ]
+  "variants": [{"name": "zena", "wasm": "../../out/map-loop/zena.wasm"}]
 }
