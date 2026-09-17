@@ -877,6 +877,72 @@ export let tests = suite('zir backend', (): void => {
         'neither the objects nor their fat pointers are allocated');
   });
 
+  test('folds a type test the static type decides', (ctx: TestContext): void => {
+    // The scrutinee is a Lit, so the Lit arm's test is true and the
+    // Neg arm's is false: main keeps one arm and no test.
+    let result = compileWithZir(
+        'sealed class Expr {\n' +
+        '  case Lit(value: i32)\n' +
+        '  case Neg(inner: Expr)\n' +
+        '}\n' +
+        'export let neg = (e: Expr): i32 => 7;\n' +
+        'export let main = (): i32 => {\n' +
+        '  let e: Expr = new Lit(3);\n' +
+        '  return match (e) {\n' +
+        '    case Lit {value}: value\n' +
+        '    case Neg {inner}: neg(inner)\n' +
+        '  };\n' +
+        '};');
+    let absent = new GrowableArray<String>();
+    absent.push('ref.test');
+    absent.push('call $neg');
+    assertFunctionOmits(result, '$main', absent,
+        'the tests fold on the static type and the Neg arm is unreachable');
+  });
+
+  test('-O2 folds a match over the case an inlined callee constructs', (ctx: TestContext): void => {
+    let result = compileWithZirAt(
+        'sealed class Expr {\n' +
+        '  case Lit(value: i32)\n' +
+        '  case Neg(inner: Expr)\n' +
+        '}\n' +
+        'export let neg = (e: Expr): i32 => 7;\n' +
+        'let make = (n: i32): Expr => new Lit(n);\n' +
+        'export let main = (): i32 => match (make(3)) {\n' +
+        '  case Lit {value}: value\n' +
+        '  case Neg {inner}: neg(inner)\n' +
+        '};', 2);
+    let absent = new GrowableArray<String>();
+    absent.push('ref.test');
+    absent.push('call $neg');
+    assertFunctionOmits(result, '$main', absent,
+        'once make is inlined the scrutinee is a Lit allocation');
+  });
+
+  test('-O2 propagates a constant through a loop that only changes it on a dead path', (ctx: TestContext): void => {
+    // x is 1 at entry, and the only assignment sits under a test x
+    // itself makes false. The peephole pass cannot see that: the
+    // loop-carried parameter meets 1 and the join's parameter, and
+    // the join's parameter meets x and 2. SCCP never executes the
+    // assignment's edge, so both parameters are 1.
+    let result = compileWithZirAt(
+        'export let f = (n: i32): i32 => {\n' +
+        '  var x = 1;\n' +
+        '  var i = 0;\n' +
+        '  while (i < n) {\n' +
+        '    if (x != 1) { x = 2; }\n' +
+        '    i += 1;\n' +
+        '  }\n' +
+        '  return x;\n' +
+        '};\n' +
+        'export let main = (): i32 => f(5);', 2);
+    let absent = new GrowableArray<String>();
+    absent.push('i32.ne');
+    absent.push('i32.const 2');
+    assertFunctionOmits(result, '$f', absent,
+        'the test on x and the assignment under it fold away');
+  });
+
   test('-O2 hoists an immutable field load out of a loop', (ctx: TestContext): void => {
     let result = compileWithZirAt(
         'class P {\n' +

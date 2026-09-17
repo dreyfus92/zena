@@ -198,7 +198,12 @@ let removeTrivialParams = (body: IrBody): i32 => {
     }
     let term = blk.insts[blk.insts.length - 1];
     for (let s in body.successors(term)) {
-      incoming[s.target].push(term);
+      // Once per terminator: a branch whose edges both reach the same
+      // block would otherwise have the argument dropped twice.
+      let list = incoming[s.target];
+      if (list.length == 0 || list[list.length - 1] != term) {
+        list.push(term);
+      }
     }
   }
   let count = body.instCount();
@@ -270,7 +275,7 @@ let removeTrivialParams = (body: IrBody): i32 => {
   return removed;
 };
 
-let dropParamAt = (blk: IrBlock, j: i32): void => {
+export let dropParamAt = (blk: IrBlock, j: i32): void => {
   let kept = new GrowableArray<i32>();
   for (var k = 0; k < blk.params.length; k += 1) {
     if (k != j) {
@@ -293,7 +298,7 @@ let dropParamAt = (blk: IrBlock, j: i32): void => {
  * for br/br_if/try_br, the target type for br_on_cast, the count for
  * br_table (see the encoding table in ir.zena).
  */
-let dropBranchArg = (body: IrBody, term: i32, target: i32, j: i32): void => {
+export let dropBranchArg = (body: IrBody, term: i32, target: i32, j: i32): void => {
   let op = body.op(term);
   var prefixLen = 0;
   if (op == IrOp.br_on_cast || op == IrOp.br_on_cast_fail ||

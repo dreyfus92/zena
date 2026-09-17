@@ -1,0 +1,299 @@
+/**
+ * Compile-time evaluation shared by the peephole pass (simplify.zena)
+ * and sparse conditional constant propagation (sccp.zena): one table
+ * of what a constant operation produces, so the two passes cannot
+ * disagree about a fold.
+ *
+ * Trap discipline: integer division and remainder never evaluate — a
+ * constant zero divisor must still trap at runtime, in its original
+ * position. Floating-point arithmetic evaluates only when the result
+ * is not NaN: wasm leaves NaN payload bits nondeterministic, so baking
+ * one engine's payload into the binary would make output depend on
+ * the compiling engine. Evaluation uses Zena's own i32/i64 operators,
+ * which carry wasm's wrapping and shift-masking semantics by
+ * definition.
+ */
+import { IrBody, IrOp } from './ir.zena';
+import { isValSubtype } from '../wasm-module.zena';
+import { WasmStruct } from '../wasm-module.zena';
+import {
+  ValType, ValTypeRef, ValTypeRefNull, WasmType, refTargetOf, sameHeapType,
+} from '../wasm.zena';
+
+/** A constant of one of the three foldable kinds. */
+export final class IrConst {
+  /** 1 = i32, 2 = i64, 3 = f64. */
+  kind: i32;
+  i: i32;
+  l: i64;
+  d: f64;
+  new(this.kind, this.i, this.l, this.d);
+
+  static ofI32(v: i32): IrConst {
+    return new IrConst(1, v, 0 as i64, 0.0);
+  }
+
+  static ofBool(v: boolean): IrConst {
+    return IrConst.ofI32(if (v) 1 else 0);
+  }
+
+  static ofI64(v: i64): IrConst {
+    return new IrConst(2, 0, v, 0.0);
+  }
+
+  static ofF64(v: f64): IrConst {
+    return new IrConst(3, 0, 0 as i64, v);
+  }
+
+  /**
+   * Same kind and same bits. Floats compare by value and then by the
+   * sign of their reciprocal, which tells 0.0 from -0.0 (NaN never
+   * gets here: constOf refuses it and evaluation never produces it).
+   */
+  equals(other: IrConst): boolean {
+    if (this.kind != other.kind) {
+      return false;
+    }
+    if (this.kind == 1) {
+      return this.i == other.i;
+    }
+    if (this.kind == 2) {
+      return this.l == other.l;
+    }
+    return this.d == other.d && (1.0 / this.d) == (1.0 / other.d);
+  }
+}
+
+/** The constant an instruction IS, or null if it is not a constant. */
+export let constOf = (body: IrBody, inst: i32): IrConst | null => {
+  if (inst < 0 || inst >= body.instCount()) {
+    return null;
+  }
+  let op = body.op(inst);
+  if (op == IrOp.const_i32) {
+    return IrConst.ofI32(body.a[inst]);
+  }
+  if (op == IrOp.const_i64) {
+    return IrConst.ofI64(body.constI64[body.a[inst]]);
+  }
+  if (op == IrOp.const_f64) {
+    let d = body.constF64[body.a[inst]];
+    if (d != d) {
+      return null;
+    }
+    return IrConst.ofF64(d);
+  }
+  return null;
+};
+
+/**
+ * Rewrites `inst` in place into the constant `c`. The id and the
+ * result type stay, so every use — branch arguments included — stays
+ * valid unchanged.
+ */
+export let foldInstTo = (body: IrBody, inst: i32, c: IrConst): void => {
+  if (c.kind == 1) {
+    body.opcode[inst] = IrOp.const_i32 as i32;
+    body.a[inst] = c.i;
+  } else if (c.kind == 2) {
+    body.constI64.push(c.l);
+    body.opcode[inst] = IrOp.const_i64 as i32;
+    body.a[inst] = body.constI64.length - 1;
+  } else {
+    body.constF64.push(c.d);
+    body.opcode[inst] = IrOp.const_f64 as i32;
+    body.a[inst] = body.constF64.length - 1;
+  }
+  body.b[inst] = -1;
+};
+
+/**
+ * Binary ops with an entry in evalBinary, plus the unsigned integer
+ * division and remainder that share their operand shape (evalBinary
+ * answers null for those; the peephole pass strength-reduces them).
+ */
+export let isFoldableBinary = (op: IrOp): boolean => {
+  let v = op as i32;
+  if (v >= IrOp.i32_add as i32 && v <= IrOp.i32_ge_u as i32) {
+    return op != IrOp.i32_eqz && op != IrOp.i32_div_s && op != IrOp.i32_rem_s;
+  }
+  if (v >= IrOp.i64_add as i32 && v <= IrOp.i64_ge_u as i32) {
+    return op != IrOp.i64_div_s && op != IrOp.i64_rem_s &&
+        op != IrOp.i64_div_u && op != IrOp.i64_rem_u;
+  }
+  return op == IrOp.f64_add || op == IrOp.f64_sub || op == IrOp.f64_mul ||
+      op == IrOp.f64_div || op == IrOp.f64_eq || op == IrOp.f64_ne ||
+      op == IrOp.f64_lt || op == IrOp.f64_le || op == IrOp.f64_gt ||
+      op == IrOp.f64_ge;
+};
+
+/** Unary ops with an entry in evalUnary. */
+export let isFoldableUnary = (op: IrOp): boolean => {
+  return op == IrOp.i32_eqz || op == IrOp.i64_eqz || op == IrOp.f64_neg ||
+      op == IrOp.i32_wrap_i64 || op == IrOp.i64_extend_i32_s ||
+      op == IrOp.f64_convert_i32_s || op == IrOp.f64_convert_i64_s;
+};
+
+/** The value of `x op y`, or null when the op does not fold. */
+export let evalBinary = (op: IrOp, x: IrConst, y: IrConst): IrConst | null => {
+  if (x.kind == 1 && y.kind == 1) {
+    let a = x.i;
+    let b = y.i;
+    if (op == IrOp.i32_add) { return IrConst.ofI32(a + b); }
+    if (op == IrOp.i32_sub) { return IrConst.ofI32(a - b); }
+    if (op == IrOp.i32_mul) { return IrConst.ofI32(a * b); }
+    if (op == IrOp.i32_and) { return IrConst.ofI32(a & b); }
+    if (op == IrOp.i32_or) { return IrConst.ofI32(a | b); }
+    if (op == IrOp.i32_xor) { return IrConst.ofI32(a ^ b); }
+    if (op == IrOp.i32_shl) { return IrConst.ofI32(a << b); }
+    if (op == IrOp.i32_shr_s) { return IrConst.ofI32(a >> b); }
+    if (op == IrOp.i32_shr_u) { return IrConst.ofI32(a >>> b); }
+    if (op == IrOp.i32_eq) { return IrConst.ofBool(a == b); }
+    if (op == IrOp.i32_ne) { return IrConst.ofBool(a != b); }
+    if (op == IrOp.i32_lt_s) { return IrConst.ofBool(a < b); }
+    if (op == IrOp.i32_le_s) { return IrConst.ofBool(a <= b); }
+    if (op == IrOp.i32_gt_s) { return IrConst.ofBool(a > b); }
+    if (op == IrOp.i32_ge_s) { return IrConst.ofBool(a >= b); }
+    if (op == IrOp.i32_lt_u) { return IrConst.ofBool(flipSign(a) < flipSign(b)); }
+    if (op == IrOp.i32_le_u) { return IrConst.ofBool(flipSign(a) <= flipSign(b)); }
+    if (op == IrOp.i32_gt_u) { return IrConst.ofBool(flipSign(a) > flipSign(b)); }
+    if (op == IrOp.i32_ge_u) { return IrConst.ofBool(flipSign(a) >= flipSign(b)); }
+    return null;
+  }
+  if (x.kind == 2 && y.kind == 2) {
+    let a = x.l;
+    let b = y.l;
+    if (op == IrOp.i64_add) { return IrConst.ofI64(a + b); }
+    if (op == IrOp.i64_sub) { return IrConst.ofI64(a - b); }
+    if (op == IrOp.i64_mul) { return IrConst.ofI64(a * b); }
+    if (op == IrOp.i64_and) { return IrConst.ofI64(a & b); }
+    if (op == IrOp.i64_or) { return IrConst.ofI64(a | b); }
+    if (op == IrOp.i64_xor) { return IrConst.ofI64(a ^ b); }
+    if (op == IrOp.i64_shl) { return IrConst.ofI64(a << b); }
+    if (op == IrOp.i64_shr_s) { return IrConst.ofI64(a >> b); }
+    if (op == IrOp.i64_shr_u) { return IrConst.ofI64(a >>> b); }
+    if (op == IrOp.i64_eq) { return IrConst.ofBool(a == b); }
+    if (op == IrOp.i64_ne) { return IrConst.ofBool(a != b); }
+    if (op == IrOp.i64_lt_s) { return IrConst.ofBool(a < b); }
+    if (op == IrOp.i64_le_s) { return IrConst.ofBool(a <= b); }
+    if (op == IrOp.i64_gt_s) { return IrConst.ofBool(a > b); }
+    if (op == IrOp.i64_ge_s) { return IrConst.ofBool(a >= b); }
+    if (op == IrOp.i64_lt_u) { return IrConst.ofBool(flipSign64(a) < flipSign64(b)); }
+    if (op == IrOp.i64_le_u) { return IrConst.ofBool(flipSign64(a) <= flipSign64(b)); }
+    if (op == IrOp.i64_gt_u) { return IrConst.ofBool(flipSign64(a) > flipSign64(b)); }
+    if (op == IrOp.i64_ge_u) { return IrConst.ofBool(flipSign64(a) >= flipSign64(b)); }
+    return null;
+  }
+  if (x.kind == 3 && y.kind == 3) {
+    let a = x.d;
+    let b = y.d;
+    if (op == IrOp.f64_eq) { return IrConst.ofBool(a == b); }
+    if (op == IrOp.f64_ne) { return IrConst.ofBool(a != b); }
+    if (op == IrOp.f64_lt) { return IrConst.ofBool(a < b); }
+    if (op == IrOp.f64_le) { return IrConst.ofBool(a <= b); }
+    if (op == IrOp.f64_gt) { return IrConst.ofBool(a > b); }
+    if (op == IrOp.f64_ge) { return IrConst.ofBool(a >= b); }
+    var r = 0.0;
+    if (op == IrOp.f64_add) { r = a + b; }
+    else if (op == IrOp.f64_sub) { r = a - b; }
+    else if (op == IrOp.f64_mul) { r = a * b; }
+    else if (op == IrOp.f64_div) { r = a / b; }
+    else { return null; }
+    if (r != r) {
+      return null;
+    }
+    return IrConst.ofF64(r);
+  }
+  return null;
+};
+
+/** The value of `op x`, or null when the op does not fold. */
+export let evalUnary = (op: IrOp, x: IrConst): IrConst | null => {
+  if (x.kind == 1) {
+    if (op == IrOp.i32_eqz) { return IrConst.ofBool(x.i == 0); }
+    if (op == IrOp.i64_extend_i32_s) { return IrConst.ofI64(x.i as i64); }
+    if (op == IrOp.f64_convert_i32_s) { return IrConst.ofF64(x.i as f64); }
+    return null;
+  }
+  if (x.kind == 2) {
+    let z = 0 as i64;
+    if (op == IrOp.i64_eqz) { return IrConst.ofBool(x.l == z); }
+    if (op == IrOp.i32_wrap_i64) { return IrConst.ofI32(x.l as i32); }
+    if (op == IrOp.f64_convert_i64_s) { return IrConst.ofF64(x.l as f64); }
+    return null;
+  }
+  if (op == IrOp.f64_neg) {
+    return IrConst.ofF64(-x.d);
+  }
+  return null;
+};
+
+/**
+ * A cast from `from` to `to` that can neither trap nor change the
+ * value: `from` is already a subtype of `to`. The nullability check is
+ * spelled out rather than trusted to isValSubtype alone — a
+ * null-stripping cast that folds is a silent miscompile, and this is
+ * the one place that decides it.
+ */
+export let castIsIdentity = (from: ValType, to: ValType): boolean => {
+  let stripsNull = from is ValTypeRefNull && !(to is ValTypeRefNull);
+  return !stripsNull && isValSubtype(from, to);
+};
+
+/**
+ * What a runtime type test of a value of static type `from` against
+ * `to` answers: 1 when every such value passes, 0 when none can,
+ * -1 when it depends on the value.
+ *
+ * "None can" rests on struct subtyping being a single chain: a value
+ * that is both a `from` and a `to` has both on its ancestor chain, so
+ * one of the two is an ancestor of the other. When neither is, no
+ * value satisfies both. Arrays and function types have no declared
+ * subtypes at all, so for them only the same type passes. The answer
+ * is withheld for a nullable target, where null would pass whatever
+ * the heap types say, and for the abstract types (anyref, eqref,
+ * structref), which have no chain to walk.
+ */
+export let castOutcome = (from: ValType, to: ValType): i32 => {
+  if (castIsIdentity(from, to)) {
+    return 1;
+  }
+  if (!(to is ValTypeRef)) {
+    return -1;
+  }
+  let fromT = refTargetOf(from);
+  let toT = refTargetOf(to);
+  if (fromT == null || toT == null) {
+    return -1;
+  }
+  if (onChainOf(fromT, toT) || onChainOf(toT, fromT)) {
+    return -1;
+  }
+  return 0;
+};
+
+/** True if `ancestor` is `t` or one of `t`'s declared supertypes. */
+let onChainOf = (t: WasmType, ancestor: WasmType): boolean => {
+  if (sameHeapType(t, ancestor)) {
+    return true;
+  }
+  if (t is WasmStruct) {
+    var current: WasmStruct | null = t.superStruct;
+    while (current != null) {
+      if (sameHeapType(current, ancestor)) {
+        return true;
+      }
+      current = current.superStruct;
+    }
+  }
+  return false;
+};
+
+/** Signed comparison of sign-flipped values = unsigned comparison. */
+let flipSign = (v: i32): i32 => {
+  return v ^ (1 << 31);
+};
+
+let flipSign64 = (v: i64): i64 => {
+  return v ^ ((1 as i64) << (63 as i64));
+};

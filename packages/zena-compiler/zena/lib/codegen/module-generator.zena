@@ -34,6 +34,7 @@ import { DevirtContext, runDevirt } from './ir/devirt.zena';
 import { EscapeSummaries } from './ir/escape.zena';
 import { pruneUnreached } from './ir/harvest.zena';
 import { runLicm } from './ir/licm.zena';
+import { runSccp } from './ir/sccp.zena';
 import { printIr } from './ir/printer.zena';
 import { IrCfg } from './ir/cfg.zena';
 import { emitZirFunction } from './ir/emit.zena';
@@ -598,6 +599,7 @@ export final class ModuleGenerator {
     var zirHarvestedFunctions = 0;
     var zirHarvestedGlobals = 0;
     var zirHoisted = 0;
+    var zirPropagated = 0;
     // Harvest roots: the exported functions (exported globals and the
     // start function are found inside the pass).
     let roots = new GrowableArray<WasmFunction>();
@@ -661,9 +663,23 @@ export final class ModuleGenerator {
             devirtualized += d;
           }
         }
+        // Constant propagation folds the branches the sweeps made
+        // constant: every body in the first round, after that only
+        // the bodies a sweep touched.
+        var propagated = 0;
+        for (var i = 0; i < bodies.length; i += 1) {
+          if (round == 0 || changed[i]) {
+            let n = runSccp(bodies[i]);
+            if (n > 0) {
+              changed[i] = true;
+              propagated += n;
+            }
+          }
+        }
         cleanupChanged("devirtualization");
         zirInlined += inlined;
         zirDevirtualized += devirtualized;
+        zirPropagated += propagated;
         if (inlined == 0 && devirtualized == 0) {
           break;
         }
@@ -1021,6 +1037,8 @@ export final class ModuleGenerator {
           " call_ref sites made direct");
       console.log("zir licm: " + i32ToString(zirHoisted) +
           " loop-invariant instructions hoisted");
+      console.log("zir sccp: " + i32ToString(zirPropagated) +
+          " constants, parameters and branches folded");
       console.log("zir harvest: " + i32ToString(zirHarvestedFunctions) +
           " unreachable functions and " + i32ToString(zirHarvestedGlobals) +
           " globals removed");
