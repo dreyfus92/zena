@@ -1,0 +1,17 @@
+{
+  "type": "ClassDeclaration",
+  "name": {
+    "type": "Identifier",
+    "name": "Altitude"
+  },
+  "superClass": {
+    "type": "TypeAnnotation",
+    "name": "Meters"
+  },
+  "body": [],
+  "exported": false,
+  "isFinal": false,
+  "isAbstract": false,
+  "isExtension": true,
+  "isSealed": false
+}

@@ -1,0 +1,2 @@
+// @target: statement
+extension class Altitude extends Meters { }

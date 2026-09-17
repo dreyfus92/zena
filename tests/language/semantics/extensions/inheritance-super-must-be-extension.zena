@@ -1,0 +1,11 @@
+// @mode: check
+// An extension class is erased to its underlying value, so there is no
+// base object for it to inherit from an ordinary class.
+
+class Point {
+  x: i32;
+  new(this.x);
+}
+
+// @error: cannot extend the ordinary class 'Point'
+extension class Offset extends Point {}

@@ -1,0 +1,8 @@
+// @mode: check
+// Both classes erase to their underlying value, so the subtype relation
+// holds only when that value is the same.
+
+extension class Meters on i32 {}
+
+// @error: it must be an extension on 'i32' too, and it is declared on 'i64'
+extension class Fathoms on i64 extends Meters {}

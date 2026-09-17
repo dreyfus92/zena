@@ -218,6 +218,18 @@ let tests = suite('formatter', () => {
     check('abstract resource', format(abstractResource), abstractResource);
   });
 
+  test('formats an extension class hierarchy', (t: TestContext) => {
+    // `on` is written before `extends`, and an extension class that
+    // extends another may leave it out entirely. Printing the two
+    // clauses the other way round produces source the parser rejects.
+    let base = "extension class Meters on i32 {}\n";
+    check('extension on', format(base), base);
+    let derived = "extension class Altitude extends Meters {}\n";
+    check('extension extends', format(derived), derived);
+    let both = "extension class Depth on i32 extends Meters {}\n";
+    check('extension on and extends', format(both), both);
+  });
+
   test('formats a declared receiver', (t: TestContext) => {
     // The receiver leads the parameter list without being a parameter, so
     // printing has to put it back — dropping it would silently turn a

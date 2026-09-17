@@ -1520,6 +1520,15 @@ extension class StringExt on String {
 "".isEmpty();       // true
 ```
 
+An extension class can extend another one declared on the same type. The `on`
+clause then comes from the superclass:
+
+```zena
+extension class TrimmedString extends StringExt {
+  trimmed(): String { return this.trim(); }
+}
+```
+
 ### Case Classes
 
 A class with a parameter list after its name is a **case class**—a concise

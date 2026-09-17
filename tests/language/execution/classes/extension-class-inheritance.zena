@@ -1,0 +1,55 @@
+// @mode: run
+// @stdout: /a/b\nzena\n/a\n/a/b/c\npath-dir
+
+// A hierarchy of erased path types: every class here is the same
+// `String` at runtime, and the extends clauses only say which methods
+// each one carries.
+
+extension class RootedPath on String {
+  new(value: String) : super(value);
+
+  text(): String { return this as String; }
+
+  parent(): RootedPath {
+    let s = this as String;
+    var cut = 0;
+    var i = 0;
+    while (i < s.length) {
+      if (s.sliceBytes(i, i + 1) == '/') { cut = i; }
+      i += 1;
+    }
+    return (if (cut == 0) '/' else s.sliceBytes(0, cut)) as RootedPath;
+  }
+
+  kind(): String { return 'path'; }
+}
+
+extension class RootedFilePath extends RootedPath {
+  new(value: String) : super(value);
+  fileExtension(): String { return 'zena'; }
+}
+
+extension class RootedDirectoryPath extends RootedPath {
+  new(value: String) : super(value);
+
+  join(segment: String): RootedPath {
+    return ((this as String) + '/' + segment) as RootedPath;
+  }
+
+  // An override, reaching the inherited body through `super`.
+  kind(): String { return super.kind() + '-dir'; }
+}
+
+// Takes the base type, and accepts either subclass.
+let show = (p: RootedPath): String => p.text();
+
+export let main = () => {
+  let f = new RootedFilePath('/a/b');
+  console.log(show(f));
+  console.log(f.fileExtension());
+  console.log(f.parent().text());
+
+  let d = new RootedDirectoryPath('/a/b');
+  console.log(d.join('c').text());
+  console.log(d.kind());
+};

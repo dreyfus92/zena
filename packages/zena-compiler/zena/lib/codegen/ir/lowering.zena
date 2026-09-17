@@ -1195,9 +1195,12 @@ export final class FunctionLowerer {
         this.func.classType != null && this.func.methodName != null) {
       // Override methods receive the ROOT class's receiver type (vtable
       // signature compatibility) and must downcast to their own class.
+      // An extension class has no struct to cast to: every class in the
+      // chain takes the same erased `on` value as its receiver, which
+      // is already the right type.
       let ct = this.func.classType as ClassType;
       let rootClass = getMemberRootClass(ct, this.func.methodName as String);
-      if (ct != rootClass) {
+      if (ct != rootClass && !ct.isExtension) {
         needsThisDowncast = true;
       }
     }

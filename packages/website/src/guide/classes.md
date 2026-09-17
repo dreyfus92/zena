@@ -473,6 +473,36 @@ let boiling = 100.0 as Celsius;
 let f = boiling.toFahrenheit(); // Compiles to a direct Wasm floating-point call
 ```
 
+### Extension class hierarchies
+
+An extension class can extend another extension class over the same
+underlying type. The `on` clause is then optional, and comes from the
+superclass:
+
+```zena
+extension class RootedPath on String {
+  new(value: String) : super(value);
+  parent(): RootedPath { ... }
+}
+
+extension class RootedFilePath extends RootedPath {
+  new(value: String) : super(value);
+  fileExtension(): String { ... }
+}
+
+let p: RootedPath = new RootedFilePath('/a/b.zena');
+```
+
+`RootedFilePath` inherits `parent()` and is a subtype of `RootedPath`, so a
+function taking a `RootedPath` accepts it. Both are a `String` at runtime, so
+the hierarchy adds no allocation and no dispatch: a call resolves from the
+static type of the receiver. A subclass may override an inherited method and
+call the inherited one with `super.m()`.
+
+The superclass must itself be an extension class, and the two must agree on
+the underlying type. An ordinary class cannot extend an extension class, and
+an extension class cannot extend an ordinary class.
+
 ## Inheritance and overriding
 
 Classes support single inheritance with the `extends` clause:

@@ -1,0 +1,35 @@
+// @mode: check
+// An extension class may extend another extension class over the same
+// underlying type: the subtype relation is free, since both sides are
+// already the same value at runtime.
+
+extension class RootedPath on String {
+  new(value: String) : super(value);
+  text(): String { return this as String; }
+}
+
+// No `on` clause: the underlying type comes from the superclass.
+extension class RootedFilePath extends RootedPath {
+  new(value: String) : super(value);
+  fileExtension(): String { return 'zena'; }
+}
+
+// Writing it is allowed too, as long as it agrees.
+extension class RootedDirectoryPath on String extends RootedPath {
+  new(value: String) : super(value);
+}
+
+let describe = (p: RootedPath): String => p.text();
+
+let f = new RootedFilePath('/a/b');
+
+// Subtyping: a subclass flows where the superclass is expected.
+let p: RootedPath = f;
+let described = describe(f);
+
+// Inherited members are available on the subclass.
+let t = f.text();
+let e = f.fileExtension();
+
+// The underlying value is still reachable.
+let s: String = f as String;

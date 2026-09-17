@@ -3142,9 +3142,12 @@ export final class Parser {
       typeParameters = this.#parseTypeParameterList();
     }
     
-    // Extension class: on TargetType
+    // Extension class: on TargetType. An extension class that extends
+    // another extension class may leave the clause out and take the
+    // superclass's underlying type; writing it is still allowed, and
+    // the checker requires the two to agree.
     var onType: TypeAnnotation | null = null;
-    if (isExtension) {
+    if (isExtension && !this.#check(TokenType.Extends)) {
       this.#consume(TokenType.On, "Expected 'on' after extension class name");
       onType = this.#parseTypeAnnotation();
     }
@@ -3166,9 +3169,6 @@ export final class Parser {
     // Extends clause
     var superClass: TypeAnnotation | null = null;
     if (this.#match(TokenType.Extends)) {
-      if (isExtension) {
-        throw this.#error("Extension classes cannot use 'extends'");
-      }
       if (this.#check(TokenType.With) || this.#check(TokenType.Implements) || this.#check(TokenType.LBrace) || this.#isAtEnd()) {
         let st = this.#peek();
         superClass = new NamedTypeAnnotation("", null, false, this.#makeLocation(st));

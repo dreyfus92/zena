@@ -3465,6 +3465,54 @@ Rules:
 - Field initializer lists (`this.x` parameters) are not available — extension
   classes cannot declare instance fields.
 
+#### Extending Another Extension Class
+
+An extension class can extend another extension class over the same
+underlying type:
+
+```zena
+extension class RootedPath on String {
+  new(value: String) : super(value);
+  parent(): RootedPath { ... }
+}
+
+extension class RootedFilePath extends RootedPath {
+  new(value: String) : super(value);
+  fileExtension(): String { ... }
+}
+
+extension class RootedDirectoryPath extends RootedPath {
+  new(value: String) : super(value);
+  join(segment: String): RootedPath { ... }
+}
+```
+
+`RootedFilePath` is a subtype of `RootedPath`, so a function taking a
+`RootedPath` accepts either subclass, and both inherit `parent()`. All three
+are a `String` at runtime, so the hierarchy costs nothing: no allocation, no
+vtable, and method calls still resolve statically from the type at the call
+site.
+
+Rules:
+
+- The superclass must be an extension class. An extension class cannot extend
+  an ordinary class, and an ordinary class cannot extend an extension class:
+  an extension class is erased to its underlying value, so neither side has an
+  object for the other to inherit.
+- Both classes must be declared on the same underlying type. The `on` clause
+  may be left out, and then it comes from the superclass; written out, it goes
+  before the `extends` clause and must name the same type.
+- A subclass constructor calls `super` with the underlying value, the same as
+  any other extension-class constructor.
+- A subclass may override an inherited method and call the inherited one with
+  `super.m()`. Dispatch stays static: which body runs follows the static type
+  of the receiver, not the value.
+
+The subclasses in a hierarchy are still indistinguishable at runtime from each
+other and from the base, so `RootedFilePath | RootedDirectoryPath` is still an
+ambiguous union (see [Limitations](#limitations)). Writing an API against
+`RootedPath` is what the hierarchy is for.
+
 ### Static Symbols
 
 Static Symbols allow you to define unique identifiers for methods and fields

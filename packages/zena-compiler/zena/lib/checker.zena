@@ -12586,6 +12586,60 @@ let registerClassDeclaration = (ctx: CheckerContext, cd: ClassDeclaration): void
             cd.loc
           );
         }
+        // Extension classes are erased: a value of one is its
+        // underlying value. So an extension class may only extend
+        // another extension class over the same underlying type, and
+        // then the subtype relation the extends clause declares costs
+        // nothing, because both sides are already the same value at
+        // runtime. The two kinds cannot be mixed: an ordinary subclass
+        // of an extension class would be an allocation whose base is
+        // not one, and an extension class declared `on` an ordinary
+        // class is a second view of that class rather than a subtype
+        // of it.
+        if (cd.isExtension) {
+          if (st.isExtension) {
+            let superOn = st.onType;
+            if (superOn != null) {
+              let ownOn = classType.onType;
+              if (ownOn == null) {
+                // No `on` clause: the underlying type comes from the
+                // superclass.
+                classType.onType = superOn;
+              } else if (!typesEqual(ownOn as Type, superOn as Type)) {
+                ctx.error(
+                  "The extension class '" + className + "' extends '" +
+                  st.name + "', so it must be an extension on '" +
+                  typeToString(superOn as Type) + "' too, and it is declared " +
+                  "on '" + typeToString(ownOn as Type) + "'. Both erase to " +
+                  "their underlying value, and a subtype relation between " +
+                  "them holds only when that value is the same.",
+                  DiagnosticCode.IncompatibleTypes,
+                  cd.loc
+                );
+              }
+            }
+          } else {
+            ctx.error(
+              "The extension class '" + className + "' cannot extend the " +
+              "ordinary class '" + st.name + "'. An extension class is " +
+              "erased to its underlying value, so it has no base object to " +
+              "inherit; write 'extension class " + className + " on " +
+              st.name + "' to add members to '" + st.name + "'.",
+              DiagnosticCode.IncompatibleTypes,
+              cd.loc
+            );
+          }
+        } else if (st.isExtension) {
+          ctx.error(
+            "'" + className + "' cannot extend the extension class '" +
+            st.name + "'. An extension class is erased to its underlying " +
+            "value, so there is no object for an ordinary class to extend. " +
+            "Extend '" + st.name + "' from an extension class, or extend " +
+            "what '" + st.name + "' is declared on.",
+            DiagnosticCode.IncompatibleTypes,
+            cd.loc
+          );
+        }
         // Sealed classes can only be extended by their declared variants.
         if (st.isSealed) {
           // Check if this class is a forward-declared variant

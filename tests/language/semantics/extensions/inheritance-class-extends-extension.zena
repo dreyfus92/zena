@@ -1,0 +1,8 @@
+// @mode: check
+// The other direction: an ordinary class has an object, an extension
+// class does not, so there is nothing to extend.
+
+extension class Meters on i32 {}
+
+// @error: cannot extend the extension class 'Meters'
+class Distance extends Meters {}

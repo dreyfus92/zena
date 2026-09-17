@@ -476,14 +476,17 @@ let printClassDeclaration = (decl: ClassDeclaration): Doc => {
     }
   }
 
-  if (superClass != null) {
-    parts.push(text(' extends '));
-    parts.push(printTypeAnnotation(superClass));
-  }
-
+  // The `on` clause comes first: an extension class may write both
+  // (`extension class Sub on i32 extends Base`), and that is the order
+  // the parser accepts.
   if (decl.onType != null) {
     parts.push(text(' on '));
     parts.push(printTypeAnnotation(decl.onType as TypeAnnotation));
+  }
+
+  if (superClass != null) {
+    parts.push(text(' extends '));
+    parts.push(printTypeAnnotation(superClass));
   }
 
   if (decl.mixins != null) {

@@ -1,0 +1,44 @@
+// @mode: run
+// @result: 123215
+
+// Inheritance across generic extension classes: each level adds members
+// over the same `array<T>`, and the type argument carries down the chain.
+
+extension class Wrapper<T> on array<T> {
+  first(): T { return (this as array<T>)[0]; }
+  size: i32 { get { return (this as array<T>).length; } }
+}
+
+extension class Pair<T> extends Wrapper<T> {
+  second(): T { return (this as array<T>)[1]; }
+  // An overridden getter.
+  size: i32 { get { return 2; } }
+}
+
+extension class Triple<T> extends Pair<T> {
+  third(): T { return (this as array<T>)[2]; }
+}
+
+// A non-generic subclass of an instantiated generic extension class:
+// its underlying type comes from `Wrapper<i32>`, so it is `array<i32>`.
+extension class IntPair extends Wrapper<i32> {
+  sum(): i32 { return (this as array<i32>)[0] + (this as array<i32>)[1]; }
+}
+
+let firstOf = <T>(w: Wrapper<T>): T => w.first();
+
+export let main = (): i32 => {
+  let t = [1, 2, 3] as Triple<i32>;
+  let a = t.first();   // 1, inherited two levels up
+  let b = t.second();  // 2, inherited one level up
+  let c = t.third();   // 3
+  let d = t.size;      // 2, the override in Pair
+  // The type argument is written out: inference does not walk a
+  // supertype chain to bind `T` (true of ordinary classes too).
+  let e = firstOf<i32>(t);  // 1, through the base type
+
+  let p = [4, 5] as IntPair;
+  let f = p.sum() - p.first();  // 9 - 4 = 5, own method plus an inherited one
+
+  return a * 100000 + b * 10000 + c * 1000 + d * 100 + e * 10 + f;
+};

@@ -1,0 +1,2 @@
+// @target: statement
+extension class Depth on i32 extends Meters { }
