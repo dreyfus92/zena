@@ -48,6 +48,8 @@ npm run bench:speed
 | **`array-sum`**   | Collections & iteration                | Fixed array literal `[1, 2, 3]` summed in loop.                                                              |
 | **`map-fusion`**  | Interface dispatch, closures, inlining | `xs.map(x => ...)` through the `Array` interface with a closure literal; compares itself against `map-loop`. |
 | **`map-loop`**    | Baseline for `map-fusion`              | The same computation as a loop written by hand.                                                              |
+| **`iter-protocol`** | Iterator protocol, scalar replacement | `for (let x in xs)` over a collection class of its own that delegates to a `FixedArray`'s iterator, so the loop goes through `iterator()` and `next()` and can never take lowering's array special case; compares itself against `iter-loop`. |
+| **`iter-loop`**   | Baseline for `iter-protocol`           | The same sum as an index loop written by hand.                                                               |
 | **`fib`**         | Function calls & recursion             | Recursive `fib(27)`.                                                                                         |
 | **`sum-loop`**    | Branching & integer arithmetic         | Iterative loop accumulation up to 5,000,000.                                                                 |
 | **`sieve`**       | Memory / array allocation & indexing   | Sieve of Eratosthenes up to 300,000.                                                                         |

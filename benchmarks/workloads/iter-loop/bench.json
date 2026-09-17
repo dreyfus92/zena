@@ -1,0 +1,11 @@
+{
+  "suite": "iter-loop",
+  "options": {
+    "minSamples": 50,
+    "extraSamples": 10,
+    "warmupRuns": 5,
+    "timeBudgetMs": 60000,
+    "horizons": ["0%"]
+  },
+  "variants": [{"name": "zena", "wasm": "../../out/iter-loop/zena.wasm"}]
+}

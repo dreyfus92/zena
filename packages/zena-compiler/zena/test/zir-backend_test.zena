@@ -943,6 +943,82 @@ export let tests = suite('zir backend', (): void => {
         'the test on x and the assignment under it fold away');
   });
 
+  test('-O2 makes a multi-value interface call direct and inlines it', (ctx: TestContext): void => {
+    // next() returns two values through an interface slot. The slot
+    // resolves by provenance (the pack of a fresh Counter), the
+    // trampoline it names is a multi-value tail call, and the method
+    // behind it has control flow: all three shapes inline, so the loop
+    // keeps no call of any kind.
+    let result = compileWithZirAt(
+        'interface Iter { next(): inline (true, i32) | inline (false, _); }\n' +
+        'class Counter implements Iter {\n' +
+        '  n: i32;\n' +
+        '  var #i: i32 = 0;\n' +
+        '  new(this.n);\n' +
+        '  next(): inline (true, i32) | inline (false, _) {\n' +
+        '    if (this.#i < this.n) {\n' +
+        '      let v = this.#i;\n' +
+        '      this.#i += 1;\n' +
+        '      return (true, v);\n' +
+        '    }\n' +
+        '    return (false, _);\n' +
+        '  }\n' +
+        '}\n' +
+        'export let main = (): i32 => {\n' +
+        '  let it: Iter = new Counter(10);\n' +
+        '  var sum = 0;\n' +
+        '  while (let (true, v) = it.next()) { sum += v; }\n' +
+        '  return sum;\n' +
+        '};', 2);
+    let absent = new GrowableArray<String>();
+    absent.push('call_ref');
+    absent.push('call $');
+    assertFunctionOmits(result, '$main', absent,
+        'the multi-value dispatch resolves and both the trampoline and next inline');
+  });
+
+  test('-O2 inlines a three-lane multi-value call through an interface', (ctx: TestContext): void => {
+    // The sync-or-async Step shape (async/step.zena): three lanes,
+    // the third a reference the Ready and Done arms leave as a hole.
+    // Nothing in the splice is written for two results; this pins it.
+    let result = compileWithZirAt(
+        'class Pend { new(); }\n' +
+        'interface Iter {\n' +
+        '  next(): inline (0, _, _) | inline (1, i32, _) | inline (2, _, Pend);\n' +
+        '}\n' +
+        'class Counter implements Iter {\n' +
+        '  n: i32;\n' +
+        '  var #i: i32 = 0;\n' +
+        '  new(this.n);\n' +
+        '  next(): inline (0, _, _) | inline (1, i32, _) | inline (2, _, Pend) {\n' +
+        '    if (this.#i < this.n) {\n' +
+        '      let v = this.#i;\n' +
+        '      this.#i += 1;\n' +
+        '      return (1, v, _);\n' +
+        '    }\n' +
+        '    return (0, _, _);\n' +
+        '  }\n' +
+        '}\n' +
+        'export let main = (): i32 => {\n' +
+        '  let it: Iter = new Counter(10);\n' +
+        '  var sum = 0;\n' +
+        '  var going = true;\n' +
+        '  while (going) {\n' +
+        '    match (it.next()) {\n' +
+        '      case (0, _, _): { going = false; }\n' +
+        '      case (1, let v, _): { sum += v; }\n' +
+        '      case (2, _, let p): { going = false; }\n' +
+        '    }\n' +
+        '  }\n' +
+        '  return sum;\n' +
+        '};', 2);
+    let absent = new GrowableArray<String>();
+    absent.push('call_ref');
+    absent.push('call $');
+    assertFunctionOmits(result, '$main', absent,
+        'a three-result slot devirtualizes and its trampoline and body inline');
+  });
+
   test('-O2 hoists an immutable field load out of a loop', (ctx: TestContext): void => {
     let result = compileWithZirAt(
         'class P {\n' +

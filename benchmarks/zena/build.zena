@@ -18,6 +18,8 @@ let workloads = [
   'sieve',
   'map-fusion',
   'map-loop',
+  'iter-protocol',
+  'iter-loop',
 ];
 
 let ensureDir = (path: String): void => {

@@ -29,8 +29,9 @@
  * A rewrite also requires the target's signature to equal the slot's
  * exactly: wasm permits a stored function's signature to be a subtype
  * of the slot's, and a direct call must type-check against the
- * function's own signature. Multi-value call_refs are left for the
- * next tier.
+ * function's own signature. A multi-value call rewrites like any
+ * other: its `mv_get` projections read the producer by id, and the id
+ * stays.
  *
  * Determinism: candidates scan wasm.globals in module order; no
  * iteration over hash containers.
@@ -78,7 +79,7 @@ export let runDevirt = (cx: DevirtContext, body: IrBody): i32 => {
         continue;
       }
       let slotSig = asWasmSignature(calleeType);
-      if (slotSig == null || slotSig.returns.length > 1) {
+      if (slotSig == null) {
         continue;
       }
       let target = resolveCallee(cx, body, callee);

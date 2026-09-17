@@ -1,0 +1,24 @@
+// The iter-protocol workload written as an index loop by hand: same
+// array, same arithmetic, no iterator. iter-protocol compares itself
+// against this build.
+export let main = (): i32 => {
+  let src = new FixedArray<i32>(1024, 0);
+  var i = 0;
+  while (i < 1024) {
+    src[i] = i;
+    i += 1;
+  }
+  var total = 0;
+  var round = 0;
+  while (round < 4000) {
+    var sum = 0;
+    var j = 0;
+    while (j < 1024) {
+      sum = (sum + src[j] * 3 + round) & 16777215;
+      j += 1;
+    }
+    total = (total + sum) & 16777215;
+    round += 1;
+  }
+  return total & 255;
+};

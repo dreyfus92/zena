@@ -15,6 +15,14 @@
  *   the call's block. The call's block ends in a `br` to the copied
  *   entry.
  *
+ * A callee returning several values (an iterator's `next()`) inlines
+ * the same way with one value per result: the continuation takes one
+ * parameter per result, `ret_multi` branches with all of them, and
+ * the call's `mv_get` projections become those parameters (or, in a
+ * straight-line splice, the returned values themselves). A tail call
+ * to a multi-value target — the interface trampoline's shape — copies
+ * as the call, its projections, and the branch carrying them.
+ *
  * Both paths pre-assign ids for every copied instruction before
  * copying, so operand lookups never depend on within-block order
  * matching id order — a previously inlined body has spliced ids in
@@ -22,8 +30,8 @@
  *
  * What never inlines: callees with `try_br` (splicing a protected
  * region inside another is the emitter risk ir.md §15 names),
- * multi-value returns, `tail return` (its constant-stack guarantee
- * must not silently become a growing one), suspensions, and
+ * `tail return` (its constant-stack guarantee must not silently
+ * become a growing one), suspensions, and
  * self-recursion. A budget on the callee's real instruction count and
  * two per-caller caps (size, splices per sweep) bound growth; chains
  * and mutual recursion resolve across the driver's rounds.
@@ -33,11 +41,12 @@
  * over hash containers.
  */
 import { HashMap } from 'zena:map';
-import { String } from 'zena:core';
+import { String, i32ToString } from 'zena:core';
 import { IrBlock, IrBody, IrOp, IrRefFunc } from './ir.zena';
 import {
   WasmModule, WasmFunction, WasmSignature, asWasmSignature,
 } from '../wasm-module.zena';
+import { ValType } from '../wasm.zena';
 import { EscapeSummaries } from './escape.zena';
 
 /**
@@ -98,7 +107,7 @@ let inlinableSize = (body: IrBody): i32 => {
     }
     for (let inst in blk.insts) {
       let op = body.op(inst);
-      if (op == IrOp.nop || op == IrOp.ret) {
+      if (op == IrOp.nop || op == IrOp.ret || op == IrOp.ret_multi) {
         continue;
       }
       if (op == IrOp.ret_call || op == IrOp.ret_call_ref) {
@@ -106,16 +115,14 @@ let inlinableSize = (body: IrBody): i32 => {
         // plain call site that costs no stack depth: the callee's
         // frame is gone and the target's frame takes its place. Only
         // a tail-call site keeps a constant-stack guarantee, and
-        // those sites are never inlined. Multi-value tail calls are
-        // out, like multi-value returns.
-        if (tailCallResults(body, inst) > 1) {
+        // those sites are never inlined.
+        if (tailCallSignature(body, inst) == null) {
           return -1;
         }
         count += 1;
         continue;
       }
-      if (op == IrOp.ret_multi || op == IrOp.try_br ||
-          op == IrOp.yield_ || op == IrOp.await_) {
+      if (op == IrOp.try_br || op == IrOp.yield_ || op == IrOp.await_) {
         return -1;
       }
       count += 1;
@@ -131,16 +138,8 @@ let isStraightLine = (body: IrBody): boolean => {
   }
   let insts = body.blocks[0].insts;
   let op = body.op(insts[insts.length - 1]);
-  return op == IrOp.ret || op == IrOp.ret_call || op == IrOp.ret_call_ref;
-};
-
-/** The number of results a tail call's target returns. */
-let tailCallResults = (body: IrBody, inst: i32): i32 => {
-  let sig = tailCallSignature(body, inst);
-  if (sig == null) {
-    return 99;
-  }
-  return sig.returns.length;
+  return op == IrOp.ret || op == IrOp.ret_multi || op == IrOp.ret_call ||
+      op == IrOp.ret_call_ref;
 };
 
 let tailCallSignature = (body: IrBody, inst: i32): WasmSignature | null => {
@@ -301,6 +300,43 @@ final class Splice {
     return id;
   }
 
+  /** Projection `k` of a multi-result call, of the given type. */
+  newMvGet(call: i32, k: i32, vt: ValType, block: i32): i32 {
+    this.caller.typeTable.push(vt);
+    let id = this.caller.opcode.length;
+    this.caller.opcode.push(IrOp.mv_get as i32);
+    this.caller.typeId.push(this.caller.typeTable.length - 1);
+    this.caller.a.push(call);
+    this.caller.b.push(k);
+    this.caller.instBlock.push(block);
+    return id;
+  }
+
+  /**
+   * The callee's tail call `ci` copied as a call whose results are the
+   * returned list: the call itself for one result, its projections
+   * for several, nothing for none. Every instruction goes on `out`.
+   */
+  newCallResults(ci: i32, block: i32, out: GrowableArray<i32>): GrowableArray<i32> {
+    let results = new GrowableArray<i32>();
+    let callId = this.newCallFromTailCall(ci, block);
+    out.push(callId);
+    let sig = tailCallSignature(this.callee, ci);
+    if (sig == null) {
+      throw new Error('inline: tail call without a signature');
+    }
+    if (sig.returns.length == 1) {
+      results.push(callId);
+    } else {
+      for (var k = 0; k < sig.returns.length; k += 1) {
+        let p = this.newMvGet(callId, k, sig.returns[k], block);
+        out.push(p);
+        results.push(p);
+      }
+    }
+    return results;
+  }
+
   /** A `br target(args)` terminator appended to the caller. */
   newBr(target: i32, args: GrowableArray<i32>, block: i32): i32 {
     let idx = this.caller.extra.length;
@@ -440,12 +476,48 @@ let inlineIntoBody = (caller: IrBody, bodyIndex: HashMap<WasmFunction, i32>,
         continue;
       }
 
-      if (isStraightLine(callee)) {
-        let result = spliceStraight(caller, callee, b, j, inst, args);
-        growRepl();
-        if (result >= 0) {
-          repl[inst] = result;
+      let sig = calleeSignature(caller, inst);
+      if (sig == null) {
+        j += 1;
+        continue;
+      }
+      // The call's values map to the splice's results. A call that is
+      // a value itself maps to the first result; its mv_get
+      // projections, when it has any, map to the results by index.
+      // Both can be true of different calls to a one-result function:
+      // lowering emits the projection form wherever a call site is
+      // written for several results (an iterator whose element is
+      // zero-width has a one-lane next()). A projection that is
+      // nowhere (deleted as unused) needs nothing.
+      let callIsValue = caller.typeId[inst] >= 0;
+      let mapResults = (results: GrowableArray<i32>): void => {
+        if (results.length != sig.returns.length) {
+          throw new Error('inline: ' + i32ToString(results.length) +
+              ' results for a callee returning ' +
+              i32ToString(sig.returns.length) + ' (' +
+              calleeName(caller, inst) + ')');
         }
+        growRepl();
+        if (results.length == 0) {
+          return;
+        }
+        if (callIsValue) {
+          repl[inst] = results[0];
+        }
+        let total = caller.instCount();
+        for (var i = 0; i < total; i += 1) {
+          if (caller.op(i) == IrOp.mv_get && caller.a[i] == inst) {
+            let k = caller.b[i];
+            if (k >= 0 && k < results.length) {
+              repl[i] = results[k];
+              nopOut(caller, i);
+            }
+          }
+        }
+      };
+
+      if (isStraightLine(callee)) {
+        mapResults(spliceStraight(caller, callee, b, j, inst, args));
         count += 1;
         // The copies were inserted before the call; skip past them
         // and the nop-ed call.
@@ -464,11 +536,7 @@ let inlineIntoBody = (caller: IrBody, bodyIndex: HashMap<WasmFunction, i32>,
         continue;
       }
       perCallee[calleeIdx] = soFar + 1;
-      let result = spliceGeneral(caller, callee, b, j, inst, args);
-      growRepl();
-      if (result >= 0) {
-        repl[inst] = result;
-      }
+      mapResults(spliceGeneral(caller, callee, b, j, inst, args, sig));
       count += 1;
       generalSplices += 1;
       // The rest of this block moved to the continuation, which the
@@ -490,11 +558,11 @@ let inlineIntoBody = (caller: IrBody, bodyIndex: HashMap<WasmFunction, i32>,
 
 /**
  * Straight-line splice: the callee's instructions are copied into
- * block `b` in place of the call at index `j`. Returns the id the
- * call's value maps to, or -1 for a void call.
+ * block `b` in place of the call at index `j`. Returns the ids the
+ * call's values map to, one per result.
  */
 let spliceStraight = (caller: IrBody, callee: IrBody, b: i32, j: i32,
-    inst: i32, args: GrowableArray<i32>): i32 => {
+    inst: i32, args: GrowableArray<i32>): GrowableArray<i32> => {
   let sp = new Splice(caller, callee);
   let params = callee.blocks[0].params;
   for (var p = 0; p < params.length; p += 1) {
@@ -524,19 +592,21 @@ let spliceStraight = (caller: IrBody, callee: IrBody, b: i32, j: i32,
     caller.instBlock[newId] = b;
     copied.push(newId);
   }
-  var result = -1;
+  var results = new GrowableArray<i32>();
   if (callee.op(term) == IrOp.ret) {
     let retVal = callee.a[term];
     if (retVal >= 0) {
-      result = sp.mapValue(retVal);
+      results.push(sp.mapValue(retVal));
+    }
+  } else if (callee.op(term) == IrOp.ret_multi) {
+    let idx = callee.a[term];
+    let argc = callee.extra[idx];
+    for (var k = 0; k < argc; k += 1) {
+      results.push(sp.mapValue(callee.extra[idx + 1 + k]));
     }
   } else {
-    // A tail call: the call itself is the returned value.
-    let callId = sp.newCallFromTailCall(term, b);
-    copied.push(callId);
-    if (caller.typeId[callId] >= 0) {
-      result = callId;
-    }
+    // A tail call: the call's own results are the returned values.
+    results = sp.newCallResults(term, b, copied);
   }
   nopOut(caller, inst);
   // Rebuild the block: prefix, copies, the nop-ed call, suffix.
@@ -556,17 +626,17 @@ let spliceStraight = (caller: IrBody, callee: IrBody, b: i32, j: i32,
   for (let r in rebuilt) {
     blk.insts.push(r);
   }
-  return result;
+  return results;
 };
 
 /**
  * General splice: every callee block becomes a new caller block, each
- * `ret` a `br` to a continuation block that takes the call's value as
- * its parameter and the rest of block `b` as its body. Returns the
- * continuation parameter's id, or -1 for a void call.
+ * `ret` a `br` to a continuation block that takes the call's values as
+ * its parameters and the rest of block `b` as its body. Returns the
+ * continuation parameters, one per result of `sig`.
  */
 let spliceGeneral = (caller: IrBody, callee: IrBody, b: i32, j: i32,
-    inst: i32, args: GrowableArray<i32>): i32 => {
+    inst: i32, args: GrowableArray<i32>, sig: WasmSignature): GrowableArray<i32> => {
   let sp = new Splice(caller, callee);
   let nb = callee.blocks.length;
   let blockBase = caller.blocks.length;
@@ -593,18 +663,24 @@ let spliceGeneral = (caller: IrBody, callee: IrBody, b: i32, j: i32,
     }
   }
 
-  // Continuation parameter: the call's value.
-  var result = -1;
-  let callType = caller.typeId[inst];
-  if (callType >= 0) {
+  // Continuation parameters: the call's values. A call that is a value
+  // itself lends its type; otherwise the signature's return types.
+  let results = new GrowableArray<i32>();
+  let resultCount = sig.returns.length;
+  for (var k = 0; k < resultCount; k += 1) {
+    var ty = caller.typeId[inst];
+    if (ty < 0 || resultCount > 1) {
+      caller.typeTable.push(sig.returns[k]);
+      ty = caller.typeTable.length - 1;
+    }
     let id = caller.opcode.length;
     caller.opcode.push(IrOp.param as i32);
-    caller.typeId.push(callType);
+    caller.typeId.push(ty);
     caller.a.push(-1);
     caller.b.push(-1);
     caller.instBlock.push(contId);
     cont.params.push(id);
-    result = id;
+    results.push(id);
   }
 
   // Pre-assign ids for every copied instruction (returns become
@@ -619,9 +695,14 @@ let spliceGeneral = (caller: IrBody, callee: IrBody, b: i32, j: i32,
         continue;
       }
       sp.map[ci] = next;
-      // A tail call copies as two instructions: the call, then the
-      // branch to the continuation carrying its value.
-      next += if (op == IrOp.ret_call || op == IrOp.ret_call_ref) 2 else 1;
+      // A tail call copies as the call, one projection per result
+      // when there are several, and the branch to the continuation
+      // carrying the values.
+      if (op == IrOp.ret_call || op == IrOp.ret_call_ref) {
+        next += 2 + (if (resultCount > 1) resultCount else 0);
+      } else {
+        next += 1;
+      }
       order.push(ci);
     }
   }
@@ -632,19 +713,32 @@ let spliceGeneral = (caller: IrBody, callee: IrBody, b: i32, j: i32,
     if (op == IrOp.ret) {
       let brArgs = new GrowableArray<i32>();
       let rv = callee.a[ci];
-      if (rv >= 0 && result >= 0) {
+      if (rv >= 0 && results.length > 0) {
         brArgs.push(sp.mapValue(rv));
       }
       newId = sp.newBr(contId, brArgs, dstBlock);
-    } else if (op == IrOp.ret_call || op == IrOp.ret_call_ref) {
-      newId = sp.newCallFromTailCall(ci, dstBlock);
-      caller.blocks[dstBlock].insts.push(newId);
+    } else if (op == IrOp.ret_multi) {
       let brArgs = new GrowableArray<i32>();
-      if (caller.typeId[newId] >= 0 && result >= 0) {
-        brArgs.push(newId);
+      let idx = callee.a[ci];
+      let argc = callee.extra[idx];
+      for (var k = 0; k < argc; k += 1) {
+        brArgs.push(sp.mapValue(callee.extra[idx + 1 + k]));
+      }
+      newId = sp.newBr(contId, brArgs, dstBlock);
+    } else if (op == IrOp.ret_call || op == IrOp.ret_call_ref) {
+      let made = new GrowableArray<i32>();
+      let values = sp.newCallResults(ci, dstBlock, made);
+      for (let m in made) {
+        caller.blocks[dstBlock].insts.push(m);
+      }
+      let brArgs = new GrowableArray<i32>();
+      if (results.length > 0) {
+        for (let v in values) {
+          brArgs.push(v);
+        }
       }
       let brId = sp.newBr(contId, brArgs, dstBlock);
-      if (newId != sp.map[ci] || brId != sp.map[ci] + 1) {
+      if (made[0] != sp.map[ci] || brId != sp.map[ci] + made.length) {
         throw new Error('inline: copied id does not match its assignment');
       }
       caller.blocks[dstBlock].insts.push(brId);
@@ -684,13 +778,12 @@ let spliceGeneral = (caller: IrBody, callee: IrBody, b: i32, j: i32,
   }
   let noArgs = new GrowableArray<i32>();
   blk.insts.push(sp.newBr(blockBase, noArgs, b));
-  return result;
+  return results;
 };
 
 /**
- * The body index of a call's target when it is a known local function
- * with a single (or no) return value; -1 otherwise (imports, wrappers
- * this module never lowered, multi-value returns).
+ * The body index of a call's target when it is a known local function;
+ * -1 otherwise (imports, wrappers this module never lowered).
  */
 let calleeBodyFor = (caller: IrBody, inst: i32,
     bodyIndex: HashMap<WasmFunction, i32>): i32 => {
@@ -698,11 +791,29 @@ let calleeBodyFor = (caller: IrBody, inst: i32,
   if (!(r is IrRefFunc)) {
     return -1;
   }
-  if (r.target.signature.returns.length > 1) {
-    return -1;
-  }
   if (let (true, idx) = bodyIndex.get(r.target)) {
     return idx;
   }
   return -1;
+};
+
+/** The signature of a direct call's target. */
+let calleeSignature = (caller: IrBody, inst: i32): WasmSignature | null => {
+  let r = caller.refTable[caller.b[inst]];
+  if (r is IrRefFunc) {
+    return r.target.signature;
+  }
+  return null;
+};
+
+/** The target's name, for error messages. */
+let calleeName = (caller: IrBody, inst: i32): String => {
+  let r = caller.refTable[caller.b[inst]];
+  if (r is IrRefFunc) {
+    let n = r.target.name;
+    if (n != null) {
+      return n;
+    }
+  }
+  return '<unnamed>';
 };

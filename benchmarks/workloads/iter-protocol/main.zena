@@ -1,0 +1,44 @@
+// Sum an array through the general iterator protocol. The paired
+// workload, iter-loop, writes the same computation as an index loop by
+// hand. The two should run at the same speed: the optimizer is expected
+// to make both calls direct, inline them, and dissolve the iterator
+// object so its index becomes a loop-carried value.
+//
+// The array is held in a collection class of its own. Lowering has a
+// special case that turns a for-in over FixedArray, ImmutableArray,
+// Array, or GrowableArray into an index loop directly, keyed on those
+// class names; a for-in over Ints can never take it, however much a
+// future pass learns about what Ints holds. Ints delegates iteration to
+// the array, so the loop still goes through iterator() and next() and
+// the array's own iterator object.
+import { IterableUtils } from 'zena:core';
+
+final class Ints with IterableUtils<i32> implements Iterable<i32> {
+  items: FixedArray<i32>;
+  new(this.items);
+
+  [Iterable.iterator](): Iterator<i32> {
+    return this.items.[Iterable.iterator]();
+  }
+}
+
+export let main = (): i32 => {
+  let src = new FixedArray<i32>(1024, 0);
+  var i = 0;
+  while (i < 1024) {
+    src[i] = i;
+    i += 1;
+  }
+  let xs = new Ints(src);
+  var total = 0;
+  var round = 0;
+  while (round < 4000) {
+    var sum = 0;
+    for (let x in xs) {
+      sum = (sum + x * 3 + round) & 16777215;
+    }
+    total = (total + sum) & 16777215;
+    round += 1;
+  }
+  return total & 255;
+};
