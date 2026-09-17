@@ -196,11 +196,9 @@ writeFileSync(
 writeFileSync(
   `${root}/scratch/fp-runner.zena`,
   `
-import { f64ToString, f32ToString, parseF64, parseI64, u64ToString } from 'zena:string-convert';
+import { f32ToString, u64ToString, StringBuilder } from 'zena:core';
 import { f64_reinterpret_i64, i64_reinterpret_f64, f32_reinterpret_i32 } from 'zena:math';
 import { readFile, writeFile } from 'zena:fs';
-import { StringBuilder } from 'zena:string-builder';
-import { FixedArray } from 'zena:fixed-array';
 
 let runPrint = (lines: FixedArray<String>, out: StringBuilder): void => {
   for (let line in lines) {

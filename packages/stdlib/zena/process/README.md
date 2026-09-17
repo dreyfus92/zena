@@ -4,7 +4,6 @@ Spawning host processes from Zena programs.
 
 ```zena
 import {run, runIn, spawn} from 'zena:process';
-import {Array} from 'zena:growable-array';
 
 let argv = new Array<String>();
 argv.push('git');

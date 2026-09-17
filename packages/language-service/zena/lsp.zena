@@ -65,7 +65,7 @@ class LspHost implements CompilerHost {
 
   /**
    * Resolve a canonical path to a filesystem path.
-   * For stdlib modules (e.g., "zena:error"), maps to the actual file.
+   * For stdlib modules (e.g., "zena:core"), maps to the actual file.
    * For regular paths, returns the input unchanged.
    */
   resolveToFilesystemPath(path: String): String {

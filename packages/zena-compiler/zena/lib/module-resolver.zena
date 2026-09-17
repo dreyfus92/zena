@@ -62,7 +62,7 @@ export final class PackageConfig {
 
 // A resolved module with its canonical path and package info.
 export final class ResolvedModule(
-  // Canonical path. For stdlib, either a name id ("zena:string") for a
+  // Canonical path. For stdlib, either a name id ("zena:regex") for a
   // manifest module resolving to its default "<name>.zena" file, or a path
   // id ("zena:console/host.zena") for any other stdlib file.
   // For file modules: "/absolute/path/to/module.zena".
@@ -85,8 +85,8 @@ export final class ResolvedModule(
 //
 // Usage:
 //   let resolver = new ModuleResolver(packages, "host");
-//   let resolved = resolver.resolve("zena:string", "/my/file.zena");
-//   // resolved.path == "zena:string"
+//   let resolved = resolver.resolve("zena:regex", "/my/file.zena");
+//   // resolved.path == "zena:regex"
 export final class ModuleResolver {
   #packages: HashMap<String, PackageConfig>;
   #target: String;
@@ -103,7 +103,7 @@ export final class ModuleResolver {
   //
   // Specifier formats:
   // - Relative: "./foo.zena", "../bar.zena"
-  // - Package:  "zena:string", "mypackage:module"
+  // - Package:  "zena:regex", "mypackage:module"
   resolve(specifier: String, referrer: String): ResolvedModule {
     if (specifier.startsWith("./") || specifier.startsWith("../")) {
       return this.resolveRelative(specifier, referrer);
