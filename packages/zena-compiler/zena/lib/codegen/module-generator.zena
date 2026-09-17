@@ -33,6 +33,7 @@ import { runInline } from './ir/inline.zena';
 import { DevirtContext, runDevirt } from './ir/devirt.zena';
 import { EscapeSummaries } from './ir/escape.zena';
 import { pruneUnreached } from './ir/harvest.zena';
+import { runLicm } from './ir/licm.zena';
 import { printIr } from './ir/printer.zena';
 import { IrCfg } from './ir/cfg.zena';
 import { emitZirFunction } from './ir/emit.zena';
@@ -596,6 +597,7 @@ export final class ModuleGenerator {
     var zirDevirtualized = 0;
     var zirHarvestedFunctions = 0;
     var zirHarvestedGlobals = 0;
+    var zirHoisted = 0;
     // Harvest roots: the exported functions (exported globals and the
     // start function are found inside the pass).
     let roots = new GrowableArray<WasmFunction>();
@@ -669,6 +671,17 @@ export final class ModuleGenerator {
       }
       };
       runRounds(6);
+      // Loop-invariant code motion, once the rounds have made the
+      // loops what they will be; GVN then merges what hoisting made
+      // adjacent.
+      for (var i = 0; i < bodies.length; i += 1) {
+        let hoisted = runLicm(bodies[i]);
+        if (hoisted > 0) {
+          zirHoisted += hoisted;
+          changed[i] = true;
+        }
+      }
+      cleanupChanged("hoisting");
       // Harvest with feedback: deleting the vtable globals nothing
       // reads any more shrinks the candidate set devirtualization
       // consults, so a further round can make more calls direct — and
@@ -1006,6 +1019,8 @@ export final class ModuleGenerator {
           " call sites inlined");
       console.log("zir devirt: " + i32ToString(zirDevirtualized) +
           " call_ref sites made direct");
+      console.log("zir licm: " + i32ToString(zirHoisted) +
+          " loop-invariant instructions hoisted");
       console.log("zir harvest: " + i32ToString(zirHarvestedFunctions) +
           " unreachable functions and " + i32ToString(zirHarvestedGlobals) +
           " globals removed");
