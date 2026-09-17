@@ -856,48 +856,56 @@ carries the workaround.
 
 ##### Combinator audit
 
-The design sketch here was one modifier on `Future.all` itself; the
-implementation found the return type does not survive that. An
-all-combinator that admits scoped inputs must await them, so its
-result carries the values (`Awaited<T>`), and its body awaits
-parameter-rooted scoped values, so its own future must be scoped:
+The design sketch here was one modifier on `Future.all` itself, and
+two facts change that. The first is the return type: an all-combinator
+that admits scoped inputs awaits them, so its result carries the
+values (`Awaited<T>`), and its body awaits parameter-rooted scoped
+values, so its own future must be scoped — while a first-class
+instantiation must keep returning an ordinary future, or every
+existing caller would have to consume a scoped result. The return type
+therefore depends on the instantiation, which is what the
+`ScopedFrom<T, R>` operator expresses: `Scoped<R>` when `T` carries a
+second-class type, and `R` otherwise. In a `scoped T` body the checker
+treats the still-open operator as `Scoped<R>` — the discipline the
+body pays anyway — and substitution collapses it once `T` closes.
 
 ```zena
-static async allScoped<scoped T>(
-    futures: Array<T>): Scoped<Future<Array<Awaited<T>>>>
+static async allSettled<scoped T>(
+    futures: Array<T>): ScopedFrom<T, Future<Array<Outcome<Awaited<T>, Error>>>>
 ```
 
-That signature cannot be `all`'s — existing callers would receive a
-scoped result they must consume — so the scoped-capable form is a
-second static. Its body awaits the inputs in order, which keeps
-`all`'s completion time because futures are eager: the inputs are all
-already running, and waiting on them one at a time still finishes when
-the slowest settles. A failure propagates when its turn is reached
-(earliest index rather than first in time), which is the one contract
-difference from `all`.
+The second fact is which combinators may admit scoped inputs at all.
+`all` settles on the first failure while the other inputs keep
+running; `race` and `any` settle on the first outcome and abandon the
+rest by design. For a scoped input, an abandoned frame is the hazard
+§"Required consumption" exists for: it stays parked in the executor
+holding a borrow into an owner whose scope has exited. So only a
+combinator that awaits every input to settlement may take `scoped T`,
+and that is `allSettled`'s shape — each input awaited inside a `try`,
+so a failure is recorded and the loop continues. An `all`-style result
+over scoped inputs is a wrapper over that loop, throwing the first
+`Err` after every input has settled. `all`, `race` and `any` stay
+first-class-only until drop-triggered cancellation (§"Dropped scoped
+futures") can detach an abandoned input safely. The storage ban
+enforces half of this on its own — `all`'s body stores the inputs in
+an `AllState` object, which a scoped `T` rejects — but a hand-written
+loop that awaits without a `try` throws past the remaining inputs and
+the checker cannot see that; it is open question 4's exception window,
+and the await-everything loop is the only sound idiom.
 
 `Awaited` participates: awaiting is a scoped future's consumption, so
 `Awaited<Scoped<Future<U>>>` is `U`, and the symbolic `Awaited<T>` is
 first-class whatever `T` is — a future's payload cannot be
 second-class, since `Future<second-class>` is itself a storage error.
 
-The container shapes and `Awaited` rules are implemented, and a static
-async method may declare the scoped return — the method-signature
-validation peels the wrapper as the function-expression path does.
-The stdlib `allScoped` itself waits on the next reseed, because the
-checked-in bootstrap compiles `zena:async` with its own older checker —
-stdlib code may use a new checker rule only after a reseed carries it,
-the same two-step that governs new syntax.
-
-The iterator adapters (`map`, `filter`, `take`, in `zena:ownership`)
-need no containers and, it turned out, no `scoped T` either: each is a
-generator taking one concrete `Scoped<Iterator<T>>` — the single
-derivation source; the element type stays an ordinary parameter — and
-returning a `Scoped<Iterator<U>>`, the shape the suspension
-relaxations already compile. The discipline shaped one detail: every
-path out of an adapter must consume its input, so `take` always
-enters its loop, and `take(it, 0)` pulls one element before the frame
-is disposed.
+The iterator adapters (`map`, `filter`, `take`, in `zena:core`) need no
+containers and no `scoped T` either: each is a generator taking one
+concrete `Scoped<Iterator<T>>` — the single derivation source; the
+element type stays an ordinary parameter — and returning a
+`Scoped<Iterator<U>>`, the shape the suspension relaxations already
+compile. The discipline shaped one detail: every path out of an
+adapter must consume its input, so `take` always enters its loop, and
+`take(it, 0)` pulls one element before the frame is disposed.
 
 The direction for the standard library is to annotate every type
 parameter as `scoped` wherever the implementation already passes the
@@ -911,13 +919,14 @@ subset (`pop`, `take`, draining iteration). Drop shapes fail it too:
 `HashMap.[]=` never consumes the key on the already-present path.
 Gating methods per instantiation ("`get` exists when `T` is
 unrestricted") is exactly the member-level `where` clause equality.md
-D4 already calls for, so the collections audit waits on it; the
-combinators and adapters do not.
+D4 already calls for, so the collections audit waits on it.
 
-Staging within this piece: the bare-`T` tightening first (it is a
-soundness fix and retires both `@missing-error` markers); the
-`scoped T` modifier and body rules second; the combinator and adapter
-audit third; the collections audit after member-level `where`.
+The operator and the container shapes are implemented, and a static
+async method may declare a scoped or `ScopedFrom` return. Annotating
+the stdlib `allSettled` waits on the reseed that carries the operator,
+because the checked-in bootstrap compiles `zena:async` with its own
+checker — stdlib code may use a new checker rule only after a reseed
+carries it, the same two-step that governs new syntax.
 
 #### Value types, containers, and slot references
 
@@ -1786,10 +1795,11 @@ relaxations (§"What the annotation allows"), the bare-parameter
 rejection, the modifier with its body discipline, the scoped iterator
 adapters, and the container shapes of §"Scoped containers and extent
 nesting" — `Array<T>` signatures, call-site literals, and the
-`Awaited` rules. What remains is the stdlib `allScoped` itself, which
-waits on the next reseed (§"Combinator audit"), and in-body container
-CREATION (`new GrowableArray<T>()` under a `scoped T`), which stays
-rejected until containers get a consumption story.
+`Awaited` rules, and the `ScopedFrom` operator. What remains is
+annotating the stdlib `allSettled` with it, which waits on the next
+reseed (§"Combinator audit"), and in-body container CREATION (`new
+GrowableArray<T>()` under a `scoped T`), which stays rejected until
+containers get a consumption story.
 The `dropped` state is set at the top of
 every consuming dispose — written or synthesized — so every release
 route marks it and a bad `adopt` reports "dropped" rather than blaming

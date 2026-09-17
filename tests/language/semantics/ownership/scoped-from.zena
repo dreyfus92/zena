@@ -1,0 +1,53 @@
+// @mode: check
+// ScopedFrom<T, R> (ownership.md §"Combinator audit"): a scoped
+// instantiation's result is a real Scoped<R> with the consumption
+// rules, a first-class instantiation's result is R, and the operator
+// takes exactly two type parameters.
+import {Own, Borrow, Scoped, Disposable} from 'zena:core';
+import {Awaited} from 'zena:async';
+
+@intrinsic('type.scopedFrom')
+declare type ScopedFrom<T, R>;
+
+@intrinsic('type.scopedFrom')
+declare type Malformed<T>; // @error: exactly two type parameters
+
+resource class Res {
+  new();
+  [Disposable.dispose](this: Own<this>): void {}
+}
+
+let tick = async (): Future<i32> => {
+  return 1;
+};
+
+let read = async (r: Borrow<Res>): Scoped<Future<i32>> => {
+  let x = await tick();
+  return x;
+};
+
+let first = async <scoped T>(futures: Array<T>): ScopedFrom<T, Future<Awaited<T>>> => {
+  let seen = new GrowableArray<Awaited<T>>();
+  for (let f in futures) {
+    seen.push(await f);
+  }
+  return seen[0];
+};
+
+// A scoped instantiation: the result is Scoped and must be consumed.
+let scopedResult = async (r: Borrow<Res>): Scoped<Future<i32>> => {
+  let fut: Scoped<Future<i32>> = first([read(r)]);
+  return await fut;
+};
+
+let abandoned = async (r: Borrow<Res>): Scoped<Future<i32>> => {
+  let fut = first([read(r)]);
+  return 0; // @error: must be consumed
+};
+
+// A first-class instantiation: the result is an ordinary future, so it
+// binds under a Future annotation and needs no consumption.
+let plainResult = async (): Future<i32> => {
+  let fut: Future<i32> = first([tick()]);
+  return await fut;
+};

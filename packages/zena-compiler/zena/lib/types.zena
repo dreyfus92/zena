@@ -1263,6 +1263,15 @@ export let soleNonNullMember = (t: Type): Type | null => {
  */
 export let isScopedType = (t: Type): boolean => {
   if (!(t is TypeAliasType)) { return false; }
+  // The conditional operator is scoped exactly when its condition
+  // argument carries a second-class type; while that argument is an
+  // open `scoped T` the body sees it as Scoped<R>, and substitution
+  // collapses it (applyTypeIntrinsic) once T closes.
+  if (t.intrinsicName == 'type.scopedFrom') {
+    let sargs = t.typeArguments;
+    if (sargs == null || sargs.length != 2) { return false; }
+    return typeContainsSecondClass(sargs[0]);
+  }
   if (!t.isDistinct) { return false; }
   return isWellKnown(WellKnown.ScopedAlias, t.name, t.declaringModule);
 };
@@ -1275,8 +1284,13 @@ export let isScopedType = (t: Type): boolean => {
  */
 export let scopedInner = (t: Type): Type | null => {
   if (!isScopedType(t)) { return null; }
-  let args = (t as TypeAliasType).typeArguments;
+  let alias = t as TypeAliasType;
+  let args = alias.typeArguments;
   if (args == null) { return null; }
+  if (alias.intrinsicName == 'type.scopedFrom') {
+    if (args.length != 2) { return null; }
+    return args[1];
+  }
   if (args.length != 1) { return null; }
   return args[0];
 };
@@ -1481,7 +1495,42 @@ export let awaitedTypeOf = (t: Type): Type => {
  * type parameters — substitution re-applies at every step, so the
  * first closing substitution normalizes the alias away.
  */
+/**
+ * The `type.scopedFrom` rule: `ScopedFrom<T, R>` is `Scoped<R>` when
+ * `T` carries a second-class type and `R` otherwise
+ * (ownership.md §"Combinator audit"). While `T` is still open the
+ * instance stays symbolic, and isScopedType/scopedInner answer for it
+ * as Scoped<R> — the worst case a `scoped T` body must be checked at.
+ * The operator's `target` is the `Scoped` declaration itself, set
+ * where the operator is declared, so the collapse can instantiate the
+ * real alias without a checker context.
+ */
+export let scopedFromTypeOf = (alias: TypeAliasType): Type => {
+  let args = alias.typeArguments;
+  if (args == null || args.length != 2) {
+    return alias;
+  }
+  if (typeContainsTypeParameter(args[0])) {
+    return alias;
+  }
+  if (!typeContainsSecondClass(args[0])) {
+    return args[1];
+  }
+  let scopedDecl = alias.target;
+  if (scopedDecl is TypeAliasType) {
+    if (scopedDecl.typeParameters != null) {
+      let one = new GrowableArray<Type>();
+      one.push(args[1]);
+      return instantiateTypeAliasType(scopedDecl, one);
+    }
+  }
+  return alias;
+};
+
 export let applyTypeIntrinsic = (alias: TypeAliasType): Type => {
+  if (alias.intrinsicName == 'type.scopedFrom') {
+    return scopedFromTypeOf(alias);
+  }
   if (alias.intrinsicName != 'type.awaited') {
     return alias;
   }
@@ -2099,4 +2148,181 @@ export let typeToString = (t: Type): String => match (t) {
   case ThisType: "this"
 };
 
+// ---------------------------------------------------------------------------
+// Second-class containment (ownership.md §"The two axes")
+// ---------------------------------------------------------------------------
 
+/**
+ * Whether `t` is **second-class**: a value of it may not outlive the extent
+ * it was borrowed from, so it may not be stored in the heap or returned
+ * except to the caller that supplied the borrow it derives from.
+ *
+ * Only `Borrow<R>` is second-class, and only where there is an owner to
+ * outlive. Borrowing an unrestricted value is a no-op — `Borrow<i32>` is
+ * `i32`, `Borrow<String>` is `String` — so those instantiations carry no
+ * restrictions at all; see ownership.md §"`Borrow<T>` is the identity at
+ * unrestricted instantiations".
+ *
+ * A borrow of a bare type parameter *is* restricted. A generic body is
+ * checked against the worst case its bound permits, and an unbounded `T`
+ * permits a resource. The restriction is on the generic body only: at a
+ * call site `T` is substituted, so `read<i32>` is checked with the
+ * unrestricted `Borrow<i32>` and nothing applies.
+ */
+export let isSecondClass = (t: Type): boolean => {
+  // A scoped value is second-class whatever it wraps: it owns a frame
+  // that holds a borrow, so the extent restriction is unconditional
+  // (ownership.md §"Scoped<T>: the fourth corner").
+  if (isScopedType(t)) { return true; }
+  // A `scoped T` parameter's values are checked at the same
+  // discipline — the worst case the parameter admits.
+  if (t is TypeParameterType && t.isScoped) { return true; }
+  if (ownershipHandleName(t) != "Borrow") { return false; }
+  let inner = ownershipHandleInner(t);
+  if (inner == null) { return false; }
+  return borrowInnerRestricts(inner);
+};
+
+/**
+ * Whether a value of `t` can carry a second-class value — the
+ * containment test behind the storage bans. Walks unions and pierces
+ * distinct aliases the way typeCarriesOwner does, so a nullable or
+ * aliased spelling (`Scoped<F> | null`, `type Sneak = Borrow<R>`) is
+ * not a storage loophole.
+ */
+export let typeContainsSecondClass = (t: Type): boolean => {
+  return typeContainsSecondClassAtDepth(t, 0);
+};
+
+export let typeContainsSecondClassAtDepth = (t: Type, depth: i32): boolean => {
+  if (depth > 32) { return false; }
+  if (isSecondClass(t)) { return true; }
+  if (t is UnionType) {
+    for (let m in t.types) {
+      if (typeContainsSecondClassAtDepth(m, depth + 1)) { return true; }
+    }
+    return false;
+  }
+  if (t is TypeAliasType) {
+    if (isOwnershipWrapper(t) || isScopedType(t)) { return false; }
+    // Awaited<T> strips the wrappers by meaning, and a future's payload
+    // cannot be second-class (Future<second-class> is a storage error),
+    // so the symbolic form is first-class whatever T is.
+    if (t.intrinsicName == 'type.awaited') { return false; }
+    if (t.resolving) { return false; }
+    return typeContainsSecondClassAtDepth(t.target, depth + 1);
+  }
+  // A container derives the restriction from its arguments —
+  // `Array<Scoped<F>>` and `Array<T>` under a scoped T are
+  // second-class values (ownership.md §"Scoped containers and extent
+  // nesting"). Such instantiations exist only in the sanctioned
+  // shapes; the walk is what restricts the values they produce.
+  if (t is ClassType) {
+    let args = t.typeArguments;
+    if (args != null) {
+      for (let a in args) {
+        if (typeContainsSecondClassAtDepth(a, depth + 1)) { return true; }
+      }
+    }
+    return false;
+  }
+  if (t is InterfaceType) {
+    let iargs = t.typeArguments;
+    if (iargs != null) {
+      for (let a in iargs) {
+        if (typeContainsSecondClassAtDepth(a, depth + 1)) { return true; }
+      }
+    }
+    return false;
+  }
+  if (t is ArrayType) {
+    return typeContainsSecondClassAtDepth(t.elementType, depth + 1);
+  }
+  return false;
+};
+
+/** The scoped half of typeContainsSecondClass, for diagnostic wording. */
+export let typeContainsScoped = (t: Type): boolean => {
+  if (isScopedType(t)) { return true; }
+  if (t is UnionType) {
+    for (let m in t.types) {
+      if (typeContainsScoped(m)) { return true; }
+    }
+    return false;
+  }
+  if (t is TypeAliasType) {
+    if (isOwnershipWrapper(t)) { return false; }
+    if (t.resolving) { return false; }
+    return typeContainsScoped(t.target);
+  }
+  return false;
+};
+
+/**
+ * typeContainsSecondClass, excluding `scoped` type parameters. The
+ * symbolic containment a scoped-T signature mentions — `Array<T>` as
+ * a parameter type — is sanctioned, because the argument is checked
+ * where `T` is bound; a concrete second-class argument
+ * (`Array<Scoped<F>>`) stays a storage error wherever it is written
+ * (ownership.md §"Scoped containers and extent nesting").
+ */
+export let typeContainsConcreteSecondClass = (t: Type): boolean => {
+  return typeContainsConcreteSecondClassAtDepth(t, 0);
+};
+
+export let typeContainsConcreteSecondClassAtDepth = (t: Type, depth: i32): boolean => {
+  if (depth > 32) { return false; }
+  if (t is TypeParameterType) { return false; }
+  if (isSecondClass(t)) { return true; }
+  if (t is UnionType) {
+    for (let m in t.types) {
+      if (typeContainsConcreteSecondClassAtDepth(m, depth + 1)) { return true; }
+    }
+    return false;
+  }
+  if (t is TypeAliasType) {
+    if (isOwnershipWrapper(t) || isScopedType(t)) { return false; }
+    if (t.intrinsicName == 'type.awaited') { return false; }
+    if (t.resolving) { return false; }
+    return typeContainsConcreteSecondClassAtDepth(t.target, depth + 1);
+  }
+  if (t is ClassType) {
+    let args = t.typeArguments;
+    if (args != null) {
+      for (let a in args) {
+        if (typeContainsConcreteSecondClassAtDepth(a, depth + 1)) { return true; }
+      }
+    }
+    return false;
+  }
+  if (t is InterfaceType) {
+    let iargs = t.typeArguments;
+    if (iargs != null) {
+      for (let a in iargs) {
+        if (typeContainsConcreteSecondClassAtDepth(a, depth + 1)) { return true; }
+      }
+    }
+    return false;
+  }
+  if (t is ArrayType) {
+    return typeContainsConcreteSecondClassAtDepth(t.elementType, depth + 1);
+  }
+  return false;
+};
+
+/**
+ * Whether borrowing `inner` is restricted. A union inner — a merged
+ * `Borrow<A> | Borrow<B>` — restricts when ANY member does: a value of
+ * the union may dynamically be the restricted member, and dropping the
+ * restriction there would let that arm escape its owner's extent.
+ */
+export let borrowInnerRestricts = (inner: Type): boolean => {
+  if (inner is TypeParameterType) { return true; }
+  if (inner is ClassType) { return inner.isResource; }
+  if (inner is UnionType) {
+    for (let m in inner.types) {
+      if (borrowInnerRestricts(m)) { return true; }
+    }
+  }
+  return false;
+};

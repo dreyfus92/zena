@@ -4712,8 +4712,23 @@ collections adopting the modifier themselves.
 Containers of scoped values exist in exactly two shapes. A signature
 may say `Array<T>` under a `scoped T`, and a caller supplies it with
 an array literal written directly in the argument position —
-`allScoped([read(a), read(b)])` — where a first-class future coerces
-into the literal like anywhere else. Binding such a literal
+`Future.allSettled([read(a), read(b)])` — where a first-class future
+coerces into the literal like anywhere else.
+
+A combinator over scoped inputs has to await every one of them: a
+result that settles early leaves the other inputs running with their
+borrows, which is the abandonment the consumption rule prevents. So
+`allSettled` is the combinator that serves scoped inputs (its loop
+awaits each input inside a `try`), while `all`, `race` and `any`,
+which settle on the first outcome, take only first-class futures.
+
+Such a combinator's return type depends on its inputs, and the
+`ScopedFrom<T, R>` type operator (declared in `zena:core`) says so:
+it is `Scoped<R>` when `T` carries a scoped or restricted borrowed
+type, and `R` otherwise. Inside the generic body the checker treats
+it as `Scoped<R>`; at a first-class instantiation the caller sees a
+plain `R`, so `Future.allSettled([tick(), tick()])` is an ordinary
+future exactly as before. Binding such a literal
 (`let arr = [fut1, fut2]`) or naming the container type in an
 annotation is an error: the literal is consumed by the call it flows
 into, which is what bounds its extent. `Awaited<T>` strips the

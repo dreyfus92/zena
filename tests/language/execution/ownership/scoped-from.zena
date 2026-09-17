@@ -1,0 +1,67 @@
+// @mode: run
+// @result: 169
+// The ScopedFrom<T, R> operator: R when T is first-class, Scoped<R>
+// when T carries a second-class type. One allSettled-shaped combinator
+// serves both populations — the body awaits every input inside a try,
+// so a failure never abandons the inputs behind it — and the plain
+// instantiation's result is an ordinary, storable future.
+import {Own, Borrow, Scoped, Disposable, Outcome, Ok, Err} from 'zena:core';
+import {Awaited} from 'zena:async';
+
+@intrinsic('type.scopedFrom')
+declare type ScopedFrom<T, R>;
+
+resource class Res {
+  #n: i32;
+  new(n: i32) : #n = n;
+  size(): i32 { return this.#n; }
+  [Disposable.dispose](this: Own<this>): void {}
+}
+
+let tick = async (): Future<i32> => {
+  return 1;
+};
+
+let boom = async (): Future<i32> => {
+  throw new Error('boom');
+};
+
+let read = async (r: Borrow<Res>): Scoped<Future<i32>> => {
+  let x = await tick();
+  return r.size() + x;
+};
+
+let settleAll = async <scoped T>(
+    futures: Array<T>): ScopedFrom<T, Future<Array<Outcome<Awaited<T>, Error>>>> => {
+  let out = new GrowableArray<Outcome<Awaited<T>, Error>>();
+  for (let f in futures) {
+    try {
+      out.push(new Ok<Awaited<T>, Error>(await f));
+    } catch (e) {
+      out.push(new Err<Awaited<T>, Error>(e));
+    }
+  }
+  return out;
+};
+
+export let main = async (): Future<i32> => {
+  let owner = new Res(30);
+  // Scoped inputs: the result is scoped, and awaiting it consumes it.
+  // The failing input in the middle does not abandon the one after it.
+  let outcomes = await settleAll([read(owner), boom(), read(owner)]);
+  var sum = 0;
+  for (let o in outcomes) {
+    if (o is Ok<i32, Error>) {
+      let ok = o as Ok<i32, Error>;
+      sum += ok.value;
+    } else {
+      sum += 100;
+    }
+  }
+  // Plain inputs: the result collapses to a first-class future, so it
+  // binds under an ordinary Future annotation.
+  let plain: Future<Array<Outcome<i32, Error>>> = settleAll([tick(), tick()]);
+  let vals = await plain;
+  // 31 + 100 + 31 = 162, plus 2 outcomes, plus 5.
+  return sum + vals.length + 5;
+};

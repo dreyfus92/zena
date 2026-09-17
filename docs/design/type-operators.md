@@ -65,6 +65,28 @@ The rule identifies `Future` by name and declaring module
 (`isFutureClassType`) rather than by prelude identity, so it can run
 in substitution contexts that have no checker in reach.
 
+## `type.scopedFrom`
+
+`ScopedFrom<T, R>` is `Scoped<R>` when `T` carries a second-class type
+(a `Scoped` value, a restricted `Borrow`, or a `scoped` type parameter)
+and `R` otherwise. It exists for one shape: a generic whose result must
+be scoped exactly when an input is — `Future.allSettled<scoped T>`
+returns `ScopedFrom<T, Future<Array<Outcome<Awaited<T>, Error>>>>`, so
+a call over scoped futures yields a scoped result the caller must
+consume, and a call over ordinary futures yields the ordinary future
+existing callers expect (ownership.md §"Combinator audit").
+
+Two things differ from `type.awaited`. While `T` is open the instance
+stays symbolic, and `isScopedType`/`scopedInner` answer for it as
+`Scoped<R>` — the worst case a `scoped T` body is checked at, so the
+body's scoped return satisfies the await-propagation and derivation
+rules. And the collapse to `Scoped<R>` needs the `Scoped` declaration
+to instantiate: the operator's `target` is set to that declaration
+where the operator is declared (the checker requires `Scoped` in
+scope), so `scopedFromTypeOf` in `types.zena` can build the real alias
+without a checker context, and codegen's substitution — where the
+wrapper erases anyway — collapses through the same rule.
+
 ## The flattening `then`, and what blocks it in the library
 
 `Awaited<R>` was built to type a JS-like flattening `then` —

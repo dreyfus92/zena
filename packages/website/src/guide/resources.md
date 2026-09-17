@@ -365,9 +365,12 @@ a closure, and it must be **consumed exactly once on every path** — awaited,
 or moved — so it cannot outlive the caller's borrow scope. A generator gets
 the same trade: it may take borrow parameters when it returns
 `Scoped<Iterator<T>>`, and the caller must drive that iterator with a
-`for`/`in` loop inside the borrow's extent. The `scoped T` type-parameter
-opt-in that will let combinators like `Future.all` accept scoped futures is
-still planned.
+`for`/`in` loop inside the borrow's extent. Generic code opts in with the
+`scoped T` type-parameter modifier, and the standard library uses it:
+`Future.allSettled([read(a), read(b)])` awaits a literal of scoped futures
+(every input, so none is left running with its borrow), and `map`,
+`filter` and `take` from `zena:core` transform a scoped iterator before
+the loop that drives it.
 
 ## Regime transitions: disown and adopt <span class="badge success">Implemented</span>
 
