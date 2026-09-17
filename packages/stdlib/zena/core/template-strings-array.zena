@@ -1,4 +1,6 @@
-import { String, Encoding } from 'zena:string';
+import { FixedArray } from './fixed-array.zena';
+import { ImmutableArray } from './immutable-array.zena';
+import { String, Encoding } from './string.zena';
 
 /**
  * Type alias for template tag functions.

@@ -102,10 +102,10 @@ let query = `
 When writing multi-line template literals inside indented functions or blocks, the
 surrounding indentation is included in the string output. To format template literals
 cleanly in source code while stripping common leading whitespace, use the `dedent`
-template tag from `zena:template-strings-array`:
+template tag from `zena:core`:
 
 ```zena
-import {dedent} from 'zena:template-strings-array';
+import {dedent} from 'zena:core';
 
 let printHelp = () => {
   let usage = dedent`
@@ -185,7 +185,7 @@ are generally preferred over chaining `+` operators.
 
 When assembling strings dynamically or repeatedly inside loops, chaining `+`
 allocates a new string and copies bytes on every iteration. Use
-[`StringBuilder`](/reference/stdlib/string-builder/) instead to accumulate
+[`StringBuilder`](/reference/stdlib/core/#stringbuilder) instead to accumulate
 content with buffered geometric growth.
 
 ### Searching and splitting
@@ -204,8 +204,8 @@ let fruits = csv.split(",");         // FixedArray<String> with 3 elements
 ```
 
 For cursor-based tokenization, custom parsing, or scanning character by character
-across safe Unicode boundaries, use [`StringReader`](/reference/stdlib/string-reader/)
-from `zena:string-reader`.
+across safe Unicode boundaries, use [`StringReader`](/reference/stdlib/core/#stringreader)
+from `zena:core`.
 
 ### ASCII case conversion
 
@@ -307,10 +307,10 @@ Unicode code-point and grapheme-cluster iterators. For text parsing today, use
 ### Safe parsing with StringReader
 
 To navigate and parse strings safely at Unicode code point boundaries, use
-[`StringReader`](/reference/stdlib/string-reader/) from `zena:string-reader`:
+[`StringReader`](/reference/stdlib/core/#stringreader) from `zena:core`:
 
 ```zena
-import {StringReader} from 'zena:string-reader';
+import {StringReader} from 'zena:core';
 
 let parseWord = (input: String): String? => {
   let reader = new StringReader(input);
@@ -389,10 +389,10 @@ total length and allocate the result buffer once.
 ### Building strings with StringBuilder
 
 For iterative string construction across loops or conditional logic, use
-[`StringBuilder`](/reference/stdlib/string-builder/) from `zena:string-builder`:
+[`StringBuilder`](/reference/stdlib/core/#stringbuilder) from `zena:core`:
 
 ```zena
-import {StringBuilder} from 'zena:string-builder';
+import {StringBuilder} from 'zena:core';
 
 let buildCsv = (items: Array<String>): String => {
   let builder = new StringBuilder(64); // Initial capacity in bytes

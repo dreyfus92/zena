@@ -13,7 +13,7 @@ async function compileAndInstantiate(source: string) {
 suite('JS Runtime Lazy Stack Trace', () => {
   test('captures and formats stack trace successfully', async () => {
     const source = `
-      import { String } from 'zena:string';
+      import { String } from 'zena:core';
 
       @external("env", "captureStackTrace")
       declare function __captureStackTrace(): anyref;
@@ -48,7 +48,7 @@ suite('JS Runtime Lazy Stack Trace', () => {
 
   test('fails loudly if formatStackTrace is passed invalid object', async () => {
     const source = `
-      import { String } from 'zena:string';
+      import { String } from 'zena:core';
 
       @external("env", "formatStackTrace")
       declare function __formatStackTrace(stack: anyref): String | null;

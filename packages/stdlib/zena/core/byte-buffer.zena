@@ -5,7 +5,7 @@
  * on every resize. Ideal for building binary formats like WASM modules.
  */
 
-import { GrowableArray } from 'zena:growable-array';
+import { GrowableArray } from './growable-array.zena';
 import { i32_reinterpret_f32, i64_reinterpret_f64 } from 'zena:math';
 
 /**

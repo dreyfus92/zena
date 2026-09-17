@@ -159,35 +159,12 @@ export let buildStdlibConfig = (stdlibRoot: String): PackageConfig => {
   // prelude names zena:async, so anything folded in is parsed and checked
   // by every compilation whether or not it is used.
   exports["stream"] = new ModuleExport(null, "stream/index.zena");
-  // Published before it owns anything: stdlibLibraryOf attributes a file
-  // under core/ to this library only if core is a published module, and the
-  // well-known registry keys on the owning library. A declaration cannot
-  // move here until a bootstrap already knows the name.
+  // Its twenty-three members have no module name of their own: they are
+  // private files of this library, reached through this entry point or by
+  // relative import from inside it. `error-stack` is the exception, and it
+  // is virtual — the manifest is what picks a file per target, so a
+  // relative import would nail one of them.
   exports["core"] = new ModuleExport(null, "core/index.zena");
-  exports["hashable"] = new ModuleExport(null, "core/hashable.zena");
-  exports["string"] = new ModuleExport(null, "core/string.zena");
-  exports["error"] = new ModuleExport(null, "core/error.zena");
-  exports["box"] = new ModuleExport(null, "core/box.zena");
-  exports["iterator"] = new ModuleExport(null, "core/iterator.zena");
-  exports["array"] = new ModuleExport(null, "core/array.zena");
-  exports["fixed-array"] = new ModuleExport(null, "core/fixed-array.zena");
-  exports["immutable-array"] = new ModuleExport(null, "core/immutable-array.zena");
-  exports["growable-array"] = new ModuleExport(null, "core/growable-array.zena");
-  exports["ownership"] = new ModuleExport(null, "core/ownership.zena");
-  exports["template-strings-array"] = new ModuleExport(null, "core/template-strings-array.zena");
-  exports["string-convert"] = new ModuleExport(null, "core/string-convert.zena");
-  // Core members, moved. Each keeps its own module name for now; the
-  // entrypoints collapse in Phase 3.
-  exports["array-iterator"] = new ModuleExport(null, "core/array-iterator.zena");
-  exports["byte-array"] = new ModuleExport(null, "core/byte-array.zena");
-  exports["byte-buffer"] = new ModuleExport(null, "core/byte-buffer.zena");
-  exports["growable-array-iterator"] = new ModuleExport(null, "core/growable-array-iterator.zena");
-  exports["iterable-utils"] = new ModuleExport(null, "core/iterable-utils.zena");
-  exports["option"] = new ModuleExport(null, "core/option.zena");
-  exports["range"] = new ModuleExport(null, "core/range.zena");
-  exports["result"] = new ModuleExport(null, "core/result.zena");
-  exports["string-builder"] = new ModuleExport(null, "core/string-builder.zena");
-  exports["string-reader"] = new ModuleExport(null, "core/string-reader.zena");
   exports["url"] = new ModuleExport(null, "url/index.zena");
   exports["bench"] = new ModuleExport(null, "bench/index.zena");
   exports["collections"] = new ModuleExport(null, "collections/index.zena");

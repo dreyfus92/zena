@@ -6,7 +6,7 @@
  * so keys are independent of declaration order. The encoded string is
  * handed to the host's digest function; it is never stored.
  */
-import {StringBuilder} from 'zena:string-builder';
+import {StringBuilder} from 'zena:core';
 import {CacheKey, Digest, Fingerprint} from './fingerprint.zena';
 import {OutputManifest} from './manifest.zena';
 import {WorkflowError} from './errors.zena';

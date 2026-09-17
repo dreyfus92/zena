@@ -1471,7 +1471,7 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
       // By symbol, not by `getStdlibFunc`: the WasmFunction may not
       // exist yet when this walk runs, and a null lookup here would
       // silently leave the call unrooted.
-      this.queueStdlibFunction('string-convert', name);
+      this.queueStdlibFunction('core', name);
     }
     let partCount = tpl.expressions.length * 2 + 1;
     // `__concatN` is an optimization the standard library does not
@@ -1479,7 +1479,7 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
     // when it is absent. Root whichever one lowering will emit, by
     // asking the same question it asks.
     if (partCount >= 2 && partCount <= 5 &&
-        this.queueOptionalStdlibFunction('string',
+        this.queueOptionalStdlibFunction('core',
             '__concat' + i32ToString(partCount))) {
       return;
     }

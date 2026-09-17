@@ -166,7 +166,7 @@ import { Point } from './geometry.zena';
 Imported names can be renamed at the import site using `as`:
 
 ```zena
-import { StringBuilder as SB } from 'zena:string-builder';
+import { StringBuilder as SB } from 'zena:core';
 
 let builder = new SB();
 ```
@@ -276,8 +276,8 @@ three formats:
 1. **Relative specifiers**: Begin with `./` or `../`. The compiler resolves the
    path relative to the directory of the importing library on disk. Relative
    imports are used between libraries within the same package.
-2. **Standard library specifiers**: Begin with `zena:` (such as `zena:string`,
-   `zena:array`, `zena:math`). These resolve against the standard library
+2. **Standard library specifiers**: Begin with `zena:` (such as `zena:core`,
+   `zena:collections`, `zena:math`). These resolve against the standard library
    manifest shipped with the compiler.
 3. **Package specifiers**: Follow the format `package:library` (such as
    `compiler:parser` or `ui:components`). The compiler resolves the package name

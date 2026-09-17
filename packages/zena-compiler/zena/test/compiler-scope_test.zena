@@ -293,8 +293,10 @@ export let tests = suite('Compiler Scope Integration', () => {
     test('a prelude import inside the prelude load closure is not called unnecessary', () => {
       let host = new MockHost();
       let compiler = makeCompiler(host);
+      // `Future` comes from `zena:async`, which the prelude also names,
+      // so this is a prelude import made from inside the closure.
       host.addFile("zena:core/helper.zena",
-          "import { Iterator } from 'zena:iterator'; export let each = (i: Iterator<i32>): void => {};");
+          "import { Future } from 'zena:async'; export let each = (f: Future<i32>): void => {};");
       // An ordinary import, so helper is in the load closure but not in
       // the set whose exports assemble the prelude.
       host.addFile("zena:core/string.zena",
@@ -314,7 +316,7 @@ export let tests = suite('Compiler Scope Integration', () => {
       let host = new MockHost();
       let compiler = makeCompiler(host);
       host.addFile("/project/main.zena",
-          "import { Iterator } from 'zena:iterator'; export let each = (i: Iterator<i32>): void => {};");
+          "import { Future } from 'zena:async'; export let each = (f: Future<i32>): void => {};");
 
       let result = compiler.compile("/project/main.zena");
 

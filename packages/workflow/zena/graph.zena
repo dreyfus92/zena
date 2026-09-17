@@ -1,5 +1,5 @@
 import {HashSet} from 'zena:set';
-import {StringBuilder} from 'zena:string-builder';
+import {StringBuilder} from 'zena:core';
 import {WorkflowError} from './errors.zena';
 import {LeafInput, StepKey, StepOutputs, Step} from './step.zena';
 

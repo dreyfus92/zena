@@ -1,4 +1,4 @@
-import {StringBuilder} from 'zena:string-builder';
+import {StringBuilder} from 'zena:core';
 
 /**
  * Glob matching for build configuration, wireit-compatible in the

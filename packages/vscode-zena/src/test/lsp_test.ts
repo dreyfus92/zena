@@ -167,7 +167,7 @@ suite('lsp.wasm integration', () => {
 
   test('resolves stdlib imports without errors', () => {
     const source = `
-      import { GrowableArray } from 'zena:growable-array';
+      import { GrowableArray } from 'zena:core';
       let arr = new GrowableArray<i32>();
     `;
     let diags;
@@ -237,11 +237,11 @@ export final class MyString {
     const tests = [
       {
         name: 'string',
-        src: `import { String } from 'zena:string'; let x: i32 = 42;`,
+        src: `import { String } from 'zena:core'; let x: i32 = 42;`,
       },
       {
         name: 'error',
-        src: `import { Error } from 'zena:error'; let x: i32 = 42;`,
+        src: `import { Error } from 'zena:core'; let x: i32 = 42;`,
       },
     ];
     for (const t of tests) {
@@ -258,7 +258,7 @@ export final class MyString {
 
   test('reports error for bad import name', () => {
     const source = `
-      import { NonExistentThing } from 'zena:array';
+      import { NonExistentThing } from 'zena:core';
       let x = NonExistentThing;
     `;
     const diags = checkSource(lsp, source);
@@ -276,7 +276,7 @@ export final class MyString {
   test('imported types resolve in type annotations', () => {
     // A file that imports Array (a class) from stdlib and uses it as a type.
     const source = `
-      import { Array } from 'zena:array';
+      import { Array } from 'zena:core';
       let describe = (arr: Array<i32>): i32 => 0;
     `;
     const diags = checkSource(lsp, source);

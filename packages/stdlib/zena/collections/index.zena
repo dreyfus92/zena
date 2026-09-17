@@ -8,12 +8,12 @@
 //
 // OrderedMap and OrderedHashSet are exported here and nowhere else.
 
-export * from 'zena:hashable';
+export { Hashable } from 'zena:core';
 
-export { Array, MutableArray } from 'zena:array';
-export { FixedArray, fixed } from 'zena:fixed-array';
-export { GrowableArray, growable } from 'zena:growable-array';
-export { ImmutableArray } from 'zena:immutable-array';
+export { Array, MutableArray } from 'zena:core';
+export { FixedArray, fixed } from 'zena:core';
+export { GrowableArray, growable } from 'zena:core';
+export { ImmutableArray } from 'zena:core';
 
 export { Map, MapEntry } from './map.zena';
 export { HashMap } from './hash-map.zena';

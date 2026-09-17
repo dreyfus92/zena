@@ -365,10 +365,10 @@ slicing collections and driving `for`-in loops:
 | `..b`  | `ToRange`      | Indices from 0 up to `b` (exclusive)      |
 | `..`   | `FullRange`    | All indices in collection                 |
 
-Range classes are imported from `zena:range`:
+Range classes are imported from `zena:core`:
 
 ```zena
-import {BoundedRange, FromRange, ToRange, FullRange, Range} from 'zena:range';
+import {BoundedRange, FromRange, ToRange, FullRange, Range} from 'zena:core';
 
 let items = [10, 20, 30, 40, 50];
 

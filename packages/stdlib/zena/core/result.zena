@@ -11,7 +11,7 @@
  * each arm is a hole (`_`).
  *
  * ```zena
- * import { Result } from 'zena:result';
+ * import { Result } from './result.zena';
  *
  * let checkedSub = (a: i32, b: i32): Result<i32, String> => {
  *   if (b > a) {

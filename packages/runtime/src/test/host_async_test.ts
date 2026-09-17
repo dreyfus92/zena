@@ -302,7 +302,7 @@ suite('Runtime - zena:js host-async', () => {
       `
       import { Future } from 'zena:async';
       import { pending } from 'zena:js';
-      import { Error } from 'zena:error';
+      import { Error } from 'zena:core';
       ${ECHO_BINDING}
 
       export async function main(): Future<i32> {
@@ -336,7 +336,7 @@ suite('Runtime - zena:js host-async', () => {
       `
       import { Future } from 'zena:async';
       import { pending } from 'zena:js';
-      import { StringBuilder } from 'zena:string-builder';
+      import { StringBuilder } from 'zena:core';
       ${ECHO_BINDING}
 
       var log = new StringBuilder();
@@ -380,7 +380,7 @@ suite('Runtime - zena:js host-async', () => {
       import { Future } from 'zena:async';
       import { pending } from 'zena:js';
       import { sleep, milliseconds } from 'zena:time';
-      import { StringBuilder } from 'zena:string-builder';
+      import { StringBuilder } from 'zena:core';
       ${ECHO_BINDING}
 
       var log = new StringBuilder();

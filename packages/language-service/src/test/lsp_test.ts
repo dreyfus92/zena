@@ -259,7 +259,7 @@ suite('lsp.wasm integration', () => {
 
   test('resolves stdlib imports without errors', () => {
     const source = `
-      import { GrowableArray } from 'zena:growable-array';
+      import { GrowableArray } from 'zena:core';
       let arr = new GrowableArray<i32>();
     `;
     let diags;
@@ -329,11 +329,11 @@ export final class MyString {
     const tests = [
       {
         name: 'string',
-        src: `import { String } from 'zena:string'; let x: i32 = 42;`,
+        src: `import { String } from 'zena:core'; let x: i32 = 42;`,
       },
       {
         name: 'error',
-        src: `import { Error } from 'zena:error'; let x: i32 = 42;`,
+        src: `import { Error } from 'zena:core'; let x: i32 = 42;`,
       },
     ];
     for (const t of tests) {
@@ -350,7 +350,7 @@ export final class MyString {
 
   test('reports error for bad import name', () => {
     const source = `
-      import { NonExistentThing } from 'zena:array';
+      import { NonExistentThing } from 'zena:core';
       let x = NonExistentThing;
     `;
     const diags = checkSource(lsp, source);
@@ -368,7 +368,7 @@ export final class MyString {
   test('imported types resolve in type annotations', () => {
     // A file that imports Array (a class) from stdlib and uses it as a type.
     const source = `
-      import { Array } from 'zena:array';
+      import { Array } from 'zena:core';
       let describe = (arr: Array<i32>): i32 => 0;
     `;
     const diags = checkSource(lsp, source);
@@ -1020,7 +1020,7 @@ export let tests = suite('Parser', (): void => {
   test('getHover: cross-file doc comment from stdlib', () => {
     // IndexOutOfBoundsError has a doc comment in the stdlib:
     // /** Thrown when an array/sequence index is out of bounds. */
-    const src = `import { IndexOutOfBoundsError } from 'zena:error';
+    const src = `import { IndexOutOfBoundsError } from 'zena:core';
 let e = new IndexOutOfBoundsError(0, 0);`;
     // Hover over "IndexOutOfBoundsError" in the let declaration (2nd occurrence)
     const offset = offsetOf(src, 'IndexOutOfBoundsError', 2);
@@ -1038,7 +1038,7 @@ let e = new IndexOutOfBoundsError(0, 0);`;
 
   test('getHover: cross-file type info from stdlib', () => {
     // LookupError has a doc comment: /** Base class for errors when a lookup operation fails. */
-    const src = `import { LookupError } from 'zena:error';
+    const src = `import { LookupError } from 'zena:core';
 let e = new LookupError("test");`;
     // Hover over "LookupError" in "new LookupError(...)" (2nd occurrence)
     const offset = offsetOf(src, 'LookupError', 2);
@@ -1051,7 +1051,7 @@ let e = new LookupError("test");`;
   });
 
   test('getDefinition: cross-file import jumps to stdlib', () => {
-    const src = `import { Error } from 'zena:error';
+    const src = `import { Error } from 'zena:core';
 let e = new Error("test");`;
     // Click on "Error" in "new Error("test")" (3rd occurrence: import specifier, type=Error, new Error)
     const offset = offsetOf(src, 'Error', 2);
@@ -1065,7 +1065,7 @@ let e = new Error("test");`;
   });
 
   test('getHover: cross-file hover on import specifier', () => {
-    const src = `import { KeyNotFoundError } from 'zena:error';
+    const src = `import { KeyNotFoundError } from 'zena:core';
 let x: i32 = 0;`;
     // Hover on "KeyNotFoundError" in the import specifier
     const offset = offsetOf(src, 'KeyNotFoundError', 1);

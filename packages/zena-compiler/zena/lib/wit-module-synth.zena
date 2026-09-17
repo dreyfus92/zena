@@ -1993,19 +1993,19 @@ export function synthesizeWitModule(canonicalPath: String): String {
         .append(";\n}\n");
   }
   if (uses.fixedArray) {
-    sb.append("import { FixedArray } from 'zena:fixed-array';\n");
+    sb.append("import { FixedArray } from 'zena:core';\n");
   }
   if (uses.array) {
-    sb.append("import { Array } from 'zena:array';\n");
+    sb.append("import { Array } from 'zena:core';\n");
   }
   if (uses.option) {
-    sb.append("import { Option, Some, some, none } from 'zena:option';\n");
+    sb.append("import { Option, Some, some, none } from 'zena:core';\n");
   }
   if (uses.result) {
-    sb.append("import { Result } from 'zena:result';\n");
+    sb.append("import { Result } from 'zena:core';\n");
   }
   if (uses.outcome) {
-    sb.append("import { Outcome, Ok, Err } from 'zena:result';\n");
+    sb.append("import { Outcome, Ok, Err } from 'zena:core';\n");
   }
   if (uses.stream) {
     sb.append("import { Stream } from 'zena:stream';\n");
@@ -2050,10 +2050,10 @@ export function synthesizeWitModule(canonicalPath: String): String {
     }
   }
   if (uses.anyResource) {
-    sb.append("import { Disposable } from 'zena:ownership';\n");
+    sb.append("import { Disposable } from 'zena:core';\n");
   }
   if (uses.error) {
-    sb.append("import { Error } from 'zena:error';\n");
+    sb.append("import { Error } from 'zena:core';\n");
   }
   if (uses.hasAsync || uses.futures.length > 0) {
     sb.append("import { Future } from 'zena:async';\n");
@@ -2800,19 +2800,19 @@ export function synthesizeExportWrapper(
   sb.append(" } from '").append(specifier).append("';\n");
   sb.append("import { finishTask } from 'zena:component-async';\n");
   if (uses.outcome) {
-    sb.append("import { Outcome, Ok, Err } from 'zena:result';\n");
+    sb.append("import { Outcome, Ok, Err } from 'zena:core';\n");
   }
   if (uses.option) {
-    sb.append("import { Option, Some, some, none } from 'zena:option';\n");
+    sb.append("import { Option, Some, some, none } from 'zena:core';\n");
   }
   if (uses.array) {
-    sb.append("import { Array } from 'zena:array';\n");
+    sb.append("import { Array } from 'zena:core';\n");
   }
   if (uses.fixedArray) {
-    sb.append("import { FixedArray } from 'zena:fixed-array';\n");
+    sb.append("import { FixedArray } from 'zena:core';\n");
   }
   if (uses.error) {
-    sb.append("import { Error } from 'zena:error';\n");
+    sb.append("import { Error } from 'zena:core';\n");
   }
   if (uses.abi.length > 0) {
     sb.append("import { ");

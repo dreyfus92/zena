@@ -1,6 +1,6 @@
 import {suite, test} from 'zena:test';
 import {equal} from 'zena:assert';
-import {newByteArray} from 'zena:byte-array';
+import {newByteArray} from 'zena:core';
 import {sha256Hex, sha256HexOfString, toHex} from '../sha256.zena';
 
 export let tests = suite('sha256', (): void => {

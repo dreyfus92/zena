@@ -832,7 +832,7 @@ export class LanguageService {
 
   preloadStdlib(): void {
     try {
-      let result = this.#compiler.compile("zena:string");
+      let result = this.#compiler.compile("zena:core");
       let checkResult = checkCompilation(result, this.#cachedCheckResult);
       this.#cachedCheckResult = checkResult;
     } catch (e) {
@@ -1048,8 +1048,19 @@ export class LanguageService {
             let origDecl = origSym.declaration as Node;
             if (origDecl.loc != null) {
               let loc = origDecl.loc as SourceLocation;
-              // Convert canonical paths (e.g., "zena:error") to filesystem paths.
-              let fsPath = this.#host.resolveToFilesystemPath(depFilePath);
+              // The module that declares it, which is only sometimes the
+              // one the import names. `import { Error } from 'zena:core'`
+              // resolves the specifier to the library's entry point while
+              // the declaration is in a file behind it, and the offsets
+              // below belong to that file — so taking the specifier's path
+              // reports one file's line inside another's.
+              let declaringPath = if (origSym.modulePath.length > 0) {
+                origSym.modulePath
+              } else {
+                depFilePath
+              };
+              // Convert canonical paths (e.g., "zena:core") to filesystem paths.
+              let fsPath = this.#host.resolveToFilesystemPath(declaringPath);
               return new SourceSpan(fsPath, loc.start, loc.end - loc.start, loc.line, loc.column);
             }
           }

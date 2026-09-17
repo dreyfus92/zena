@@ -1,9 +1,9 @@
-import { Array, MutableArray } from 'zena:array';
-import { Iterable, Iterator } from 'zena:iterator';
-import { FilteredIterable } from 'zena:iterable-utils';
-import { FixedArray } from 'zena:fixed-array';
-import { GrowableArrayIterator } from 'zena:growable-array-iterator';
-import { IndexOutOfBoundsError } from 'zena:error';
+import { Array, MutableArray } from './array.zena';
+import { Iterable, Iterator } from './iterator.zena';
+import { FilteredIterable } from './iterable-utils.zena';
+import { FixedArray } from './fixed-array.zena';
+import { GrowableArrayIterator } from './growable-array-iterator.zena';
+import { IndexOutOfBoundsError } from './error.zena';
 
 export final class GrowableArray<T> implements MutableArray<T>, Iterable<T> {
   var #buffer: FixedArray<T>;

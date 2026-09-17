@@ -1,4 +1,4 @@
-import { Iterable, Iterator } from 'zena:iterator';
+import { Iterable, Iterator } from './iterator.zena';
 
 /**
  * An Iterator that yields elements matching a predicate.

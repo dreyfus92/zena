@@ -1,4 +1,4 @@
-import { Iterator } from 'zena:iterator';
+import { Iterator } from './iterator.zena';
 
 /**
  * Iterator over a FixedArray<T>.

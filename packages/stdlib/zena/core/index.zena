@@ -18,35 +18,35 @@
  */
 
 // The language's own vocabulary: the types syntax lowers onto.
-export * from 'zena:string';
-export * from 'zena:error';
+export * from './string.zena';
+export * from './error.zena';
 export * from 'zena:error-stack';
-export * from 'zena:option';
-export * from 'zena:result';
-export * from 'zena:box';
-export * from 'zena:range';
-export * from 'zena:hashable';
-export * from 'zena:ownership';
-export * from 'zena:template-strings-array';
+export * from './option.zena';
+export * from './result.zena';
+export * from './box.zena';
+export * from './range.zena';
+export * from './hashable.zena';
+export * from './ownership.zena';
+export * from './template-strings-array.zena';
 
 // Iteration.
-export * from 'zena:iterator';
-export * from 'zena:iterable-utils';
-export * from 'zena:array-iterator';
-export * from 'zena:growable-array-iterator';
+export * from './iterator.zena';
+export * from './iterable-utils.zena';
+export * from './array-iterator.zena';
+export * from './growable-array-iterator.zena';
 
 // The array types. Implemented here because `String.split` returns a
 // `FixedArray<String>`, which would otherwise put `collections` below
 // `string` and above `error` — a cycle. `collections` re-exports them,
 // which is where a reader looks for them.
-export * from 'zena:array';
-export * from 'zena:fixed-array';
-export * from 'zena:growable-array';
-export * from 'zena:immutable-array';
+export * from './array.zena';
+export * from './fixed-array.zena';
+export * from './growable-array.zena';
+export * from './immutable-array.zena';
 
 // Bytes and string building.
-export * from 'zena:byte-array';
-export * from 'zena:byte-buffer';
-export * from 'zena:string-builder';
-export * from 'zena:string-convert';
-export * from 'zena:string-reader';
+export * from './byte-array.zena';
+export * from './byte-buffer.zena';
+export * from './string-builder.zena';
+export * from './string-convert.zena';
+export * from './string-reader.zena';

@@ -131,7 +131,7 @@ In Zena, optional fields represent **presence**, not nullability:
   not trigger a default.
 - For a field that is always present but may hold a null value, write
   `field: T | null`. For optional values wrapped in an object, use `Option<T>`
-  from `zena:option`.
+  from `zena:core`.
 
 #### Direct access restriction
 

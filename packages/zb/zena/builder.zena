@@ -1,5 +1,5 @@
 import {runIn} from 'zena:process';
-import {StringBuilder} from 'zena:string-builder';
+import {StringBuilder} from 'zena:core';
 import {Fingerprint} from 'workflow:fingerprint';
 import {Graph} from 'workflow:graph';
 import {OutputEntry, OutputManifest} from 'workflow:manifest';

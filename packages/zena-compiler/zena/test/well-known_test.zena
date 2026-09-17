@@ -18,11 +18,16 @@ export let tests = suite("Well-known declarations", () => {
   suite("isWellKnown", () => {
 
     test("matches a declaration at its canonical location", () => {
-      isTrue(isWellKnown(WellKnown.StringClass, "String", "zena:string"));
-      isTrue(isWellKnown(WellKnown.ErrorClass, "Error", "zena:error"));
+      // Core's members are files of one library, so the library is what
+      // the location names and the file is free to move within it.
+      isTrue(isWellKnown(WellKnown.StringClass, "String",
+          "zena:core/string.zena"));
+      isTrue(isWellKnown(WellKnown.ErrorClass, "Error",
+          "zena:core/error.zena"));
       isTrue(isWellKnown(WellKnown.IterableInterface, "Iterable",
-          "zena:iterator"));
-      isTrue(isWellKnown(WellKnown.OwnAlias, "Own", "zena:ownership"));
+          "zena:core/iterator.zena"));
+      isTrue(isWellKnown(WellKnown.OwnAlias, "Own",
+          "zena:core/ownership.zena"));
     });
 
     test("matches a declaration in a library's private file", () => {
@@ -61,14 +66,14 @@ export let tests = suite("Well-known declarations", () => {
           "zena:async/future.zena"));
     });
 
-    test("accepts the library a declaration is moving to", () => {
-      // core/ is published and empty; the array types and String have not
-      // moved yet, so both locations answer true for the length of the
-      // migration. See docs/design/stdlib-organization.md, Phase 1.
-      isTrue(isWellKnown(WellKnown.StringClass, "String", "zena:string"));
+    test("the library a declaration moved out of is not a second answer", () => {
+      // The move into core is finished, so its old library is just a name
+      // no module has. `movingTo` accepted both for the length of the
+      // migration; it accepts one now.
+      isFalse(isWellKnown(WellKnown.StringClass, "String", "zena:string"));
       isTrue(isWellKnown(WellKnown.StringClass, "String",
           "zena:core/string.zena"));
-      isTrue(isWellKnown(WellKnown.OwnAlias, "Own", "zena:ownership"));
+      isFalse(isWellKnown(WellKnown.OwnAlias, "Own", "zena:ownership"));
       isTrue(isWellKnown(WellKnown.OwnAlias, "Own", "zena:core/ownership.zena"));
     });
 
@@ -100,25 +105,25 @@ export let tests = suite("Well-known declarations", () => {
 
     test("every variant has a location", () => {
       // Reading both halves of each variant throws if a row is missing.
-      equal(wellKnownLibrary(WellKnown.StringClass), "string");
+      equal(wellKnownLibrary(WellKnown.StringClass), "core");
       equal(wellKnownName(WellKnown.StringClass), "String");
-      equal(wellKnownLibrary(WellKnown.TemplateStringsArrayClass),
-          "template-strings-array");
-      equal(wellKnownLibrary(WellKnown.ErrorClass), "error");
-      equal(wellKnownLibrary(WellKnown.IteratorInterface), "iterator");
-      equal(wellKnownLibrary(WellKnown.IterableInterface), "iterator");
-      equal(wellKnownLibrary(WellKnown.ArrayInterface), "array");
-      equal(wellKnownLibrary(WellKnown.MutableArrayInterface), "array");
-      equal(wellKnownLibrary(WellKnown.FixedArrayClass), "fixed-array");
-      equal(wellKnownLibrary(WellKnown.ImmutableArrayClass),
-          "immutable-array");
-      equal(wellKnownLibrary(WellKnown.GrowableArrayClass),
-          "growable-array");
+      equal(wellKnownLibrary(WellKnown.TemplateStringsArrayClass), "core");
+      equal(wellKnownName(WellKnown.TemplateStringsArrayClass),
+          "TemplateStringsArray");
+      equal(wellKnownLibrary(WellKnown.ErrorClass), "core");
+      equal(wellKnownLibrary(WellKnown.IteratorInterface), "core");
+      equal(wellKnownLibrary(WellKnown.IterableInterface), "core");
+      equal(wellKnownLibrary(WellKnown.ArrayInterface), "core");
+      equal(wellKnownLibrary(WellKnown.MutableArrayInterface), "core");
+      equal(wellKnownLibrary(WellKnown.FixedArrayClass), "core");
+      equal(wellKnownLibrary(WellKnown.ImmutableArrayClass), "core");
+      equal(wellKnownLibrary(WellKnown.GrowableArrayClass), "core");
+      equal(wellKnownLibrary(WellKnown.OwnAlias), "core");
+      equal(wellKnownLibrary(WellKnown.BorrowAlias), "core");
+      equal(wellKnownLibrary(WellKnown.UnmanagedAlias), "core");
+      // async keeps its own library: nothing moved out of it.
       equal(wellKnownLibrary(WellKnown.FutureClass), "async");
       equal(wellKnownLibrary(WellKnown.CancelScopeClass), "async");
-      equal(wellKnownLibrary(WellKnown.OwnAlias), "ownership");
-      equal(wellKnownLibrary(WellKnown.BorrowAlias), "ownership");
-      equal(wellKnownLibrary(WellKnown.UnmanagedAlias), "ownership");
     });
   });
 });

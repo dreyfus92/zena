@@ -8,7 +8,7 @@ statusType: warning
 ::: warning In Progress Feature
 
 Resource management and ownership is currently in active development. The core
-foundation is implemented in `zena:ownership`. Static move checking,
+foundation is implemented in `zena:core`. Static move checking,
 compile-time affine drop, and second-class borrow checking are in progress or
 planned, as indicated by the status badges throughout this page.
 
@@ -97,7 +97,7 @@ release it deterministically when the owner leaves scope.
 ## The Disposable protocol <span class="badge success">Implemented</span>
 
 The foundation of resource cleanup is the `Disposable` interface from
-`zena:ownership`:
+`zena:core`:
 
 ```zena
 interface Disposable {
@@ -107,7 +107,7 @@ interface Disposable {
 ```
 
 ```zena
-import { Disposable } from 'zena:ownership';
+import { Disposable } from 'zena:core';
 ```
 
 The `[dispose]` method is **symbol-keyed** (`[Disposable.dispose]()`) to prevent
@@ -130,7 +130,7 @@ The `using` declaration provides scope-bound, deterministic cleanup for any
 value implementing `Disposable`:
 
 ```zena
-import { Disposable } from 'zena:ownership';
+import { Disposable } from 'zena:core';
 
 class MutexGuard implements Disposable {
   #mutex: Mutex;
@@ -189,7 +189,7 @@ Declaring a `resource class` establishes three core invariants:
    Zena. Every reference must appear wrapped in a handle: `Own<FileDescriptor>`,
    `Borrow<FileDescriptor>`, or `Unmanaged<FileDescriptor>`.
 3. **Inheritance hierarchy**: All superclasses of a resource class must also be
-   resource classes, rooted at `Resource` from `zena:ownership`.
+   resource classes, rooted at `Resource` from `zena:core`.
 
 ### Owner fields <span class="badge success">Implemented</span>
 
@@ -248,7 +248,7 @@ function process(file: Own<FileDescriptor>): void {
 ## Handles: Own, Borrow, and Unmanaged <span class="badge success">Implemented</span>
 
 Every reference to a resource exists behind one of three handle kinds defined in
-`zena:ownership`:
+`zena:core`:
 
 | Handle             | Ownership & Aliasing                          | Permitted Storage Slots                         | Release Behavior                            |
 | :----------------- | :-------------------------------------------- | :---------------------------------------------- | :------------------------------------------ |
@@ -376,7 +376,7 @@ across multiple systems, it can leave the affine regime using `disown()` and
 return using `adopt()`:
 
 ```zena
-import { disown, adopt, Own, Unmanaged } from 'zena:ownership';
+import { disown, adopt, Own, Unmanaged } from 'zena:core';
 
 // Transition from Affine to Unmanaged:
 let ownedFile: Own<FileDescriptor> = openFile('log.txt');
@@ -409,7 +409,7 @@ Transitions are guarded at runtime:
 
 ### Non-forgeable handles
 
-Outside of `zena:ownership`, explicit type casts into or out of `Own<T>`,
+Outside of `zena:core`, explicit type casts into or out of `Own<T>`,
 `Borrow<T>`, or `Unmanaged<T>` (e.g., `borrowVal as Own<T>`) are rejected by the
 type checker. `disown()` and `adopt()` are the only valid mechanisms for
 changing ownership regimes.

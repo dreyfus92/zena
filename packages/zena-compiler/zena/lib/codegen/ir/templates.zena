@@ -155,7 +155,7 @@ let templateOperandString = (cx: LoweringContext, expr: Expression): i32 => {
     }
     cx.fail('template operand type');
   }
-  let helperOpt = cx.wasm.getStdlibFunc('string-convert', helperName);
+  let helperOpt = cx.wasm.getStdlibFunc('core', helperName);
   if (helperOpt == null) {
     cx.fail('template helper missing');
   }

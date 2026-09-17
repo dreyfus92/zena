@@ -114,10 +114,10 @@ References are non-nullable by default.
 
 Because Zena avoids implicit boxing overhead, primitives cannot be stored
 directly in reference slots or generic containers without explicit wrapping. Use
-`Box<T>` from `zena:box`:
+`Box<T>` from `zena:core`:
 
 ```zena
-import { Box } from 'zena:box';
+import { Box } from 'zena:core';
 
 let boxed: Box<i32> = new Box<i32>(42);
 let unboxed: i32 = boxed.value;

@@ -4137,7 +4137,7 @@ let wrapResourceInOwn = (ctx: CheckerContext, t: Type, loc: SourceLocation | nul
   if (own == null || !(own is TypeAliasType)) {
     ctx.error(
       "Constructing the resource class '" + t.name + "' produces an 'Own<" +
-      t.name + ">', but 'Own' is not in scope. Add: import { Own } from 'zena:ownership';",
+      t.name + ">', but 'Own' is not in scope. Add: import { Own } from 'zena:core';",
       DiagnosticCode.SymbolNotFound,
       loc
     );
@@ -9752,7 +9752,7 @@ let requireDisposable = (ctx: CheckerContext, t: Type, loc: SourceLocation | nul
     ctx.error(
       "'using' requires a Disposable, but '" + typeToString(t) +
       "' has no ':dispose()' member. Implement 'Disposable' from " +
-      "'zena:ownership', which declares the symbol-keyed release method " +
+      "'zena:core', which declares the symbol-keyed release method " +
       "'using' calls at scope exit.",
       DiagnosticCode.IncompatibleTypes,
       loc

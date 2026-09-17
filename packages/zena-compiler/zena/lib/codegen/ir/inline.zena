@@ -33,7 +33,7 @@
  * over hash containers.
  */
 import { HashMap } from 'zena:map';
-import { String } from 'zena:string';
+import { String } from 'zena:core';
 import { IrBlock, IrBody, IrOp, IrRefFunc } from './ir.zena';
 import {
   WasmModule, WasmFunction, WasmSignature, asWasmSignature,

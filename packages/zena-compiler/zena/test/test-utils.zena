@@ -30,10 +30,18 @@ export class MockHost implements CompilerHost {
 /**
  * Create a Compiler with minimal stdlib stubs.
  *
- * Registers empty `zena:string` and `zena:array` modules so that
- * test files don't need to worry about stdlib resolution.
+ * The prelude names `zena:core`, so its entry point has to exist and
+ * re-export the stubs behind it — that entry is how the prelude scope
+ * reaches any of them. The files it re-exports have no module name of
+ * their own, the way the real library is arranged.
  */
 export let makeCompiler = (host: MockHost): Compiler => {
+  host.addFile("zena:core/index.zena",
+      "export * from './string.zena';\n" +
+      "export * from './array.zena';\n" +
+      "export * from './iterator.zena';\n" +
+      "export * from './ownership.zena';\n" +
+      "export * from './hashable.zena';\n");
   host.addFile("zena:core/string.zena", "export class String {}");
   host.addFile("zena:core/array.zena", "export class Array {} export class FixedArray<T> {} export class GrowableArray<T> {}");
   host.addFile("zena:core/iterator.zena", "export interface Iterator<T> {} export interface Iterable<T> {}");

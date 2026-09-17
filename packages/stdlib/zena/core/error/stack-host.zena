@@ -9,7 +9,7 @@
 //
 // See docs/design/component-emission.md, Part 2.
 
-import { String } from 'zena:string';
+import { String } from '../string.zena';
 
 /** Opaque host-side stack-trace handle. */
 export distinct type StackRef = anyref;

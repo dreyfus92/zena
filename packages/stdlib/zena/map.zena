@@ -5,7 +5,7 @@
 // imports HashMap from here, and because the prelude injects Map and HashMap
 // from this specifier. 'zena:collections' exports the same declarations.
 
-export * from 'zena:hashable';
+export { Hashable } from 'zena:core';
 
 export { Map, MapEntry } from './collections/map.zena';
 export { HashMap } from './collections/hash-map.zena';

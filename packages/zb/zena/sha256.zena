@@ -1,5 +1,4 @@
-import {newByteArray} from 'zena:byte-array';
-import {StringBuilder} from 'zena:string-builder';
+import {newByteArray, StringBuilder} from 'zena:core';
 
 /**
  * SHA-256, used for content fingerprints. Pure Zena; the stdlib has no

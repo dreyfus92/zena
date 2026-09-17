@@ -18,8 +18,8 @@ internally managed memory views.
 
 For usage guidelines, memory management patterns, and parsing examples, see the
 [Strings Guide](/guide/strings/). For standard library builder and
-parser classes, see the [`StringBuilder`](/reference/stdlib/string-builder/) and
-[`StringReader`](/reference/stdlib/string-reader/) API documentation.
+parser classes, see the [`StringBuilder`](/reference/stdlib/core/#stringbuilder) and
+[`StringReader`](/reference/stdlib/core/#stringreader) API documentation.
 
 ## The String type
 
@@ -51,7 +51,7 @@ new(data: ByteArray, start: i32, end: i32, encoding: Encoding);
 ```
 
 In standard application code, create strings using literals, template expressions,
-or [`StringBuilder`](/reference/stdlib/string-builder/). The direct constructor
+or [`StringBuilder`](/reference/stdlib/core/#stringbuilder). The direct constructor
 is intended for internal runtime operations.
 
 ## String literals and escapes
@@ -167,7 +167,7 @@ A tag function receives a `TemplateStringsArray` representing the static string
 segments and an array containing the interpolated expression values:
 
 ```zena
-import {TemplateStringsArray, TemplateTag} from 'zena:template-strings-array';
+import {TemplateStringsArray, TemplateTag} from 'zena:core';
 
 let customTag: TemplateTag<String> = (
   strings: TemplateStringsArray,
@@ -193,12 +193,12 @@ characters (`\` and `n`) rather than being converted to line feed characters.
 
 ### The dedent tag
 
-The standard library exports a built-in [`dedent`](/reference/stdlib/template-strings-array/)
-tag in `zena:template-strings-array`. It strips common leading indentation and
+The standard library exports a built-in [`dedent`](/reference/stdlib/core/#dedent)
+tag in `zena:core`. It strips common leading indentation and
 trims opening and closing blank lines:
 
 ```zena
-import {dedent} from 'zena:template-strings-array';
+import {dedent} from 'zena:core';
 
 let usage = dedent`
   zena build <entry>
@@ -226,7 +226,7 @@ let c = text[0];
 
 Subscripting by raw integer index is prohibited to prevent splitting multi-byte
 UTF-8 sequences or surrogate pairs. For character-aware scanning and parsing, use
-[`StringReader`](/reference/stdlib/string-reader/).
+[`StringReader`](/reference/stdlib/core/#stringreader).
 
 ### Byte operations
 
@@ -247,7 +247,7 @@ sliceBytes(start: i32, end: i32): String;
 `sliceBytes` and `getByteAt` operate on raw byte offsets, not Unicode code points.
 Calling `sliceBytes` with arbitrary offsets can slice through the middle of a
 multi-byte UTF-8 sequence, producing an invalid string. Use
-[`StringReader`](/reference/stdlib/string-reader/) to determine safe slice positions.
+[`StringReader`](/reference/stdlib/core/#stringreader) to determine safe slice positions.
 :::
 
 ### Memory retention and copying
@@ -322,7 +322,7 @@ split(separator: String): FixedArray<String>;
 ```
 
 For cursor-based tokenization, sequential scanning, and parsing at UTF-8 code point
-boundaries, use [`StringReader`](/reference/stdlib/string-reader/).
+boundaries, use [`StringReader`](/reference/stdlib/core/#stringreader).
 
 ### ASCII case conversion
 
@@ -341,7 +341,7 @@ they return `this` directly without allocating a new string.
 
 ### Hashing
 
-`String` implements the [`Hashable`](/reference/stdlib/hashable/) interface:
+`String` implements the [`Hashable`](/reference/stdlib/core/#hashable) interface:
 
 ```zena
 hashCode(): i32;
@@ -394,7 +394,7 @@ operator +(other: String): String;
 Concatenating strings with `+` inside a loop repeatedly allocates new byte arrays,
 creating an O(n²) performance hazard identical to naive concatenation in Java.
 For dynamic or iterative string generation, use
-[`StringBuilder`](/reference/stdlib/string-builder/). For interpolating values
+[`StringBuilder`](/reference/stdlib/core/#stringbuilder). For interpolating values
 into static text, prefer [template literals](#template-literals).
 
 ### Future architectural direction

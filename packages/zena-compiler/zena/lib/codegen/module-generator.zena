@@ -17,7 +17,7 @@ import {
 } from '../ast.zena';
 import { Symbol } from '../scope/symbol.zena';
 import { ValType, resetWasmTypeUids } from './wasm.zena';
-import { parseF64, parseI64, i32ToString } from 'zena:string-convert';
+import { parseF64, parseI64, i32ToString } from 'zena:core';
 
 import { WasmEmitter } from './wasm-emitter.zena';
 import { performance } from '../time.zena';

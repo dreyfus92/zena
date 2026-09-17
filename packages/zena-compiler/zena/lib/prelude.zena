@@ -14,27 +14,27 @@ import { targetEmitsComponent } from './targets.zena';
 export let getStandardPrelude = (target: String): HashMap<String, FixedArray<String>> => {
   let prelude = new HashMap<String, FixedArray<String>>();
 
-  prelude["zena:string"] = ["String"];
-  prelude["zena:error"] = ["Error", "IndexOutOfBoundsError", "unreachable"];
-  prelude["zena:option"] = ["Option", "Some", "None", "some", "none"];
-  prelude["zena:iterator"] = ["Iterator", "Iterable"];
-  prelude["zena:array"] = ["Array", "MutableArray"];
-  prelude["zena:range"] = ["BoundedRange", "FromRange", "ToRange", "FullRange"];
-  prelude["zena:immutable-array"] = ["ImmutableArray"];
-  prelude["zena:fixed-array"] = ["FixedArray"];
-  prelude["zena:growable-array"] = ["GrowableArray"];
+  // One entry for what used to be thirteen. The names are unchanged —
+  // they are the same declarations, reached through the library that
+  // owns them now that its members have no module names of their own.
+  prelude["zena:core"] = [
+    "String",
+    "Error", "IndexOutOfBoundsError", "unreachable",
+    "Option", "Some", "None", "some", "none",
+    "Iterator", "Iterable",
+    "Array", "MutableArray",
+    "BoundedRange", "FromRange", "ToRange", "FullRange",
+    "ImmutableArray", "FixedArray", "GrowableArray",
+    "Hashable", "Box", "Resource",
+    "i32ToString", "i64ToString", "f64ToString",
+    "parseI32", "parseI64", "parseF64"
+  ];
   // On every target, so that code that prints is portable. A target
   // with no host to print to gets the component's console, which is
   // what a hostless core module is once wrapped.
   prelude["zena:console"] = ["console"];
-  prelude["zena:hashable"] = ["Hashable"];
   prelude["zena:map"] = ["Map", "HashMap"];
-  prelude["zena:box"] = ["Box"];
-  prelude["zena:string-convert"] = [
-    "i32ToString", "i64ToString", "f64ToString", "parseI32", "parseI64", "parseF64"
-  ];
   prelude["zena:async"] = ["Future", "Awaited"];
-  prelude["zena:ownership"] = ["Resource"];
   return prelude;
 };
 

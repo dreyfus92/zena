@@ -92,28 +92,27 @@ let buildLocations = (): HashMap<i32, Location> => {
     t[w as i32] = new Location(library, name, movingTo);
     order.push(w);
   };
-  moving(WellKnown.StringClass, 'string', 'String', 'core');
-  moving(WellKnown.TemplateStringsArrayClass,
-      'template-strings-array', 'TemplateStringsArray', 'core');
-  moving(WellKnown.ErrorClass, 'error', 'Error', 'core');
-  moving(WellKnown.IteratorInterface, 'iterator', 'Iterator', 'core');
-  moving(WellKnown.IterableInterface, 'iterator', 'Iterable', 'core');
-  moving(WellKnown.ArrayInterface, 'array', 'Array', 'core');
-  moving(WellKnown.MutableArrayInterface, 'array', 'MutableArray', 'core');
-  moving(WellKnown.FixedArrayClass, 'fixed-array', 'FixedArray', 'core');
-  moving(WellKnown.ImmutableArrayClass, 'immutable-array', 'ImmutableArray', 'core');
-  moving(WellKnown.GrowableArrayClass, 'growable-array', 'GrowableArray', 'core');
+  add(WellKnown.StringClass, 'core', 'String');
+  add(WellKnown.TemplateStringsArrayClass, 'core', 'TemplateStringsArray');
+  add(WellKnown.ErrorClass, 'core', 'Error');
+  add(WellKnown.IteratorInterface, 'core', 'Iterator');
+  add(WellKnown.IterableInterface, 'core', 'Iterable');
+  add(WellKnown.ArrayInterface, 'core', 'Array');
+  add(WellKnown.MutableArrayInterface, 'core', 'MutableArray');
+  add(WellKnown.FixedArrayClass, 'core', 'FixedArray');
+  add(WellKnown.ImmutableArrayClass, 'core', 'ImmutableArray');
+  add(WellKnown.GrowableArrayClass, 'core', 'GrowableArray');
   // Declared in async/future.zena, a private file of zena:async. Keying on
   // the library is what lets that be true without a prefix match.
   add(WellKnown.FutureClass, 'async', 'Future');
   add(WellKnown.CancelScopeClass, 'async', 'CancelScope');
   add(WellKnown.AwaitedAlias, 'async', 'Awaited');
-  moving(WellKnown.HashableInterface, 'hashable', 'Hashable', 'core');
-  moving(WellKnown.ResourceClass, 'ownership', 'Resource', 'core');
-  moving(WellKnown.OwnAlias, 'ownership', 'Own', 'core');
-  moving(WellKnown.BorrowAlias, 'ownership', 'Borrow', 'core');
-  moving(WellKnown.UnmanagedAlias, 'ownership', 'Unmanaged', 'core');
-  moving(WellKnown.ScopedAlias, 'ownership', 'Scoped', 'core');
+  add(WellKnown.HashableInterface, 'core', 'Hashable');
+  add(WellKnown.ResourceClass, 'core', 'Resource');
+  add(WellKnown.OwnAlias, 'core', 'Own');
+  add(WellKnown.BorrowAlias, 'core', 'Borrow');
+  add(WellKnown.UnmanagedAlias, 'core', 'Unmanaged');
+  add(WellKnown.ScopedAlias, 'core', 'Scoped');
   locations = t;
   ordered = order;
   return t;

@@ -1,4 +1,4 @@
-import {Box} from 'zena:box';
+import {Box} from 'zena:core';
 import {
   JsonArray,
   JsonBuilder,

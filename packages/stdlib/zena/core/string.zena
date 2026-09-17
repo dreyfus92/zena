@@ -13,9 +13,9 @@
  * boundaries. Direct use of sliceBytes() with computed indices can split
  * multi-byte UTF-8 sequences.
  */
-import {Array} from 'zena:array';
-import {FixedArray} from 'zena:fixed-array';
-import {Hashable, hash} from 'zena:hashable';
+import {Array} from './array.zena';
+import {FixedArray} from './fixed-array.zena';
+import {Hashable, hash} from './hashable.zena';
 
 export enum Encoding {
   WTF8,    // 0 - UTF-8 with unpaired surrogates allowed

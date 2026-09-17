@@ -83,14 +83,14 @@ Use `import` to bring declarations from other libraries into scope:
 import {Map, Set} from 'zena:collections';
 
 // Renamed import
-import {StringBuilder as SB} from 'zena:string-builder';
+import {StringBuilder as SB} from 'zena:core';
 
 // Namespace import
 import * as regex from 'zena:regex';
 regex.match(pattern, text);
 
 // Alternative syntax (from ... import)
-from 'zena:string' import {String};
+from 'zena:core' import {String};
 ```
 
 Namespace imports (`import * as x`) define a read-only variable `x` whose type is a structural **`RecordType`** containing all of the value exports of the imported library as properties. They behave as standard record values and can be passed to functions, returned, stored, or destructured.
@@ -837,7 +837,7 @@ Use `StringBuilder` for efficient concatenation when building strings in a loop.
 For simple `a + b + c` expressions, regular concatenation is fine.
 
 ```zena
-import {StringBuilder} from 'zena:string-builder';
+import {StringBuilder} from 'zena:core';
 
 let sb = new StringBuilder();
 sb.append('Hello');
@@ -852,7 +852,7 @@ Use `StringReader` for parsing strings. It provides a cursor-based API that
 safely handles UTF-8 boundaries, making it ideal for tokenizers and parsers.
 
 ```zena
-import {StringReader} from 'zena:string-reader';
+import {StringReader} from 'zena:core';
 
 let r = new StringReader('hello world');
 r.skipWhitespace();
@@ -2058,7 +2058,7 @@ brace, delivery resumes.
 path out, including `return`, `break`/`continue`, and exception unwind.
 
 ```zena
-import { Disposable } from 'zena:ownership';
+import { Disposable } from 'zena:core';
 
 class Lock implements Disposable {
   [Disposable.dispose](): void { release(this.handle); }
@@ -2246,20 +2246,16 @@ The console implementation is selected based on the `--target` flag:
 This means the same Zena code works in both browser/Node.js environments and
 standalone WASI runtimes like wasmtime.
 
-### zena:string-builder
+### zena:core
 
-Efficient string concatenation for loops. See [StringBuilder](#stringbuilder).
-
-```zena
-import {StringBuilder} from 'zena:string-builder';
-```
-
-### zena:string-reader
-
-Cursor-based string parsing. See [StringReader](#stringreader).
+The prelude's own library, and the home of everything the prelude does not
+bind: `StringBuilder` for efficient concatenation in a loop (see
+[StringBuilder](#stringbuilder)), `StringReader` for cursor-based parsing
+(see [StringReader](#stringreader)), `ByteBuffer`, `Box<T>`, and the
+ownership protocol.
 
 ```zena
-import {StringReader} from 'zena:string-reader';
+import {StringBuilder, StringReader} from 'zena:core';
 ```
 
 ### zena:regex

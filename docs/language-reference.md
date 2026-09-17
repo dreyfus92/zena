@@ -149,7 +149,7 @@ representation — class instances, strings, arrays, records, tuples,
 functions, and `null` — can be assigned to it. Primitives (`i32`,
 `f64`, `boolean`, …) cannot: there is no implicit boxing in Zena. To
 put a primitive behind an `anyref`, box it explicitly with the
-ordinary `Box<T>` class from `zena:box`.
+ordinary `Box<T>` class from `zena:core`.
 
 - **Safety**: You cannot perform operations on an `anyref` value
   directly. Test it with `is` and cast it back with `as`.
@@ -157,7 +157,7 @@ ordinary `Box<T>` class from `zena:box`.
   construction is visible in the source.
 
 ```zena
-import { Box } from 'zena:box';
+import { Box } from 'zena:core';
 
 let y: anyref = "hello";           // Reference type (String)
 let x: anyref = new Box<i32>(42);  // Explicit box for a primitive
@@ -1244,7 +1244,7 @@ increment(10, 5); // 15
    site. Unlike Python, default values are not shared or cached between calls.
 
    ```zena
-   import {GrowableArray} from 'zena:growable-array';
+   import {GrowableArray} from 'zena:core';
 
    class Processor {
      // A new array is created for each call that uses the default
@@ -1606,7 +1606,7 @@ let query = sql`SELECT * FROM users WHERE id = ${userId}`;
 ```
 
 The standard library ships two tags: `dedent` from
-`zena:template-strings-array`, which strips the source indentation from a
+`zena:core`, which strips the source indentation from a
 multi-line literal, and `regex` from `zena:regex`, which compiles a pattern
 from the raw strings so backslashes need no escaping.
 
@@ -1944,10 +1944,10 @@ Range operators create range objects that represent sequences of indices. They
 are primarily used for array slicing and iteration. The range operator is `..`
 (two dots).
 
-Range types must be imported from `zena:range`:
+Range types must be imported from `zena:core`:
 
 ```zena
-import { BoundedRange, FromRange, ToRange, FullRange, Range } from 'zena:range';
+import { BoundedRange, FromRange, ToRange, FullRange, Range } from 'zena:core';
 ```
 
 #### Bounded Range: `a..b`
@@ -3241,7 +3241,7 @@ interface-typed receivers dispatch to the runtime class's
 implementation like any other interface method:
 
 ```zena
-import { Array } from 'zena:array';
+import { Array } from 'zena:core';
 
 let a: Array<i32> = [1, 2, 3];   // interface-typed
 let doubled = a.map((x) => x * 2);
@@ -3725,7 +3725,7 @@ compile error. Presence is tracked per field, so an explicit
 propagates presence (`{...partial, retries: 2}` keeps `timeout`
 present or absent as it was in `partial`). For a field that is always
 present but whose _value_ may be missing, use `Option<T>` from
-`zena:option`.
+`zena:core`.
 
 #### Shorthand Syntax
 
@@ -3955,7 +3955,7 @@ Libraries bring exported names from other files into scope using the `import` ke
 import { Map, Set } from 'zena:collections';
 
 // Import with alias
-import { StringBuilder as SB } from 'zena:string-builder';
+import { StringBuilder as SB } from 'zena:core';
 
 // Import all exports into a namespace
 import * as math from 'zena:math';
@@ -4103,7 +4103,7 @@ rely on the `Hashable` interface and the `==` operator instead.
 ### The `Hashable` Interface
 
 Hash-based collections constrain their key types to the `Hashable` interface
-from `zena:hashable`:
+from `zena:core`:
 
 ```zena
 export interface Hashable {
@@ -4216,7 +4216,7 @@ Zena includes a standard library of utility classes and collection types.
 
 ### Iterables & Iterators
 
-Array traversal is defined by `Iterator<T>` and `Iterable<T>` in `zena:iterator`, along with the `IterableUtils<T>` mixin in `zena:iterable-utils`.
+Array traversal is defined by `Iterator<T>`, `Iterable<T>` and the `IterableUtils<T>` mixin, all in `zena:core`.
 
 #### Iterator\<T\>
 
@@ -4474,10 +4474,10 @@ class Error {
 
 `using` releases a value when it leaves the enclosing block. It takes any
 `Disposable` — a class carrying the symbol-keyed `[Disposable.dispose]()` member declared
-by `Disposable` in `zena:ownership`:
+by `Disposable` in `zena:core`:
 
 ```zena
-import { Disposable } from 'zena:ownership';
+import { Disposable } from 'zena:core';
 
 class Lock implements Disposable {
   [Disposable.dispose](): void { release(this.handle); }
@@ -4674,7 +4674,7 @@ has no owner to outlive, so neither rule applies.
 
 ### Scoped values
 
-`Scoped<T>` from `zena:ownership` marks a value that may not be
+`Scoped<T>` from `zena:core` marks a value that may not be
 duplicated and may not outlive the extent it derives from. A
 first-class `Future<T>` is accepted where a `Scoped<Future<T>>` is
 expected; there is no conversion back, and casts to or from `Scoped`
@@ -4693,7 +4693,7 @@ let keep = <scoped T>(x: T): T => {
 };
 ```
 
-`zena:ownership` exports `map`, `filter` and `take` for scoped
+`zena:core` exports `map`, `filter` and `take` for scoped
 iterators: each consumes a `Scoped<Iterator<T>>` and derives a scoped
 result, so a borrow-holding generator's elements can be transformed
 before the loop that drives them.
