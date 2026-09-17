@@ -692,6 +692,9 @@ final class SynthUses {
   var unit = false;
   /** Future payload types moved, each owed declares and helpers. */
   futures = new GrowableArray<FutureEntry>();
+  /** Whether a lifted future rendered — pulls in `DeferredFuture`,
+   * since a lifted future's read starts on its first await. */
+  var deferred = false;
   new();
 
   nextTmp(): i32 {
@@ -1615,11 +1618,22 @@ function emitFutureHelpers(sb: StringBuilder, entry: FutureEntry,
   declare("future.drop-writable", "", "futureDropWritable",
       "(end: i32): void");
 
-  // The lift: one read, parked on the driver when BLOCKED (-1); the
-  // low CopyResult bits are 0 (COMPLETED) exactly when a value
-  // arrived, and a peer that dropped its end without writing fails
-  // the future with a throw.
-  sb.append("async function liftFuture").append(k)
+  // The lift: a `DeferredFuture`, whose read starts on the first
+  // await. A read issued at lift time holds a waitable — and the task
+  // that owns it — until the host writes the end, and a program need
+  // not ever look: every `request.new` and `response.new` returns a
+  // `transmitted` future beside the resource (#587). The read, once
+  // started: one canonical read, parked on the driver when BLOCKED
+  // (-1); the low CopyResult bits are 0 (COMPLETED) exactly when a
+  // value arrived, and a peer that dropped its end without writing
+  // fails the future with a throw.
+  uses.deferred = true;
+  sb.append("function liftFuture").append(k)
+      .append("(end: i32): Future<").append(z).append("> {\n");
+  sb.append("  return new DeferredFuture<").append(z)
+      .append(">((): Future<").append(z).append("> => readFuture")
+      .append(k).append("(end));\n}\n");
+  sb.append("async function readFuture").append(k)
       .append("(end: i32): Future<").append(z).append("> {\n");
   sb.append("  let ret = resultArea(")
       .append(i32ToString(payload.size)).append(");\n");
@@ -2055,8 +2069,8 @@ export function synthesizeWitModule(canonicalPath: String): String {
   if (uses.error) {
     sb.append("import { Error } from 'zena:core';\n");
   }
-  if (uses.hasAsync || uses.futures.length > 0) {
-    sb.append("import { Future } from 'zena:async';\n");
+  if (uses.deferred) {
+    sb.append("import { DeferredFuture } from 'zena:async';\n");
   }
   if (uses.hasAsync && uses.awaitWaitable) {
     sb.append("import { awaitPacked, awaitWaitable } " +

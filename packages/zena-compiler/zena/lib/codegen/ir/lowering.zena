@@ -1090,6 +1090,14 @@ export final class FunctionLowerer {
    * operand's semantic type is still in hand.
    */
   awaitSubscribeTargets = new HashMap<i32, WasmFunction>();
+  /**
+   * Await sites whose `subscribe` a subclass overrides, keyed like
+   * `awaitSubscribeTargets`: the receiver's vtable slot, loaded and
+   * cast presplit, for the split pass to `call_ref` through. The
+   * devirt-safety rule ordinary method calls follow — a direct call
+   * would skip the override for every subclass of `Future`.
+   */
+  awaitSubscribeCallees = new HashMap<i32, i32>();
   /** Await terminators that are a union await's bare-arm hop: the
    * split pass schedules the frame directly instead of subscribing
    * to a future (async.md §1, the always-async rule). */
@@ -3726,9 +3734,26 @@ export final class FunctionLowerer {
       this.#bail('await operand has no subscribe: ' +
           (getClassKey(ct) as String));
     }
+    let sub = subOpt as WasmFunction;
+    // A subclass overriding `subscribe` (a `DeferredFuture`, say) is
+    // reached through the vtable, as any overridden method is; the
+    // slot loads before the terminator, in the await's own block.
+    var virtualCallee = -1;
+    if (let (true, info) = this.wasm.classInfos.get(getClassKey(ct))) {
+      if (this.#cx().memberProvidedBySubclass(info, ':subscribe')) {
+        if (this.#vtableSlotIndex(info, ':subscribe') < 0) {
+          this.#bail('overridden subscribe without vtable slot');
+        }
+        virtualCallee = this.#cx().vtableSlotCallee(
+            future, info, ':subscribe', sub.signature);
+      }
+    }
     let resume = this.b.newBlock();
     let suspend = this.b.awaitTo(future, resume, new GrowableArray<i32>(0));
-    this.awaitSubscribeTargets[suspend] = subOpt as WasmFunction;
+    this.awaitSubscribeTargets[suspend] = sub;
+    if (virtualCallee >= 0) {
+      this.awaitSubscribeCallees[suspend] = virtualCallee;
+    }
     if (this.shieldDepth > 0) {
       this.shieldedAwaits.add(suspend);
     }

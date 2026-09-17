@@ -44,7 +44,7 @@ export {
   drainMicrotasks,
 } from './async/executor.zena';
 export {
-  Awaited, Future, AnyCompleter, Completer, runFuture, AggregateError,
+  Awaited, Future, AnyCompleter, Completer, DeferredFuture, runFuture, AggregateError,
 } from './async/future.zena';
 export { Step } from './async/step.zena';
 

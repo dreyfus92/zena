@@ -585,7 +585,7 @@ export final class LoweringContext {
   lowerVtableCall(receiver: i32, classInfo: ClassCodegenInfo,
       slotName: String, sig: WasmSignature, args: GrowableArray<i32>,
       resultType: ValType | null): i32 {
-    let slot = this.#vtableSlotCallee(receiver, classInfo, slotName, sig);
+    let slot = this.vtableSlotCallee(receiver, classInfo, slotName, sig);
     return this.b.callRef(slot, args, resultType);
   }
 
@@ -593,13 +593,13 @@ export final class LoweringContext {
    * callRefMulti's projection contract. */
   lowerVtableCallMulti(receiver: i32, classInfo: ClassCodegenInfo,
       slotName: String, sig: WasmSignature, args: GrowableArray<i32>): GrowableArray<i32> {
-    let slot = this.#vtableSlotCallee(receiver, classInfo, slotName, sig);
+    let slot = this.vtableSlotCallee(receiver, classInfo, slotName, sig);
     return this.b.callRefMulti(slot, args, sig.returns);
   }
 
   /** The vtable slot of an already-lowered receiver, cast to the
    * resolved method's exact signature — the callee value for call_ref. */
-  #vtableSlotCallee(receiver: i32, classInfo: ClassCodegenInfo,
+  vtableSlotCallee(receiver: i32, classInfo: ClassCodegenInfo,
       slotName: String, sig: WasmSignature): i32 {
     let {structType} = classInfo;
     let vtStruct = classInfo.vtableStructType as WasmStruct;

@@ -558,6 +558,7 @@ let prepareOne = (
   fl.presplitAsyncValueVt = valueVt;
   let presplit = fl.lower();
   let subscribeOf = fl.awaitSubscribeTargets;
+  let subscribeCalleeOf = fl.awaitSubscribeCallees;
   let hopTerms = fl.awaitHopTerms;
   let shieldedAwaits = fl.shieldedAwaits;
   // A union await's bare arm parks the frame directly on the queue
@@ -795,7 +796,8 @@ let prepareOne = (
   let rampBody = buildRamp(func, frame, futureInfo, futureCtor, stepFunc,
       entryParamIds, sm, fatPtr, vtableGlobal);
   let stepBody = buildStepBody(presplit, cfg, frame, futureStruct, spilled,
-      pcOfBlock, dTargets, subscribeOf, hopTerms, scheduleFn, completeFn, adoptFn,
+      pcOfBlock, dTargets, subscribeOf, subscribeCalleeOf, hopTerms,
+      scheduleFn, completeFn, adoptFn,
       failFn, sm, resumeOf, shieldedAwaits,
       shieldedResumes, shieldedResumeFuture, shieldFn,
       valueVt, fatPtr,
@@ -904,6 +906,7 @@ let buildStepBody = (
   pcOfBlockIn: HashMap<i32, i32>,
   dTargetsIn: Array<i32>,
   subscribeOf: HashMap<i32, WasmFunction>,
+  subscribeCalleeOf: HashMap<i32, i32>,
   hopTerms: HashSet<i32>,
   scheduleFn: WasmFunction | null,
   completeFn: WasmFunction,
@@ -1428,8 +1431,22 @@ let buildStepBody = (
       } else {
         subscribeOpt as WasmFunction
       };
-      let call = rawInst(body, IrOp.call, -1, callIdx,
-          addRawRef(body, new IrRefFunc(callee)));
+      let slotCallee =
+          if (let (true, c) = subscribeCalleeOf.get(term)) c else -1;
+      let call = if (!isHop && slotCallee >= 0) {
+        // A subclass overrides `subscribe`: call_ref through the
+        // vtable slot the presplit lowering loaded (still in this
+        // block — it precedes the terminator), so the override runs.
+        let refIdx = body.extra.length;
+        body.extra.push(slotCallee);
+        body.extra.push(2);
+        body.extra.push(futureVal);
+        body.extra.push(packed);
+        rawInst(body, IrOp.call_ref, -1, refIdx, -1)
+      } else {
+        rawInst(body, IrOp.call, -1, callIdx,
+            addRawRef(body, new IrRefFunc(callee)))
+      };
       rebuilt.push(call);
       body.instBlock[call] = blockId;
       // The suspension itself: a plain return out of the region.

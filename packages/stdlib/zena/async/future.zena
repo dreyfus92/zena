@@ -591,6 +591,37 @@ export class Completer<T> extends AnyCompleter {
 }
 
 /**
+ * A future whose work starts only once someone waits for it.
+ *
+ * `produce` runs on the first subscription — an `await`, a `then`, a
+ * combinator — and the future it returns is adopted: this one settles
+ * as that one does. Nothing runs for a future nobody looks at. For a
+ * value that costs something to fetch and may never be wanted: a
+ * canonical future the host writes, whose read holds a waitable on
+ * the driver — and the task that owns it — until the host writes the
+ * end, and which every `request.new` and `response.new` hands back
+ * beside the resource whether or not the program cares.
+ *
+ * Its own class rather than a field on `Future`: a future is
+ * allocated per await-able call, and the deferred kind is rare.
+ */
+export class DeferredFuture<T> extends Future<T> {
+  /** The work, until it has run; null after. */
+  var #produce: (() => Future<T>) | null;
+
+  new(produce: () => Future<T>) : #produce = produce, super();
+
+  [subscribe](t: Waiter): void {
+    let produce = this.#produce;
+    if (produce != null) {
+      this.#produce = null;
+      this.[adoptFrom](produce());
+    }
+    super.[subscribe](t);
+  }
+}
+
+/**
  * Runs the executor to a standstill and returns `f`'s value, throwing
  * its failure.
  *

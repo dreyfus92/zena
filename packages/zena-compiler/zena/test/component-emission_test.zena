@@ -1081,6 +1081,12 @@ world only {
     isTrue(source.contains('return liftFuture0(got);'),
       'a direct future result should lift through its helper:\n' +
       source);
+    // The read starts on the first await, not at lift time: a future
+    // the program never looks at holds no waitable (#587).
+    isTrue(source.contains('return new DeferredFuture<u32>((): Future<u32> => readFuture0(end));'),
+      'a lifted future should read on its first await:\n' + source);
+    isTrue(source.contains('async function readFuture0(end: i32): Future<u32> {'),
+      'the deferred read helper is missing:\n' + source);
     isTrue(source.contains(
         '@external("canon", "future.read#0", ' +
         '"future:wasi:pipe/pipes@1.0.0#u32,async")'),
