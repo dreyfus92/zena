@@ -241,8 +241,8 @@ let input: String? = null;
 let name = input ?? 'Anonymous'; // 'Anonymous'
 ```
 
-`??` has the same precedence as `||`. Unlike JavaScript, Zena permits mixing `??`,
-`||`, and `&&` without requiring grouping parentheses.
+`??` has the same precedence as `||`. Zena permits mixing `??`, `||`, and `&&`
+without requiring grouping parentheses.
 
 The `??` operator handles three distinct forms:
 
@@ -426,8 +426,8 @@ The placeholder `$` represents the value produced by the preceding stage of the
 pipeline:
 
 - **Required placeholder**: The right-hand side of `|>` must explicitly reference
-  `$`. Unlike languages that implicitly inject the piped value as the first argument,
-  Zena requires `$` so that arguments can be placed anywhere in the call.
+  `$`. Requiring `$` allows the piped argument to be placed anywhere in the expression
+  or argument list.
 - **Multiple uses**: The placeholder `$` can appear multiple times in the right-hand
   expression:
   ```zena

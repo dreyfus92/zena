@@ -318,7 +318,7 @@ To add a page: add it to the sidebar with an `outline`, then run
     - Inline tuples
     - Multi-value returns
     - Representation
-  - 📝 [Arrays](src/reference/arrays.md) — `/reference/arrays/`
+  - ✅ [Arrays](src/reference/arrays.md) — `/reference/arrays/`
     - FixedArray
     - Array
     - ImmutableArray
@@ -486,7 +486,6 @@ To add a page: add it to the sidebar with an `outline`, then run
   - ⚙️ zena:map — `/reference/stdlib/map/`
   - ⚙️ zena:math — `/reference/stdlib/math/`
   - ⚙️ zena:memory — `/reference/stdlib/memory/`
-  - ⚙️ zena:ordered-map — `/reference/stdlib/ordered-map/`
   - ⚙️ zena:process — `/reference/stdlib/process/`
   - ⚙️ zena:regex — `/reference/stdlib/regex/`
   - ⚙️ zena:set — `/reference/stdlib/set/`
@@ -606,4 +605,4 @@ To add a page: add it to the sidebar with an `outline`, then run
 
 ---
 
-44 of 95 pages written; 51 still placeholders.
+45 of 95 pages written; 50 still placeholders.

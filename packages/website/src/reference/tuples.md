@@ -9,7 +9,9 @@ tuples**, which can be stored on the heap in variables, fields, and collections,
 and **inline tuples**, which exist purely on the WebAssembly stack to express
 zero-allocation multi-value returns.
 
-::: warning Tuples are in transition Tuples are under active development as Zena
+::: warning
+
+Tuples are in transition Tuples are under active development as Zena
 moves toward **true value types**:
 
 1. **Value-type transition**: While regular tuples currently compile to
@@ -27,7 +29,9 @@ moves toward **true value types**:
 4. **Inline tuple indexing**: Direct element indexing (`expr[0]`) on inline
    tuples is not yet supported
    ([#155](https://github.com/elematic/zena/issues/155)); callers must
-   destructure the return value. :::
+   destructure the return value.
+
+:::
 
 ## Tuple literals
 
@@ -150,11 +154,15 @@ let t = (1, "hello");
 // t[0] = 5;
 ```
 
-::: warning Checker bug: assignments not rejected Immutability checking
+::: warning
+
+Checker bug: assignments not rejected Immutability checking
 currently contains a bug: the type checker does not yet reject direct
 assignments to tuple elements (such as `t[0] = 5`). Code should treat tuple
 elements as strictly read-only; element assignments will be rejected in a future
-compiler release. :::
+compiler release.
+
+:::
 
 Immutability is shallow: if an element holds a reference to a mutable object
 (such as a `GrowableArray`), the referenced object can still be mutated, but the
@@ -215,8 +223,8 @@ let minMax = (a: i32, b: i32): inline (i32, i32) => {
 ```
 
 The `inline` keyword instructs the compiler to lower the tuple directly to
-native WebAssembly multi-value returns. Unlike boxed tuples, inline tuples incur
-zero heap allocations and avoid garbage-collector overhead.
+native WebAssembly multi-value returns. Inline tuples incur zero heap allocations
+and avoid garbage-collector overhead.
 
 ### Restrictions on inline tuples
 
@@ -352,14 +360,18 @@ _)`)
 for function return types, and convert to the boxed form only when persisting a
 value on the heap.
 
-::: note Unified Option and Result with value types Once the migration to true
+::: note
+
+Unified Option and Result with value types Once the migration to true
 value types is complete, boxing will become an implementation detail rather than
 a type boundary. Zena will be able to unify each pair into a single `Option<T>`
 and `Result<T, E>` definition based on tuples (e.g. `(true, T) | (false, _)`).
 The compiler can then represent them inline on the WebAssembly stack for
 function returns, while automatically boxing or laying them out densely when
 stored on the heap in fields or collections. This will eliminate the need for
-separate storable classes (`Outcome` and boxed `Option`). :::
+separate storable classes (`Outcome` and boxed `Option`).
+
+:::
 
 #### Nullish coalescing with `??`
 
