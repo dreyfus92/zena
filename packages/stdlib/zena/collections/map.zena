@@ -1,7 +1,7 @@
 // The Map interface and the entry it yields. The hash tables that implement
 // it live in hash-map.zena.
 
-import { Option, Iterable, Iterator, Hashable } from 'zena:core';
+import { Option, Iterable, Iterator } from 'zena:core';
 
 /**
  * The link from one entry to the next in its bucket.
@@ -44,7 +44,7 @@ export class MapEntry<K, V> {
  * `size`, but no longer findable — or collides with another. Prefer keys that
  * cannot change: primitives, Strings, enums, and case classes over those.
  */
-export interface Map<K extends Hashable, V> extends Iterable<MapEntry<K, V>> {
+export interface Map<K, V> extends Iterable<MapEntry<K, V>> {
   /** How many entries the map holds. */
   size: i32 { get; }
 
