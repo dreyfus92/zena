@@ -612,11 +612,10 @@ const reference = [
         text: 'Maps and Sets',
         link: '/reference/maps/',
         outline: [
-          'Map',
-          'OrderedMap',
-          'Set',
+          'Maps',
+          'Sets',
           'Keys, hashing, and equality',
-          'Literals',
+          'Performance and representation',
         ],
       },
       {

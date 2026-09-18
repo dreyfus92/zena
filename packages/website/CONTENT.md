@@ -325,12 +325,11 @@ To add a page: add it to the sidebar with an `outline`, then run
     - Literals
     - Indexing and bounds
     - Slicing
-  - 📝 [Maps and Sets](src/reference/maps.md) — `/reference/maps/`
-    - Map
-    - OrderedMap
-    - Set
+  - ✅ [Maps and Sets](src/reference/maps.md) — `/reference/maps/`
+    - Maps
+    - Sets
     - Keys, hashing, and equality
-    - Literals
+    - Performance and representation
   - 📝 [Ranges](src/reference/ranges.md) — `/reference/ranges/`
     - Range syntax
     - Iterating a range
@@ -605,4 +604,4 @@ To add a page: add it to the sidebar with an `outline`, then run
 
 ---
 
-45 of 95 pages written; 50 still placeholders.
+46 of 95 pages written; 49 still placeholders.
