@@ -1,0 +1,14 @@
+{
+  "suite": "iface-param",
+  "options": {
+    "minSamples": 50,
+    "extraSamples": 10,
+    "warmupRuns": 5,
+    "timeBudgetMs": 60000,
+    "horizons": ["0%"]
+  },
+  "variants": [
+    {"name": "zena-iface", "wasm": "../../out/iface-param/zena.wasm"},
+    {"name": "zena-concrete", "wasm": "../../out/concrete-param/zena.wasm"}
+  ]
+}

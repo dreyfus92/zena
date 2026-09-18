@@ -23,6 +23,9 @@ import {
   isUnaryNumericOp,
 } from './ir.zena';
 import { IrCfg } from './cfg.zena';
+import {
+  ValType, ValTypeRef, ValTypeRefNull, valTypeToOpcode,
+} from '../wasm.zena';
 
 export let runGvn = (body: IrBody, cfg: IrCfg): void => {
   let count = body.instCount();
@@ -97,31 +100,53 @@ export let runGvn = (body: IrBody, cfg: IrCfg): void => {
  * with effects, allocation identity, or unknown shape. Operands are
  * already canonical (rewritten before keying).
  */
+/**
+ * A type's identity for a key: the heap type's uid plus nullability
+ * for references, the opcode for scalars. Type table indices will not
+ * do — inlining appends the callee's whole table to the caller's, so
+ * two casts to the same type from two inlined bodies name it at two
+ * indices, and the point of numbering them is that they are one.
+ */
+let typeKey = (vt: ValType): String => {
+  if (vt is ValTypeRef) {
+    return 'r' + i32ToString(vt.target.uid);
+  }
+  if (vt is ValTypeRefNull) {
+    return 'n' + i32ToString(vt.target.uid);
+  }
+  return 'v' + i32ToString(valTypeToOpcode(vt));
+};
+
 let gvnKey = (body: IrBody, inst: i32): String | null => {
   let op = body.op(inst);
   let av = body.a[inst];
   let bv = body.b[inst];
-  let ty = body.typeId[inst];
+  let ty = if (body.typeId[inst] >= 0) typeKey(body.typeTable[body.typeId[inst]]) else '-';
   if (op == IrOp.const_i32) {
     // a IS the value.
-    return 'c32|' + i32ToString(av) + '|' + i32ToString(ty);
+    return 'c32|' + i32ToString(av) + '|' + ty;
   }
   if (op == IrOp.const_i64 || op == IrOp.const_f32 || op == IrOp.const_f64) {
     // a is a pool index; identical indices are identical values
     // (missing equal-value pool duplicates is fine).
     return 'cp|' + i32ToString(op as i32) + '|' + i32ToString(av) +
-        '|' + i32ToString(ty);
+        '|' + ty;
   }
   if (isBinaryNumericOp(op) || op == IrOp.ref_eq) {
     return 'b|' + i32ToString(op as i32) + '|' + i32ToString(av) + '|' +
-        i32ToString(bv) + '|' + i32ToString(ty);
+        i32ToString(bv) + '|' + ty;
   }
-  if (isUnaryNumericOp(op) || op == IrOp.ref_test || op == IrOp.ref_cast ||
-      op == IrOp.ref_as_non_null || op == IrOp.iface_instance ||
-      op == IrOp.iface_vtable) {
-    // a = value operand; b = interned typeTable/refTable index or -1.
+  if (op == IrOp.ref_test || op == IrOp.ref_cast) {
+    // a = value operand; b = the target type's table index, keyed by
+    // the type it names.
     return 'u|' + i32ToString(op as i32) + '|' + i32ToString(av) + '|' +
-        i32ToString(bv) + '|' + i32ToString(ty);
+        typeKey(body.typeTable[bv]) + '|' + ty;
+  }
+  if (isUnaryNumericOp(op) || op == IrOp.ref_as_non_null ||
+      op == IrOp.iface_instance || op == IrOp.iface_vtable) {
+    // a = value operand; b = -1 or an immediate.
+    return 'u|' + i32ToString(op as i32) + '|' + i32ToString(av) + '|' +
+        i32ToString(bv) + '|' + ty;
   }
   // The wide-arithmetic ops are pure, but numbering one means
   // redirecting its mv_get projections too, and nothing generates the
@@ -130,7 +155,7 @@ let gvnKey = (body: IrBody, inst: i32): String | null => {
     // Only immutable globals (vtables, singletons) are pure reads.
     let r = body.refTable[bv];
     if (r is IrRefGlobal && !r.target.isMutable) {
-      return 'g|' + i32ToString(bv) + '|' + i32ToString(ty);
+      return 'g|' + i32ToString(r.target.index) + '|' + ty;
     }
     return null;
   }
@@ -147,7 +172,7 @@ let gvnKey = (body: IrBody, inst: i32): String | null => {
       let idx = r.owner.fieldIndexByName(r.fieldName);
       if (idx >= 0 && !r.owner.fields[idx].isMutable) {
         return 'sg|' + i32ToString(av) + '|' + i32ToString(r.owner.uid) +
-            '|' + r.fieldName + '|' + i32ToString(ty);
+            '|' + r.fieldName + '|' + ty;
       }
     }
     return null;
@@ -155,7 +180,7 @@ let gvnKey = (body: IrBody, inst: i32): String | null => {
   if (op == IrOp.array_len) {
     // An array's length is fixed at allocation; same trap-equivalence
     // argument as immutable fields.
-    return 'al|' + i32ToString(av) + '|' + i32ToString(ty);
+    return 'al|' + i32ToString(av) + '|' + ty;
   }
   return null;
 };

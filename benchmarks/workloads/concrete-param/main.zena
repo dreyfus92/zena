@@ -1,0 +1,33 @@
+// The iface-param workload with the callee taking FixedArray<i32>
+// directly: same loops, same arithmetic, every access a plain array
+// read. iface-param compares itself against this build.
+let sum = (xs: FixedArray<i32>, k: i32): i32 => {
+  var s = 0;
+  var i = 0;
+  while (i < xs.length) {
+    s = (s + xs[i] * 3 + k) & 16777215;
+    i += 1;
+  }
+  var j = xs.length - 1;
+  while (j >= 0) {
+    s = (s ^ xs[j]) & 16777215;
+    j -= 1;
+  }
+  return s;
+};
+
+export let main = (): i32 => {
+  let src = new FixedArray<i32>(1024, 0);
+  var i = 0;
+  while (i < 1024) {
+    src[i] = i;
+    i += 1;
+  }
+  var total = sum(src, 7);
+  var round = 0;
+  while (round < 2000) {
+    total = (total + sum(src, round)) & 16777215;
+    round += 1;
+  }
+  return total & 255;
+};

@@ -160,13 +160,15 @@
     struct.new 3
   )
   (func $get_string_literal (type 6)
+    (local (ref null 7))
     (local (ref null 3))
     (local (ref null 3))
 
     global.get 3
+    local.tee 1
     local.get 0
     array.get 7
-    local.tee 1
+    local.tee 2
     ref.is_null
     if
       block
@@ -177,25 +179,25 @@
           i32.const 0
           i32.const 0
           call $string_from_shared
-          local.set 2
+          local.set 3
           br 1
         else
           i32.const 0
           i32.const 5
           call $string_from_shared
-          local.set 2
+          local.set 3
           br 1
         end
       end
-      global.get 3
+      local.get 1
       local.get 0
-      local.get 2
+      local.get 3
       array.set 7
-      local.get 2
+      local.get 3
       ref.as_non_null
       return
     else
-      local.get 1
+      local.get 2
       ref.as_non_null
       return
     end

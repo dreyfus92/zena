@@ -1058,6 +1058,41 @@ export let tests = suite('zir backend', (): void => {
         'a three-result slot devirtualizes and its trampoline and body inline');
   });
 
+  test('-O2 numbers the same cast from two inlined bodies as one', (ctx: TestContext): void => {
+    // Each inlined accessor brings its own cast of the operand, at its
+    // own type-table index; the value numbering keys the target type
+    // by identity, so the second cast is the first.
+    let result = compileWithZirAt(
+        'class Box { x: i32; new(this.x); }\n' +
+        'let get = (a: anyref): i32 => (a as Box).x;\n' +
+        'let get2 = (a: anyref): i32 => (a as Box).x * 2;\n' +
+        'export let both = (v: anyref): i32 => get(v) + get2(v);\n' +
+        'export let main = (): i32 => both(new Box(3));', 2);
+    assertFunctionUsesTimes(result, '$both', 'ref.cast', 1,
+        'one cast serves both inlined reads');
+  });
+
+  test('-O2 hoists a cast out of a loop header', (ctx: TestContext): void => {
+    // The cast sits in the header (the loop condition reads through
+    // it), so it runs on every entry to the loop; moving it before the
+    // loop changes nothing about when it can trap.
+    let result = compileWithZirAt(
+        'class Arr { len: i32; new(this.len); }\n' +
+        'export let count = (a: anyref): i32 => {\n' +
+        '  var s = 0;\n' +
+        '  var i = 0;\n' +
+        '  while (i < (a as Arr).len) { s += i; i += 1; }\n' +
+        '  return s;\n' +
+        '};\n' +
+        'export let main = (): i32 => count(new Arr(4));', 2);
+    let body = watFunction(result, '$count');
+    isTrue(body.length > 0, 'no function $count in the emitted module');
+    let parts = body.split('loop');
+    isTrue(parts.length >= 2, 'count has a loop');
+    isTrue(parts[0].contains('ref.cast'), 'the cast happens before the loop');
+    isTrue(!parts[1].contains('ref.cast'), 'and no longer inside it');
+  });
+
   test('-O2 hoists an immutable field load out of a loop', (ctx: TestContext): void => {
     let result = compileWithZirAt(
         'class P {\n' +

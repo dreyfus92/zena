@@ -5,15 +5,22 @@
  * just before the loop, into the block that immediately dominates the
  * loop header.
  *
- * Only pure instructions that cannot trap move: arithmetic, tests,
- * immutable global reads, and loads through a receiver whose type is
- * non-null (an immutable field, an array length, a fat pointer's two
- * fields). A moved instruction may then run on a path that never
- * enters the loop, which is harmless for exactly these. Allocations
- * stay, since one object per iteration and one object shared by all
- * iterations are different programs; casts stay, since a cast that
- * would have trapped on the first iteration must not trap on a path
- * that never reaches it.
+ * Only pure instructions that cannot trap move freely: arithmetic,
+ * tests, immutable global reads, and loads through a receiver whose
+ * type is non-null (an immutable field, an array length, a fat
+ * pointer's two fields). A moved instruction may then run on a path
+ * that never enters the loop, which is harmless for exactly these.
+ * Allocations stay, since one object per iteration and one object
+ * shared by all iterations are different programs.
+ *
+ * A pure instruction that can trap (a cast, a load through a nullable
+ * receiver) moves only out of the loop header, only when nothing kept
+ * ahead of it in the header has an effect, and only when the
+ * destination block jumps straight to the header: then the header
+ * runs on every entry to the loop, so the instruction would have run,
+ * and trapped or not, before anything the loop does. This is the cast of
+ * an interface-typed array's instance in `while (i < xs.length)`,
+ * which every inlined accessor repeats.
  *
  * The dominating block is the right destination without building a
  * preheader: every value defined outside the loop that a use in the
@@ -112,6 +119,18 @@ let hoistOnce = (body: IrBody): i32 => {
       continue;
     }
     let destBlk = body.blocks[dest];
+    // A trap-capable instruction may move only when the destination
+    // falls straight into the header: with blocks in between (a null
+    // check that leaves early, say) the instruction would run on a
+    // path that never reaches the loop.
+    var straightIn = destBlk.insts.length > 0;
+    if (straightIn) {
+      for (let s in body.successors(destBlk.insts[destBlk.insts.length - 1])) {
+        if (s.target != h) {
+          straightIn = false;
+        }
+      }
+    }
     let outside = (v: i32): boolean => {
       if (v < 0) {
         return true;
@@ -131,9 +150,19 @@ let hoistOnce = (body: IrBody): i32 => {
         }
         let blk = body.blocks[b];
         let kept = new GrowableArray<i32>();
+        // In the header, a trap-capable candidate may move while every
+        // instruction kept ahead of it is pure.
+        var headerPure = b == h && straightIn;
         for (let inst in blk.insts) {
-          if (!hoistable(body, inst)) {
+          if (body.op(inst) == IrOp.nop) {
             kept.push(inst);
+            continue;
+          }
+          let pure = hoistable(body, inst);
+          let trapping = !pure && headerPure && trapHoistable(body, inst);
+          if (!pure && !trapping) {
+            kept.push(inst);
+            headerPure = false;
             continue;
           }
           while (operands.length > 0) {
@@ -148,6 +177,9 @@ let hoistOnce = (body: IrBody): i32 => {
           }
           if (!invariant) {
             kept.push(inst);
+            if (trapping) {
+              headerPure = false;
+            }
             continue;
           }
           // Move: out of this block, in before the destination's
@@ -218,6 +250,29 @@ let hoistable = (body: IrBody, inst: i32): boolean => {
       return fieldIsImmutable(body, inst);
     }
     return true;
+  }
+  return false;
+};
+
+/**
+ * Pure but able to trap: a cast, a null assertion, or a load of an
+ * immutable field, an array length or a fat pointer's fields through
+ * a nullable receiver. Movable from a loop header alone.
+ */
+let trapHoistable = (body: IrBody, inst: i32): boolean => {
+  if (body.typeId[inst] < 0) {
+    return false;
+  }
+  let op = body.op(inst);
+  if (op == IrOp.ref_cast || op == IrOp.ref_as_non_null) {
+    return true;
+  }
+  if (op == IrOp.array_len || op == IrOp.iface_vtable ||
+      op == IrOp.iface_instance) {
+    return body.a[inst] >= 0;
+  }
+  if (op == IrOp.struct_get) {
+    return body.a[inst] >= 0 && fieldIsImmutable(body, inst);
   }
   return false;
 };

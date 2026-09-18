@@ -1,0 +1,41 @@
+// A function that takes its array as the Array interface, called
+// with a FixedArray. The paired workload, concrete-param, writes the
+// same function with a FixedArray<i32> parameter. The two should run
+// at the same speed: inside the callee every access goes through the
+// fat pointer (unpack, vtable slot, call) unless the optimizer sees
+// that only one implementation is live and makes the accesses direct.
+//
+// The callee has two loops and two call sites, so it stays a real
+// function: the inliner's budgets do not take it, and the pack is
+// made once outside the loop so the argument rule does not fire.
+let sum = (xs: Array<i32>, k: i32): i32 => {
+  var s = 0;
+  var i = 0;
+  while (i < xs.length) {
+    s = (s + xs[i] * 3 + k) & 16777215;
+    i += 1;
+  }
+  var j = xs.length - 1;
+  while (j >= 0) {
+    s = (s ^ xs[j]) & 16777215;
+    j -= 1;
+  }
+  return s;
+};
+
+export let main = (): i32 => {
+  let src = new FixedArray<i32>(1024, 0);
+  var i = 0;
+  while (i < 1024) {
+    src[i] = i;
+    i += 1;
+  }
+  let xs: Array<i32> = src;
+  var total = sum(xs, 7);
+  var round = 0;
+  while (round < 2000) {
+    total = (total + sum(xs, round)) & 16777215;
+    round += 1;
+  }
+  return total & 255;
+};
