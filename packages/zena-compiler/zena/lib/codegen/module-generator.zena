@@ -36,6 +36,7 @@ import { pruneUnreached } from './ir/harvest.zena';
 import { runLicm } from './ir/licm.zena';
 import { runSccp } from './ir/sccp.zena';
 import { runSroa } from './ir/sroa.zena';
+import { runJumpThreading } from './ir/thread.zena';
 import { printIr } from './ir/printer.zena';
 import { IrCfg } from './ir/cfg.zena';
 import { emitZirFunction } from './ir/emit.zena';
@@ -602,6 +603,7 @@ export final class ModuleGenerator {
     var zirHoisted = 0;
     var zirPropagated = 0;
     var zirScalarized = 0;
+    var zirThreaded = 0;
     // Harvest roots: the exported functions (exported globals and the
     // start function are found inside the pass).
     let roots = new GrowableArray<WasmFunction>();
@@ -666,10 +668,13 @@ export final class ModuleGenerator {
           }
         }
         // Scalar replacement dissolves the objects inlining localized,
-        // then constant propagation folds the branches the sweeps made
-        // constant: every body in the first round, after that only
-        // the bodies a sweep touched.
+        // jump threading sends each arm of an inlined body past the
+        // continuation's branch on the flag it returned, then constant
+        // propagation folds the branches the sweeps made constant:
+        // every body in the first round, after that only the bodies a
+        // sweep touched.
         var scalarized = 0;
+        var threaded = 0;
         var propagated = 0;
         for (var i = 0; i < bodies.length; i += 1) {
           if (round == 0 || changed[i]) {
@@ -677,6 +682,11 @@ export final class ModuleGenerator {
             if (s > 0) {
               changed[i] = true;
               scalarized += s;
+            }
+            let t = runJumpThreading(bodies[i]);
+            if (t > 0) {
+              changed[i] = true;
+              threaded += t;
             }
             let n = runSccp(bodies[i]);
             if (n > 0) {
@@ -689,6 +699,7 @@ export final class ModuleGenerator {
         zirInlined += inlined;
         zirDevirtualized += devirtualized;
         zirScalarized += scalarized;
+        zirThreaded += threaded;
         zirPropagated += propagated;
         if (inlined == 0 && devirtualized == 0) {
           break;
@@ -1051,6 +1062,8 @@ export final class ModuleGenerator {
           " constants, parameters and branches folded");
       console.log("zir sroa: " + i32ToString(zirScalarized) +
           " local objects replaced by their fields");
+      console.log("zir thread: " + i32ToString(zirThreaded) +
+          " branches on a returned flag threaded");
       console.log("zir harvest: " + i32ToString(zirHarvestedFunctions) +
           " unreachable functions and " + i32ToString(zirHarvestedGlobals) +
           " globals removed");

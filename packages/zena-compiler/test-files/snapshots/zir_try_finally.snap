@@ -101,13 +101,10 @@
             local.get 9
             i32.const 2
             i32.eq
-            if
-              br 4
-            else
-              local.get 3
-              global.set 0
-              throw 0
-            end
+            br_if 3
+            local.get 3
+            global.set 0
+            throw 0
           end
         end
       end

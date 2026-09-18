@@ -297,14 +297,17 @@ export let tests = suite('zir backend', (): void => {
     // local can be declared at its precise non-null type — reads after
     // the join then need no ref.as_non_null re-assert. Under the old
     // block-0 gate any merge child under the entry blocked graduation.
-    let result = compileWithZir(
+    // At -O0, so the constant branch and its join survive to emission:
+    // the cleanup passes fold the branch and fuse the blocks, leaving
+    // no join and no local at all.
+    let result = compileWithZirAt(
         'class Box { x: i32; new(this.x); }\n' +
         'export let main = (): i32 => {\n' +
         '  let b = new Box(3);\n' +
         '  var acc = 7;\n' +
         '  if (acc > 1) { acc = 1; } else { acc = 2; }\n' +
         '  return acc + b.x;\n' +
-        '};');
+        '};', 0);
     let mainWat = watFunction(result, '$main');
     isTrue(mainWat.contains('(local (ref '));
     isTrue(!mainWat.contains('(local (ref null'));
@@ -979,6 +982,11 @@ export let tests = suite('zir backend', (): void => {
         'the multi-value dispatch resolves, both the trampoline and next inline, and the counter dissolves');
     assertNoAllocation(result, '$main',
         'the Counter object escapes nowhere once next is inlined, so its field is a value');
+    // One test per iteration: the flag next returned is threaded, so
+    // the arm that found an element runs the body directly and the
+    // arm that ran out leaves. (`br_if` would count here too.)
+    assertFunctionUsesTimes(result, '$main', 'if', 1,
+        'the loop tests once per element; the done flag is threaded away');
   });
 
   test('-O2 replaces a local object with a written field by a loop-carried value', (ctx: TestContext): void => {

@@ -1,0 +1,416 @@
+/**
+ * Jump threading through a block that only branches on its own
+ * parameter. After an iterator's `next()` inlines into a protocol
+ * loop and its object dissolves, what remains of the call is its
+ * continuation: a block whose parameters are the returned values —
+ * a done flag and an element — and whose one instruction is the
+ * `br_if` on the flag that picks the loop body or the exit. Every
+ * predecessor passes a constant for the flag (1 from the arm that
+ * found an element, 0 from the arm that ran out), so each of them
+ * already knows which way the branch goes. This pass sends each such
+ * predecessor straight to that arm.
+ *
+ * The values matter more than the jump. The arm's blocks read the
+ * continuation's parameters (the body reads the element), and a
+ * predecessor that jumps past the continuation must deliver them
+ * another way: the arm gets a parameter of its own for each
+ * continuation parameter its blocks use, the continuation's edge to
+ * the arm passes its parameter through, and a threaded edge passes
+ * what it would have passed to the continuation. Uses inside the arm
+ * move to the arm's parameter. When the threaded edges were all the
+ * continuation had, it loses its last predecessor and the block
+ * cleanup pass removes it, and the arm's new parameter is trivial
+ * (one edge, one value) and goes the same way. The loop is then the
+ * hand-written one: test, element, body, back.
+ *
+ * Preconditions, all checked: the block has parameters and no
+ * instruction but the branch (an `i32.eqz` of the parameter, used
+ * only by the branch, is allowed as the condition); the two targets
+ * are distinct and neither is the block itself; at least one
+ * incoming edge passes a constant; every use of every parameter,
+ * besides the branch, lies in a block one of the two targets
+ * dominates; and a target that needs parameters has the block as its
+ * only predecessor (another predecessor would have nothing to pass).
+ * A try's join block is never threaded through.
+ *
+ * Determinism: blocks in id order, one threading per CFG rebuild.
+ */
+import { IrBody, IrOp } from './ir.zena';
+import { IrCfg } from './cfg.zena';
+import { retarget } from './blockmerge.zena';
+import { i32ToString } from 'zena:core';
+
+/** Runs the pass; returns the number of blocks threaded through. */
+export let runJumpThreading = (body: IrBody): i32 => {
+  var threaded = 0;
+  while (threaded < 64) {
+    let cfg = new IrCfg(body);
+    let c = findCandidate(body, cfg);
+    if (c < 0) {
+      break;
+    }
+    threadThrough(body, cfg, c);
+    threaded += 1;
+  }
+  return threaded;
+};
+
+/** The first block eligible for threading, or -1. */
+let findCandidate = (body: IrBody, cfg: IrCfg): i32 => {
+  let joins = new GrowableArray<i32>();
+  for (let k in body.tryJoin.keys()) {
+    joins.push(body.tryJoin[k]);
+  }
+  let nb = body.blocks.length;
+  for (var c = 1; c < nb; c += 1) {
+    if (!cfg.isReachable(c)) {
+      continue;
+    }
+    var isJoin = false;
+    for (let j in joins) {
+      if (j == c) {
+        isJoin = true;
+      }
+    }
+    if (isJoin) {
+      continue;
+    }
+    if (eligible(body, cfg, c)) {
+      return c;
+    }
+  }
+  return -1;
+};
+
+/**
+ * The branch's condition as a parameter of `c`: the parameter id, or
+ * -1. `negated` reports an `i32.eqz` between the two.
+ */
+let conditionParam = (body: IrBody, c: i32): i32 => {
+  let blk = body.blocks[c];
+  let term = blk.insts[blk.insts.length - 1];
+  let cond = body.a[term];
+  if (body.op(cond) == IrOp.param && body.instBlock[cond] == c) {
+    return cond;
+  }
+  if (body.op(cond) == IrOp.i32_eqz && body.instBlock[cond] == c) {
+    let inner = body.a[cond];
+    if (body.op(inner) == IrOp.param && body.instBlock[inner] == c) {
+      return inner;
+    }
+  }
+  return -1;
+};
+
+let conditionNegated = (body: IrBody, c: i32): boolean => {
+  let blk = body.blocks[c];
+  let term = blk.insts[blk.insts.length - 1];
+  return body.op(body.a[term]) == IrOp.i32_eqz;
+};
+
+/** Users of every value, from the non-nop instructions. */
+let userLists = (body: IrBody): GrowableArray<GrowableArray<i32>> => {
+  let count = body.instCount();
+  let users = new GrowableArray<GrowableArray<i32>>();
+  for (var i = 0; i < count; i += 1) {
+    users.push(new GrowableArray<i32>());
+  }
+  let operands = new GrowableArray<i32>();
+  for (var i = 0; i < count; i += 1) {
+    if (body.op(i) == IrOp.nop) {
+      continue;
+    }
+    while (operands.length > 0) {
+      operands.pop();
+    }
+    body.appendValueOperands(i, operands);
+    for (let v in operands) {
+      if (v >= 0 && v < count) {
+        users[v].push(i);
+      }
+    }
+  }
+  return users;
+};
+
+let eligible = (body: IrBody, cfg: IrCfg, c: i32): boolean => {
+  let blk = body.blocks[c];
+  if (blk.params.length == 0 || blk.insts.length == 0) {
+    return false;
+  }
+  let term = blk.insts[blk.insts.length - 1];
+  if (body.op(term) != IrOp.br_if) {
+    return false;
+  }
+  let p = conditionParam(body, c);
+  if (p < 0) {
+    return false;
+  }
+  let cond = body.a[term];
+  // Nothing but the branch and, when negated, the eqz.
+  for (let inst in blk.insts) {
+    if (inst == term || body.op(inst) == IrOp.nop || inst == cond) {
+      continue;
+    }
+    return false;
+  }
+  let succs = body.successors(term);
+  let t = succs[0].target;
+  let f = succs[1].target;
+  if (t == f || t == c || f == c) {
+    return false;
+  }
+  // At least one incoming edge passes a constant for the parameter.
+  var j = -1;
+  for (var k = 0; k < blk.params.length; k += 1) {
+    if (blk.params[k] == p) {
+      j = k;
+    }
+  }
+  var anyConstant = false;
+  for (let pred in cfg.preds[c]) {
+    let pInsts = body.blocks[pred].insts;
+    let pTerm = pInsts[pInsts.length - 1];
+    for (let s in body.successors(pTerm)) {
+      if (s.target == c && body.op(body.extra[s.argStart + j]) == IrOp.const_i32) {
+        anyConstant = true;
+      }
+    }
+  }
+  if (!anyConstant) {
+    return false;
+  }
+  // Every other use of a parameter sits under one of the targets, and
+  // a target that would need parameters has no other predecessor.
+  let users = userLists(body);
+  if (cond != p) {
+    // The eqz belongs to the branch alone.
+    for (let u in users[cond]) {
+      if (u != term) {
+        return false;
+      }
+    }
+  }
+  var needT = false;
+  var needF = false;
+  for (let q in blk.params) {
+    for (let u in users[q]) {
+      if (u == term || u == cond) {
+        continue;
+      }
+      let arm = armOf(cfg, t, f, body.instBlock[u]);
+      if (arm == 0) {
+        needT = true;
+      } else if (arm == 1) {
+        needF = true;
+      } else {
+        return false;
+      }
+    }
+  }
+  if (needT && !onlyPredIs(cfg, t, c)) {
+    return false;
+  }
+  if (needF && !onlyPredIs(cfg, f, c)) {
+    return false;
+  }
+  return true;
+};
+
+/**
+ * Which arm a use in block `bu` belongs to: 0 for the first target's
+ * region, 1 for the second's, -1 for neither. One arm can lie inside
+ * the other's region (the second is a loop header and the first sits
+ * in its loop, say); a use dominated by both belongs to the inner arm,
+ * whose parameter is the one that reaches it.
+ */
+let armOf = (cfg: IrCfg, t: i32, f: i32, bu: i32): i32 => {
+  if (bu < 0) {
+    return -1;
+  }
+  let inT = cfg.dominates(t, bu);
+  let inF = cfg.dominates(f, bu);
+  if (inT && inF) {
+    return if (cfg.dominates(f, t)) 0 else 1;
+  }
+  if (inT) {
+    return 0;
+  }
+  if (inF) {
+    return 1;
+  }
+  return -1;
+};
+
+let onlyPredIs = (cfg: IrCfg, b: i32, c: i32): boolean => {
+  for (let p in cfg.preds[b]) {
+    if (p != c) {
+      return false;
+    }
+  }
+  return true;
+};
+
+let threadThrough = (body: IrBody, cfg: IrCfg, c: i32): void => {
+  let blk = body.blocks[c];
+  let term = blk.insts[blk.insts.length - 1];
+  let p = conditionParam(body, c);
+  let negated = conditionNegated(body, c);
+  let succs = body.successors(term);
+  let targets = new GrowableArray<i32>();
+  targets.push(succs[0].target);
+  targets.push(succs[1].target);
+  let users = userLists(body);
+  let count = body.instCount();
+  var j = -1;
+  for (var k = 0; k < blk.params.length; k += 1) {
+    if (blk.params[k] == p) {
+      j = k;
+    }
+  }
+
+  // Which of the continuation's parameters each target's region uses,
+  // and the parameter the target gets for each.
+  let fwd = new GrowableArray<i32>();
+  for (var i = 0; i < count; i += 1) {
+    fwd.push(-1);
+  }
+  for (var side = 0; side < 2; side += 1) {
+    let s = targets[side];
+    let used = new GrowableArray<i32>();
+    for (let q in blk.params) {
+      var usedHere = false;
+      for (let u in users[q]) {
+        if (u == term || u == body.a[term]) {
+          continue;
+        }
+        if (armOf(cfg, targets[0], targets[1], body.instBlock[u]) == side) {
+          usedHere = true;
+        }
+      }
+      if (usedHere) {
+        used.push(q);
+      }
+    }
+    if (used.length == 0) {
+      continue;
+    }
+    for (var i = 0; i < count; i += 1) {
+      fwd[i] = -1;
+    }
+    for (let q in used) {
+      let id = body.opcode.length;
+      body.opcode.push(IrOp.param as i32);
+      body.typeId.push(body.typeId[q]);
+      body.a.push(-1);
+      body.b.push(-1);
+      body.instBlock.push(s);
+      body.blocks[s].params.push(id);
+      fwd[q] = id;
+    }
+    // Uses in the target's region move to the target's parameter.
+    let stack = new GrowableArray<i32>();
+    stack.push(s);
+    while (stack.length > 0) {
+      let b = stack.pop();
+      for (let inst in body.blocks[b].insts) {
+        if (body.op(inst) != IrOp.nop) {
+          body.rewriteValueOperands(inst, (v: i32): i32 => {
+            if (v >= 0 && v < count && fwd[v] >= 0) {
+              return fwd[v];
+            }
+            return v;
+          });
+        }
+      }
+      for (let child in cfg.domChildren[b]) {
+        stack.push(child);
+      }
+    }
+    // The continuation's own edge passes its parameters through.
+    appendArgs(body, term, side, used);
+  }
+
+  // Each predecessor edge with a constant flag goes straight to the
+  // arm the flag selects, passing what that edge passes to the
+  // continuation wherever the arm's record names a continuation
+  // parameter.
+  let edges = new GrowableArray<i32>();
+  let edgeIndex = new GrowableArray<i32>();
+  for (let pred in cfg.preds[c]) {
+    let pInsts = body.blocks[pred].insts;
+    let pTerm = pInsts[pInsts.length - 1];
+    var seen = false;
+    for (let t in edges) {
+      if (t == pTerm) {
+        seen = true;
+      }
+    }
+    if (seen) {
+      continue;
+    }
+    let ps = body.successors(pTerm);
+    for (var k = 0; k < ps.length; k += 1) {
+      if (ps[k].target == c) {
+        edges.push(pTerm);
+        edgeIndex.push(k);
+      }
+    }
+  }
+  for (var e = 0; e < edges.length; e += 1) {
+    let pTerm = edges[e];
+    let k = edgeIndex[e];
+    let incoming = body.successors(pTerm)[k];
+    if (incoming.target != c) {
+      // A predecessor with both arms into the block is listed once per
+      // arm; each (terminator, slot) pair is handled once.
+      continue;
+    }
+    if (incoming.argCount != blk.params.length) {
+      throw new Error('thread: edge into b' + i32ToString(c) + ' passes ' +
+          i32ToString(incoming.argCount) + ' args for ' +
+          i32ToString(blk.params.length) + ' params');
+    }
+    let flag = body.extra[incoming.argStart + j];
+    if (body.op(flag) != IrOp.const_i32) {
+      continue;
+    }
+    var taken = body.a[flag] != 0;
+    if (negated) {
+      taken = !taken;
+    }
+    let side = if (taken) 0 else 1;
+    let armRecord = body.successors(term)[side];
+    let newArgs = new GrowableArray<i32>();
+    var i = 0;
+    while (i < armRecord.argCount) {
+      let v = body.extra[armRecord.argStart + i];
+      var mapped = v;
+      for (var q = 0; q < blk.params.length; q += 1) {
+        if (blk.params[q] == v) {
+          mapped = body.extra[incoming.argStart + q];
+        }
+      }
+      newArgs.push(mapped);
+      i += 1;
+    }
+    retarget(body, pTerm, k, armRecord.target, newArgs);
+  }
+};
+
+/** Appends `values` to the arguments of successor `k` of `term`. */
+let appendArgs = (body: IrBody, term: i32, k: i32,
+    values: GrowableArray<i32>): void => {
+  let s = body.successors(term)[k];
+  let args = new GrowableArray<i32>();
+  var i = 0;
+  while (i < s.argCount) {
+    args.push(body.extra[s.argStart + i]);
+    i += 1;
+  }
+  for (let v in values) {
+    args.push(v);
+  }
+  retarget(body, term, k, s.target, args);
+};
+

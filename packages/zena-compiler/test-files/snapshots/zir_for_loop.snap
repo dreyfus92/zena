@@ -18,22 +18,16 @@
           local.get 0
           i32.const 2
           i32.eq
-          if
-            br 1
-          else
-            local.get 0
-            i32.const 7
-            i32.eq
-            if
-              br 4
-            else
-              local.get 1
-              local.get 0
-              i32.add
-              local.set 1
-              br 2
-            end
-          end
+          br_if 0
+          local.get 0
+          i32.const 7
+          i32.eq
+          br_if 2
+          local.get 1
+          local.get 0
+          i32.add
+          local.set 1
+          br 0
         end
         local.get 0
         i32.const 1
