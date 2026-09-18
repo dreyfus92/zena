@@ -7,7 +7,7 @@
 // The self-hosted compiler used to type the temp non-nullable, producing
 // invalid wasm (surfaced compiling the compiler's own typeToString).
 
-import {HashMap} from 'zena:map';
+import { HashMap } from 'zena:collections';
 
 class Words {
   var index: i32;

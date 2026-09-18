@@ -1,7 +1,7 @@
 // @mode: run
 // @stdout: found a=1\nfound b=2\ndone
 
-import {HashMap} from 'zena:map';
+import { HashMap } from 'zena:collections';
 
 export let main = (): void => {
   let map = new HashMap<String, String>();

@@ -1,4 +1,4 @@
-import { HashSet } from 'zena:set';
+import { HashSet } from 'zena:collections';
 import { Type } from '../types.zena';
 import { SymbolId } from '../scope/symbol.zena';
 import { Node, SourceLocation } from '../ast.zena';

@@ -1,6 +1,5 @@
 // @mode: check
-import {HashMap} from 'zena:map';
-import {HashSet} from 'zena:set';
+import { HashMap, HashSet } from 'zena:collections';
 
 class ExplicitKey implements Hashable {
   v: i32;

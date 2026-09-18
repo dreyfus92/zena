@@ -1,4 +1,4 @@
-import { HashSet } from 'zena:set';
+import { HashSet } from 'zena:collections';
 import { simdInstruction } from './simd.zena';
 
 let validIntrinsics = new HashSet<String>();

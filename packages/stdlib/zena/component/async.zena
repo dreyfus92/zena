@@ -31,7 +31,7 @@
  * resolves this module.
  */
 
-import { HashMap } from 'zena:map';
+import { HashMap } from 'zena:collections';
 import { Error } from 'zena:core';
 import { Completer, Future, drainMicrotasks } from 'zena:async';
 

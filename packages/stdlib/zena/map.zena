@@ -1,9 +1,13 @@
-// 'zena:map' — the unordered map, from the collections library.
+// TRANSITIONAL. This module has no manifest entry and nothing imports it.
+// It exists only so the checked-in bootstrap can build the compiler: the
+// prelude baked into that bootstrap still names 'zena:map', so it loads
+// this file unconditionally, and a missing file is a hard read error
+// rather than an unresolved import. See "The Bootstrap" in AGENTS.md.
 //
-// The implementation lives in collections/, next to the ordered map and the
-// sets it shares a hash table with. This module stays because most code
-// imports HashMap from here, and because the prelude injects Map and HashMap
-// from this specifier. 'zena:collections' exports the same declarations.
+// Delete this file after the next reseed. Nothing else needs to change;
+// the manifests and the prelude already name 'zena:collections'.
+
+// The unordered map, from the collections library.
 
 export { Hashable } from 'zena:core';
 

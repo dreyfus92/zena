@@ -1,4 +1,4 @@
-import { HashSet } from 'zena:set';
+import { HashSet } from 'zena:collections';
 import {
   Node, Identifier, ThisExpression, AssignmentExpression, FunctionExpression, Parameter, VariableDeclaration, IdentifierPattern, Module, ClassDeclaration, InterfaceDeclaration, EnumDeclaration, MixinDeclaration, MethodDefinition, BlockStatement,
 } from '../ast.zena';

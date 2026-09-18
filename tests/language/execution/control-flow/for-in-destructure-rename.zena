@@ -3,7 +3,7 @@
 // Record-pattern destructuring with `as` renames in for-in — the
 // pervasive `{key as k, value as v}` idiom.
 
-import { HashMap } from 'zena:map';
+import { HashMap } from 'zena:collections';
 
 export let main = (): i32 => {
   let map = new HashMap<String, i32>();

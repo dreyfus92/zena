@@ -1,5 +1,5 @@
 import {Box} from 'zena:core';
-import {HashSet} from 'zena:set';
+import { HashSet } from 'zena:collections';
 import {
   JsonArray,
   JsonObject,

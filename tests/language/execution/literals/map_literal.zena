@@ -1,7 +1,7 @@
 // @mode: run
 // @result: true
 
-import { HashMap } from 'zena:map';
+import { HashMap } from 'zena:collections';
 
 export let main = (): boolean => {
   let m = {"a" => 1, "b" => 2};

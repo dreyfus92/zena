@@ -45,8 +45,7 @@
  */
 
 import { isValidIntrinsic } from './intrinsics.zena';
-import { HashSet } from 'zena:set';
-import { OrderedHashMap } from 'zena:collections';
+import { HashSet, OrderedHashMap } from 'zena:collections';
 import { StringBuilder } from 'zena:core';
 import { analyzeCaptures, analyzeTryBodyAssignments } from './analysis/capture.zena';
 import {

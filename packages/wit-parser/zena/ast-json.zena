@@ -6,7 +6,7 @@
  */
 
 import {JsonBuilder} from 'zena:json';
-import {HashSet} from 'zena:set';
+import { HashSet } from 'zena:collections';
 import {Ast, AstItem, AstItemTag, PackageName, NestedPackage, Id, Use, UseName, UsePath, UsePathTag, Include, IncludeName, ToplevelUse} from './parser.zena';
 import {InterfaceDef, InterfaceItem, InterfaceItemTag} from './parser.zena';
 import {WorldDef, WorldItem, WorldItemTag, ExternKind, ExternKindTag, Import, Export} from './parser.zena';

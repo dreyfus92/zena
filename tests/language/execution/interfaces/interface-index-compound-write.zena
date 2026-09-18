@@ -6,7 +6,7 @@
 // receiver and index evaluate once, feeding both dispatches —
 // nextIndex() must run once per compound write.
 
-import { Map } from 'zena:map';
+import { Map } from 'zena:collections';
 
 var indexEvals = 0;
 

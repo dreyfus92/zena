@@ -95,7 +95,7 @@ export let tests = suite("Package Manifest", () => {
       let config = buildStdlibConfig("/stdlib");
       let exports = config.exports as HashMap<String, ModuleExport>;
       isTrue(exports.has("core"));
-      isTrue(exports.has("map"));
+      isTrue(exports.has("collections"));
       isTrue(exports.has("json"));
       isTrue(exports.has("test"));
     });

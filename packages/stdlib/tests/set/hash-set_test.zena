@@ -1,7 +1,7 @@
 // Set stdlib tests using zena:test
 import {suite, test, TestContext} from 'zena:test';
 import {equal, isTrue, isFalse} from 'zena:assert';
-import {HashSet} from 'zena:set';
+import { HashSet } from 'zena:collections';
 
 export let tests = suite('Set', (): void => {
   test('starts empty', (ctx: TestContext): void => {

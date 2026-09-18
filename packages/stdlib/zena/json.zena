@@ -1,4 +1,4 @@
-import {HashMap} from 'zena:map';
+import { HashMap } from 'zena:collections';
 import {OrderedMap} from './collections/hash-map.zena';
 import {GrowableArray, Box, Error, StringReader, StringBuilder, parseF64} from 'zena:core';
 import {div} from 'zena:math';

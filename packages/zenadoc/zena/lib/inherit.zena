@@ -13,7 +13,7 @@
  * and may not have been walked when its subtype was.
  */
 
-import { HashSet } from 'zena:set';
+import { HashSet } from 'zena:collections';
 import {
   DocDeclaration, DocMember, DocPackage, TypeRef,
 } from './model.zena';

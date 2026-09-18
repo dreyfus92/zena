@@ -5,7 +5,7 @@
 // and must NOT be coerced to the binding's non-null type unless the
 // flag branch is taken (a header-block cast would trap on the
 // exhausted iteration — the bug this test pins).
-import { HashMap } from 'zena:map';
+import { HashMap } from 'zena:collections';
 
 export let main = (): i32 => {
   var acc = 0;

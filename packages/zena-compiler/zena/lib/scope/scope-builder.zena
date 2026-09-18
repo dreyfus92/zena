@@ -1,4 +1,4 @@
-import { HashSet } from 'zena:set';
+import { HashSet } from 'zena:collections';
 import { NodeMap } from '../node-map.zena';
 import {
   Node, NodeId, Module, SourceLocation, IdGenerator,

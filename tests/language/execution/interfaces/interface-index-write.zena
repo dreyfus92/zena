@@ -6,7 +6,7 @@
 // user-defined interface and the stdlib Map, whose values only ever
 // appear behind the interface.
 
-import { Map } from 'zena:map';
+import { Map } from 'zena:collections';
 
 interface Store {
   operator [](key: i32): i32;

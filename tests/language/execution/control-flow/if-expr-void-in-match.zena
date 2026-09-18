@@ -6,7 +6,7 @@
 // vs eqref from field assignment), the codegen must generate a void WASM if
 // block instead of a typed one.
 
-import {HashMap} from 'zena:map';
+import { HashMap } from 'zena:collections';
 
 class Container {
   var data: HashMap<String, boolean> | null = null;

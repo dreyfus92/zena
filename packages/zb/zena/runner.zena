@@ -1,5 +1,5 @@
 import {runFuture} from 'zena:async';
-import {HashSet} from 'zena:set';
+import { HashSet } from 'zena:collections';
 import {isFile, readFile, writeFile} from 'zena:fs';
 import {monotonic} from 'zena:time';
 import {Engine, RunResult} from 'workflow:engine';

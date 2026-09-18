@@ -1,4 +1,4 @@
-import {HashSet} from 'zena:set';
+import { HashSet } from 'zena:collections';
 import {ResolvedInput} from './canonical.zena';
 import {Fingerprint} from './fingerprint.zena';
 import {OutputManifest} from './manifest.zena';

@@ -1,5 +1,5 @@
 import {FileType, exists, isFile, listDir, readFileBytes} from 'zena:fs';
-import {HashSet} from 'zena:set';
+import { HashSet } from 'zena:collections';
 import {compareStrings, sortBy} from 'workflow:canonical';
 import {Fingerprint} from 'workflow:fingerprint';
 import {withRoot} from './fs-util.zena';

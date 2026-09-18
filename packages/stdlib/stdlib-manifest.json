@@ -65,7 +65,6 @@
       }
     },
     "json": {},
-    "map": {},
     "math": {},
     "memory": {
       "virtual": {
@@ -84,7 +83,6 @@
       }
     },
     "regex": {},
-    "set": {},
     "simd": {
       "path": "simd/index.zena"
     },

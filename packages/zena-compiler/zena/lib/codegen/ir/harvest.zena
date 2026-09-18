@@ -27,7 +27,7 @@
  * Determinism: the worklist is seeded in root order and follows
  * bodies in instruction order; the maps are used for lookups only.
  */
-import { HashMap } from 'zena:map';
+import { HashMap } from 'zena:collections';
 import { IrBody, IrOp, IrRefFunc, IrRefGlobal } from './ir.zena';
 import { WasmModule, WasmFunction, WasmGlobal } from '../wasm-module.zena';
 import { getClassKey } from '../codegen-utils.zena';

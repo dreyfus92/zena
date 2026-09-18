@@ -661,33 +661,33 @@ export let tests = suite('Checker API', (): void => {
 
     test('HashMap index access', (ctx: TestContext): void => {
       checkOk(
-        "import { HashMap } from 'zena:map';\nlet m = new HashMap<String, i32>();\nm[\"x\"] = 42;"
+        "import { HashMap } from 'zena:collections';\nlet m = new HashMap<String, i32>();\nm[\"x\"] = 42;"
       );
     });
 
     test('HashMap get method', (ctx: TestContext): void => {
       checkOk(
-        "import { HashMap } from 'zena:map';\nlet m = new HashMap<String, i32>();\nif (let (true, v) = m.get(\"x\")) { let _ = v; }"
+        "import { HashMap } from 'zena:collections';\nlet m = new HashMap<String, i32>();\nif (let (true, v) = m.get(\"x\")) { let _ = v; }"
       );
     });
 
     test('HashMap has method', (ctx: TestContext): void => {
       checkOk(
-        "import { HashMap } from 'zena:map';\nlet m = new HashMap<String, i32>();\nlet b = m.has(\"x\");"
+        "import { HashMap } from 'zena:collections';\nlet m = new HashMap<String, i32>();\nlet b = m.has(\"x\");"
       );
     });
 
     test('HashMap field with get and return', (ctx: TestContext): void => {
       // Class with HashMap field — get method return type must substitute V
       checkOk(
-        "import { HashMap } from 'zena:map';\nclass Store {\n  #data = new HashMap<String, i32>();\n  lookup(key: String): i32 {\n    if (let (true, val) = this.#data.get(key)) { return val; }\n    return 0;\n  }\n}"
+        "import { HashMap } from 'zena:collections';\nclass Store {\n  #data = new HashMap<String, i32>();\n  lookup(key: String): i32 {\n    if (let (true, val) = this.#data.get(key)) { return val; }\n    return 0;\n  }\n}"
       );
     });
 
     test('HashMap index access substitutes V', (ctx: TestContext): void => {
       // Index access on HashMap field must substitute type args
       checkOk(
-        "import { HashMap } from 'zena:map';\nclass Cache {\n  #map = new HashMap<String, i32>();\n  getValue(key: String): i32 {\n    return this.#map[key];\n  }\n}"
+        "import { HashMap } from 'zena:collections';\nclass Cache {\n  #map = new HashMap<String, i32>();\n  getValue(key: String): i32 {\n    return this.#map[key];\n  }\n}"
       );
     });
   });

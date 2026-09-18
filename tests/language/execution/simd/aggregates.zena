@@ -13,7 +13,7 @@
 // emit for it.
 import {i32x4Splat, i32x4Add, i32x4ExtractLane, v128Const} from 'zena:simd';
 import {Array, Box} from 'zena:core';
-import {HashMap} from 'zena:map';
+import { HashMap } from 'zena:collections';
 
 let ones: v128 = i32x4Splat(1);
 

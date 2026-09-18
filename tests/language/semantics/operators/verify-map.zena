@@ -1,6 +1,6 @@
 // @mode: run
 // @result: 1
-import { HashMap } from 'zena:map';
+import { HashMap } from 'zena:collections';
 
 export let main = (): i32 => {
   let m = new HashMap<String, i32>();

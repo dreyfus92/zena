@@ -1,4 +1,4 @@
-// The hash maps behind 'zena:map' and 'zena:collections'.
+// The hash maps behind 'zena:collections'.
 //
 // There is one table: a power-of-two array of buckets, each a chain of
 // MapEntry linked by `:next`. OrderedMap extends HashMap, storing a

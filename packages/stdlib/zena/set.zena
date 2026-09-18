@@ -1,8 +1,0 @@
-// 'zena:set' — the unordered set, from the collections library.
-//
-// The implementation lives in collections/, next to the map that backs it.
-// OrderedHashSet is deliberately not re-exported here: it is available from
-// 'zena:collections'.
-
-export { Set } from './collections/set.zena';
-export { HashSet } from './collections/hash-set.zena';

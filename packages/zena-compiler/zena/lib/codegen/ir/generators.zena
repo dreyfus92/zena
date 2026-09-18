@@ -28,7 +28,7 @@
  * land on it. The design calls for throwing an Error there; v1 traps
  * (unreachable) — loud either way, revisit with the async runtime.
  */
-import { HashSet } from 'zena:set';
+import { HashSet } from 'zena:collections';
 import {
   ValType, ValTypeI32, ValTypeI64, ValTypeF32, ValTypeF64, ValTypeRef,
   ValTypeRefNull,

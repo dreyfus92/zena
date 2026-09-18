@@ -33,7 +33,7 @@ export let getStandardPrelude = (target: String): HashMap<String, FixedArray<Str
   // with no host to print to gets the component's console, which is
   // what a hostless core module is once wrapped.
   prelude["zena:console"] = ["console"];
-  prelude["zena:map"] = ["Map", "HashMap"];
+  prelude["zena:collections"] = ["Map", "HashMap"];
   prelude["zena:async"] = ["Future", "Awaited"];
   return prelude;
 };

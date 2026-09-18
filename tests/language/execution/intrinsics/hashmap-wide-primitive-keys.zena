@@ -3,7 +3,7 @@
 // HashMap keys of wider primitive types: i64 hashes by folding high and low
 // bits, floats hash their bits with -0.0 normalized to +0.0 (since
 // -0.0 == 0.0, they must be the same key).
-import {HashMap} from 'zena:map';
+import { HashMap } from 'zena:collections';
 
 export let main = (): i32 => {
   let m64 = new HashMap<i64, i32>();

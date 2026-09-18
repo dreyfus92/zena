@@ -1,5 +1,5 @@
 // @mode: check
-import {HashMap} from 'zena:map';
+import { HashMap } from 'zena:collections';
 
 let boolMapEquals = (
   a: HashMap<String, boolean>, b: HashMap<String, boolean>

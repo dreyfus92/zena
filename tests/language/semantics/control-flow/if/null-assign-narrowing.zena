@@ -2,7 +2,7 @@
 // Narrowing after `if (x == null) { x = value; }` and `x ??= value`.
 // Both patterns guarantee x is non-null afterward.
 
-import {HashSet} from 'zena:set';
+import { HashSet } from 'zena:collections';
 
 // Pattern 1: if (x == null) { x = value; }
 let withIfAssign = (): void => {

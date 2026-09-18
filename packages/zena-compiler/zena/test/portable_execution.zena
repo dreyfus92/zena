@@ -45,7 +45,7 @@
  */
 
 import { getArguments } from 'zena:cli';
-import { HashSet } from 'zena:set';
+import { HashSet } from 'zena:collections';
 import { StringBuilder } from 'zena:core';
 import { Process, ProcessResult, spawn } from 'zena:process';
 import { readFile, readFileBytes, writeFile, writeFileBytes, mkdir, exists, unlink } from 'zena:fs';

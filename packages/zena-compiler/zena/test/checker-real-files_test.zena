@@ -214,9 +214,9 @@ export let tests = suite('Checker: Real Files', (): void => {
     equal(errors.length, 0);
   });
 
-  test('checks map.zena', (ctx: TestContext): void => {
-    let errors = checkFile("zena:map");
-    printDiagnostics(errors, "map.zena");
+  test('checks collections/index.zena', (ctx: TestContext): void => {
+    let errors = checkFile("zena:collections/index.zena");
+    printDiagnostics(errors, "collections/index.zena");
     equal(errors.length, 0);
   });
 
@@ -271,13 +271,6 @@ export let tests = suite('Checker: Real Files', (): void => {
   test('checks regex.zena', (ctx: TestContext): void => {
     let errors = checkFile("packages/stdlib/zena/regex.zena");
     printDiagnostics(errors, "regex.zena");
-    equal(errors.length, 0);
-  });
-
-
-  test('checks set.zena', (ctx: TestContext): void => {
-    let errors = checkFile("zena:set");
-    printDiagnostics(errors, "set.zena");
     equal(errors.length, 0);
   });
 

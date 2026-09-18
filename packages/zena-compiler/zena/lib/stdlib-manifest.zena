@@ -25,9 +25,9 @@ export let buildStdlibConfig = (stdlibRoot: String): PackageConfig => {
   let publicModules = [
     "assert", "async",
     "cli", "fs",
-    "json", "map",
+    "json",
     "math", "regex",
-    "set", "task",
+    "task",
     "test"
   ];
   var i = 0;

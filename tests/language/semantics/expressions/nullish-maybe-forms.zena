@@ -2,7 +2,7 @@
 // `??` is the licensed expression-position consumer of the language's
 // maybe-forms: nullable values, optional record fields, and protocol
 // inline-tuple unions.
-import { HashMap } from 'zena:map';
+import { HashMap } from 'zena:collections';
 
 type Opts = {url: String, timeout?: i32};
 

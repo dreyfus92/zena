@@ -16,7 +16,7 @@
  *   }
  */
 
-import { HashSet } from 'zena:set';
+import { HashSet } from 'zena:collections';
 import {
   PackageConfig, ModuleResolver, ResolvedModule,
 } from './module-resolver.zena';

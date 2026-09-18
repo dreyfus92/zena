@@ -9,7 +9,7 @@ import {
   ValTypeAnyRef, ValTypeI8, WasmType, valTypeEquals, ValTypeExternRef, ValTypeI32,
   valTypeToOpcode, nextWasmTypeUid, refTargetOf, sameHeapType
 } from './wasm.zena';
-import { HashSet } from 'zena:set';
+import { HashSet } from 'zena:collections';
 import { NodeMap } from '../node-map.zena';
 import {
   ClassType, FunctionType, Type, TypeParameterType,

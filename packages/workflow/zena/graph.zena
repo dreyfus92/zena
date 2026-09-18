@@ -1,4 +1,4 @@
-import {HashSet} from 'zena:set';
+import { HashSet } from 'zena:collections';
 import {StringBuilder} from 'zena:core';
 import {WorkflowError} from './errors.zena';
 import {LeafInput, StepKey, StepOutputs, Step} from './step.zena';

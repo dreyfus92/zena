@@ -5,7 +5,7 @@
 // than dropping them and returning a constant, and the synthesized == must
 // compare string fields by content. Strings are concatenated at runtime so
 // the test cannot pass via literal interning.
-import {HashMap} from 'zena:map';
+import { HashMap } from 'zena:collections';
 
 class CaseKey(name: String, id: i32)
 class NestedKey(inner: CaseKey, tag: String)

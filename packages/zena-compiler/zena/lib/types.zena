@@ -12,8 +12,7 @@
  * - The AST is never mutated — types live in the SemanticModel side table.
  */
 import { StringBuilder } from 'zena:core';
-import { OrderedHashMap } from 'zena:collections';
-import { HashSet } from 'zena:set';
+import { HashSet, OrderedHashMap } from 'zena:collections';
 
 
 import { Expression, Statement, IdGenerator } from './ast.zena';

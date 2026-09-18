@@ -1,5 +1,5 @@
 import {Completer} from 'zena:async';
-import {HashSet} from 'zena:set';
+import { HashSet } from 'zena:collections';
 import {StepCache} from './cache.zena';
 import {ResolvedInput, cacheKeyFor, manifestFingerprint} from './canonical.zena';
 import {InputDelta, computeDelta, staleOutputNames} from './delta.zena';

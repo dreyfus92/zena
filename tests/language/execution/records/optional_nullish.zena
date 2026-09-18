@@ -4,7 +4,7 @@
 
 // `opts.t ?? d` reads an optional field when present, else the
 // default — lazily: the default expression runs only on absence.
-import { HashMap } from 'zena:map';
+import { HashMap } from 'zena:collections';
 
 type Opts = {t?: i32};
 

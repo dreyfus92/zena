@@ -10,7 +10,7 @@
  * for file I/O.
  */
 
-import { HashSet } from 'zena:set';
+import { HashSet } from 'zena:collections';
 import {
   Module, ImportDeclaration, ExportAllDeclaration, ExportFromDeclaration, makeNodeIdGenerator,
 } from './ast.zena';

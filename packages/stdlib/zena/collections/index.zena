@@ -2,11 +2,11 @@
 //
 // One library for the collections, rather than a module per class. The
 // implementation files beside this one have no manifest entry and are
-// reachable only from here and from each other; 'zena:map' and 'zena:set'
-// are thin shims over the same files, kept because most code imports from
-// them.
+// reachable only from here and from each other.
 //
-// OrderedMap and OrderedHashSet are exported here and nowhere else.
+// The prelude names this module, for `Map` and `HashMap`. That denies the
+// prelude to every module named below, which is why they spell out the
+// names they use.
 
 export { Hashable } from 'zena:core';
 
