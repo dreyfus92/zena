@@ -973,8 +973,39 @@ export let tests = suite('zir backend', (): void => {
     let absent = new GrowableArray<String>();
     absent.push('call_ref');
     absent.push('call $');
+    absent.push('struct.get');
+    absent.push('struct.set');
     assertFunctionOmits(result, '$main', absent,
-        'the multi-value dispatch resolves and both the trampoline and next inline');
+        'the multi-value dispatch resolves, both the trampoline and next inline, and the counter dissolves');
+    assertNoAllocation(result, '$main',
+        'the Counter object escapes nowhere once next is inlined, so its field is a value');
+  });
+
+  test('-O2 replaces a local object with a written field by a loop-carried value', (ctx: TestContext): void => {
+    // The object never leaves f: every use is a read or a write of
+    // its field. The field written in the loop becomes a parameter of
+    // the loop header; the object is never allocated.
+    let result = compileWithZirAt(
+        'class Acc {\n' +
+        '  var total: i32 = 0;\n' +
+        '  new();\n' +
+        '}\n' +
+        'export let f = (n: i32): i32 => {\n' +
+        '  let a = new Acc();\n' +
+        '  var i = 0;\n' +
+        '  while (i < n) {\n' +
+        '    a.total += i;\n' +
+        '    i += 1;\n' +
+        '  }\n' +
+        '  return a.total;\n' +
+        '};\n' +
+        'export let main = (): i32 => f(5);', 2);
+    let absent = new GrowableArray<String>();
+    absent.push('struct.get');
+    absent.push('struct.set');
+    assertFunctionOmits(result, '$f', absent,
+        'the field reads and writes become the value itself');
+    assertNoAllocation(result, '$f', 'the object is replaced by its one field');
   });
 
   test('-O2 inlines a three-lane multi-value call through an interface', (ctx: TestContext): void => {

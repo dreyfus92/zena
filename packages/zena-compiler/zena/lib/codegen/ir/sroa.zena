@@ -1,0 +1,300 @@
+/**
+ * Scalar replacement of aggregates, mutable tier (docs/design/
+ * optimization-pipeline.md §Escape analysis and SROA): an allocation
+ * that never leaves the function — every use is a field read or a
+ * field write through it — is deleted, and each of its fields becomes
+ * an SSA value. Reads become the value written last on the path
+ * reaching them, and where paths meet, a block parameter carries it.
+ *
+ * The immutable tier lives in simplify: a read of an immutable field
+ * straight off the allocation is the allocation's operand, no control
+ * flow involved. This pass is what handles a field that is written,
+ * which is the iterator object's index: after `iterator()` and
+ * `next()` have inlined into the loop, the object is allocated once
+ * per loop, read three times and written once per iteration, and
+ * escapes nowhere. Here it dissolves into a loop-carried parameter.
+ *
+ * The construction is the plain one. Every block the allocation's
+ * block strictly dominates gets one parameter per field, every
+ * branch into such a block passes the field's current value, and a
+ * forward walk over each block in instruction order replaces reads
+ * and deletes writes. Uses of the allocation can only sit in blocks
+ * it dominates, and every predecessor of such a block is itself
+ * dominated or is the allocation's block, so every parameter gets an
+ * argument on every edge. Most of the parameters are then trivial —
+ * every edge passes the same value — and the block cleanup pass
+ * deletes them (it runs first in the cleanup sequence), leaving the
+ * parameters that carry a value around a loop or across a join.
+ *
+ * Determinism: candidates in id order, blocks in id order, no hash
+ * containers.
+ */
+import { IrBody, IrOp, IrRefField } from './ir.zena';
+import { IrCfg } from './cfg.zena';
+import { WasmStruct } from '../wasm-module.zena';
+import { allocatedStruct } from './simplify.zena';
+
+/** Runs the pass; returns the number of allocations replaced. */
+export let runSroa = (body: IrBody): i32 => {
+  let count = body.instCount();
+  let nb = body.blocks.length;
+  if (nb == 0) {
+    return 0;
+  }
+
+  // Users of every value, for the escape test.
+  let users = new GrowableArray<GrowableArray<i32>>();
+  for (var i = 0; i < count; i += 1) {
+    users.push(new GrowableArray<i32>());
+  }
+  let operands = new GrowableArray<i32>();
+  for (var i = 0; i < count; i += 1) {
+    if (body.op(i) == IrOp.nop) {
+      continue;
+    }
+    while (operands.length > 0) {
+      operands.pop();
+    }
+    body.appendValueOperands(i, operands);
+    for (let v in operands) {
+      if (v >= 0 && v < count) {
+        users[v].push(i);
+      }
+    }
+  }
+
+  // Candidates: a struct_new whose every use is a field read or a
+  // field write with it as the receiver (a write storing it somewhere
+  // is a use as a value, and disqualifies).
+  let candidates = new GrowableArray<i32>();
+  for (var i = 0; i < count; i += 1) {
+    if (body.op(i) != IrOp.struct_new) {
+      continue;
+    }
+    let s = allocatedStruct(body, i);
+    if (s == null) {
+      continue;
+    }
+    let argc = body.extra[body.a[i]];
+    if (argc != s.fields.length) {
+      continue;
+    }
+    var local = true;
+    for (let u in users[i]) {
+      let op = body.op(u);
+      if (op == IrOp.struct_get && body.a[u] == i) {
+        continue;
+      }
+      if (op == IrOp.struct_set && body.extra[body.a[u]] == i &&
+          body.extra[body.a[u] + 1] != i) {
+        continue;
+      }
+      local = false;
+      break;
+    }
+    if (local) {
+      candidates.push(i);
+    }
+  }
+  if (candidates.length == 0) {
+    return 0;
+  }
+
+  let cfg = new IrCfg(body);
+  let repl = new GrowableArray<i32>();
+  for (var i = 0; i < count; i += 1) {
+    repl.push(i);
+  }
+  var replaced = 0;
+  for (let alloc in candidates) {
+    let home = body.instBlock[alloc];
+    if (home < 0 || !cfg.isReachable(home)) {
+      continue;
+    }
+    let s = allocatedStruct(body, alloc);
+    if (s == null) {
+      continue;
+    }
+    let nf = s.fields.length;
+    let argsIdx = body.a[alloc];
+
+    // The blocks strictly dominated by the allocation's block, and one
+    // parameter per field on each.
+    let dominated = new GrowableArray<boolean>();
+    for (var b = 0; b < nb; b += 1) {
+      dominated.push(false);
+    }
+    let stack = new GrowableArray<i32>();
+    for (let c in cfg.domChildren[home]) {
+      stack.push(c);
+    }
+    let order = new GrowableArray<i32>();
+    while (stack.length > 0) {
+      let b = stack.pop();
+      dominated[b] = true;
+      order.push(b);
+      for (let c in cfg.domChildren[b]) {
+        stack.push(c);
+      }
+    }
+    let paramOf = new GrowableArray<i32>();
+    for (var k = 0; k < nb * nf; k += 1) {
+      paramOf.push(-1);
+    }
+    for (let b in order) {
+      for (var f = 0; f < nf; f += 1) {
+        body.typeTable.push(s.fields[f].type);
+        let id = body.opcode.length;
+        body.opcode.push(IrOp.param as i32);
+        body.typeId.push(body.typeTable.length - 1);
+        body.a.push(-1);
+        body.b.push(-1);
+        body.instBlock.push(b);
+        body.blocks[b].params.push(id);
+        paramOf[b * nf + f] = id;
+      }
+    }
+
+    // Forward walk: the allocation's block starts undefined (nothing
+    // reads before the allocation), every dominated block starts at
+    // its parameters.
+    let cur = new GrowableArray<i32>();
+    for (var f = 0; f < nf; f += 1) {
+      cur.push(-1);
+    }
+    let walk = new GrowableArray<i32>();
+    walk.push(home);
+    for (let b in order) {
+      walk.push(b);
+    }
+    for (let b in walk) {
+      for (var f = 0; f < nf; f += 1) {
+        cur[f] = if (b == home) -1 else paramOf[b * nf + f];
+      }
+      let insts = body.blocks[b].insts;
+      for (let inst in insts) {
+        if (inst == alloc) {
+          for (var f = 0; f < nf; f += 1) {
+            cur[f] = body.extra[argsIdx + 1 + f];
+          }
+          continue;
+        }
+        let op = body.op(inst);
+        if (op == IrOp.struct_get && body.a[inst] == alloc) {
+          let f = fieldIndex(body, s, body.b[inst]);
+          if (f < 0 || cur[f] < 0) {
+            throw new Error('sroa: field read before the allocation');
+          }
+          repl[inst] = cur[f];
+          nopOut(body, inst);
+          continue;
+        }
+        if (op == IrOp.struct_set && body.extra[body.a[inst]] == alloc) {
+          let f = fieldIndex(body, s, body.b[inst]);
+          if (f < 0) {
+            throw new Error('sroa: write to an unknown field');
+          }
+          cur[f] = body.extra[body.a[inst] + 1];
+          nopOut(body, inst);
+          continue;
+        }
+      }
+      // The terminator passes the current values to every dominated
+      // successor.
+      let term = insts[insts.length - 1];
+      var anyDominated = false;
+      for (let succ in body.successors(term)) {
+        if (dominated[succ.target]) {
+          anyDominated = true;
+        }
+      }
+      if (anyDominated) {
+        for (var f = 0; f < nf; f += 1) {
+          if (cur[f] < 0) {
+            throw new Error('sroa: field value undefined at a branch');
+          }
+        }
+        appendBranchArgs(body, term, dominated, cur);
+      }
+    }
+    nopOut(body, alloc);
+    replaced += 1;
+  }
+
+  let canon = (v: i32): i32 => {
+    var c = v;
+    while (c >= 0 && c < count && repl[c] != c) {
+      c = repl[c];
+    }
+    return c;
+  };
+  let total = body.instCount();
+  for (var i = 0; i < total; i += 1) {
+    if (body.op(i) != IrOp.nop) {
+      body.rewriteValueOperands(i, canon);
+    }
+  }
+  return replaced;
+};
+
+/** The index in `s` of the field a struct_get/struct_set names. */
+let fieldIndex = (body: IrBody, s: WasmStruct, refIdx: i32): i32 => {
+  let r = body.refTable[refIdx];
+  if (r is IrRefField) {
+    return s.fieldIndexByName(r.fieldName);
+  }
+  return -1;
+};
+
+/**
+ * Rebuilds a terminator's successor records with `values` appended
+ * to the arguments of every successor whose target is dominated.
+ * Records live inline in `extra`, so the rebuilt record is appended
+ * and the terminator repointed; every branch shape is
+ * [prefix] ([target, argc, args…])* (see blockmerge's dropBranchArg).
+ */
+let appendBranchArgs = (body: IrBody, term: i32,
+    dominated: GrowableArray<boolean>, values: GrowableArray<i32>): void => {
+  let op = body.op(term);
+  var prefixLen = 0;
+  if (op == IrOp.br_on_cast || op == IrOp.br_on_cast_fail ||
+      op == IrOp.br_table) {
+    prefixLen = 1;
+  }
+  let recordStart = if (op == IrOp.br) body.a[term] else body.b[term];
+  let succs = body.successors(term);
+  let idx = body.extra.length;
+  var p = 0;
+  while (p < prefixLen) {
+    body.extra.push(body.extra[recordStart + p]);
+    p += 1;
+  }
+  for (let s in succs) {
+    let extend = dominated[s.target];
+    body.extra.push(s.target);
+    body.extra.push(if (extend) s.argCount + values.length else s.argCount);
+    var i = 0;
+    while (i < s.argCount) {
+      body.extra.push(body.extra[s.argStart + i]);
+      i += 1;
+    }
+    if (extend) {
+      for (let v in values) {
+        body.extra.push(v);
+      }
+    }
+  }
+  if (op == IrOp.br) {
+    body.a[term] = idx;
+  } else {
+    body.b[term] = idx;
+  }
+};
+
+/** A nop stays listed in its block, so it keeps its block id. */
+let nopOut = (body: IrBody, inst: i32): void => {
+  body.opcode[inst] = IrOp.nop as i32;
+  body.typeId[inst] = -1;
+  body.a[inst] = -1;
+  body.b[inst] = -1;
+};

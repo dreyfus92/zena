@@ -440,7 +440,7 @@ export let rewriteToBr = (body: IrBody, inst: i32, s: IrSuccessor): void => {
 };
 
 /** The struct a struct_new allocates, or null if its ref is not one. */
-let allocatedStruct = (body: IrBody, alloc: i32): WasmStruct | null => {
+export let allocatedStruct = (body: IrBody, alloc: i32): WasmStruct | null => {
   let typeRef = body.refTable[body.b[alloc]];
   if (typeRef is IrRefType) {
     let t = typeRef.target;
