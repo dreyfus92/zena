@@ -2,7 +2,7 @@
 //
 // `zena:collections` is a prelude entry, so every module it re-exports is
 // denied the prelude. These names are spelled out for that reason.
-import { Hashable, Iterable } from 'zena:core';
+import { Iterable } from 'zena:core';
 
 export interface Set<T> extends Iterable<T> {
   size: i32 { get; }
