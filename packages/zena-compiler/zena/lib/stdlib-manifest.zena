@@ -102,7 +102,11 @@ export let buildStdlibConfig = (stdlibRoot: String): PackageConfig => {
   errorStackVirtual["zena-cli"] = "core/error/stack-host.zena";
   errorStackVirtual["freestanding"] = "core/error/stack-none.zena";
   errorStackVirtual["component"] = "core/error/stack-none.zena";
-  exports["error-stack"] = new ModuleExport(errorStackVirtual);
+  // Internal: `zena:core` is the only thing that reaches it, through
+  // `core/error.zena` and its own entry point. The manifest entry is
+  // what picks the file per target, which is the only reason the name
+  // exists at all.
+  exports["error-stack"] = new ModuleExport(errorStackVirtual, null, true);
 
   // Virtual module: process → host process spawning. Only wasi-family
   // targets can compile it, and only the zena-cli host links real

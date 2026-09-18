@@ -23,9 +23,15 @@
 export final class ModuleExport {
   virtual: HashMap<String, String> | null;
   path: String | null;
+  // Part of the package's own machinery rather than its API. It keeps a
+  // manifest entry, because that is what selects a file per target and
+  // what makes the name resolve at all, but only modules of the same
+  // package may import it, and documentation tools leave it out.
+  internal: boolean;
 
-  new(virtual: HashMap<String, String> | null, path: String | null = null)
-    : virtual = virtual, path = path;
+  new(virtual: HashMap<String, String> | null, path: String | null = null,
+      internal: boolean = false)
+    : virtual = virtual, path = path, internal = internal;
 }
 
 // Configuration for a package in the package manifest.
@@ -208,6 +214,18 @@ export final class ModuleResolver {
         }
 
         let moduleExport = exports[moduleName];
+
+        // An internal module is the package's own machinery. It is in the
+        // export map because that is what selects its file per target and
+        // what makes the name resolve, and not because anyone outside may
+        // name it.
+        if (moduleExport.internal &&
+            this.findPackageForPath(referrer) != packageName) {
+          throw new Error(
+            "Module '" + packageName + ":" + moduleName + "' is internal to '" +
+              packageName + "' and cannot be imported from outside it"
+          );
+        }
 
         // Resolve virtual modules (target-conditional) to their entry file.
         // A module with no entry for the current target is not available

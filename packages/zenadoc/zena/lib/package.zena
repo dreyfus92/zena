@@ -130,6 +130,10 @@ let manifestPackage = (
  * it names — `zena:component-async` is not a module a `zena-cli`
  * program can import, and documenting it as one would describe an API
  * that is not there.
+ *
+ * An `internal` module is not one either. It carries a manifest entry
+ * because that is what selects its file per target, and the package's
+ * own modules are the only ones allowed to import it.
  */
 let entryFileOf = (
   name: String,
@@ -140,6 +144,10 @@ let entryFileOf = (
     return name + '.zena';
   }
   let entry = value as JsonObject;
+  let internal = entry['internal'];
+  if (internal is Box<boolean> && (internal as Box<boolean>).value) {
+    return null;
+  }
   let path = entry['path'];
   if (path is String) {
     return path;

@@ -48,7 +48,8 @@
         "zena-cli": "core/error/stack-host.zena",
         "freestanding": "core/error/stack-none.zena",
         "component": "core/error/stack-none.zena"
-      }
+      },
+      "internal": true
     },
     "fetch": {
       "virtual": {

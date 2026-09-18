@@ -102,9 +102,13 @@ let parsePackageEntry = (value: JsonValue, manifestDir: String): PackageConfig =
   return new PackageConfig(root, exports);
 };
 
-// Parse a module export entry: {}, { "path": "..." }, or { "virtual": { ... } }
+// Parse a module export entry: {}, { "path": "..." }, or { "virtual": { ... } },
+// any of which may carry "internal": true.
 let parseModuleExport = (value: JsonValue): ModuleExport => {
   let obj = value as JsonObject;
+  let internalValue = obj["internal"];
+  let internal = internalValue is Box<boolean> &&
+      (internalValue as Box<boolean>).value;
 
   if (obj.has("virtual")) {
     let virtualObj = obj["virtual"] as JsonObject;
@@ -112,14 +116,14 @@ let parseModuleExport = (value: JsonValue): ModuleExport => {
     virtualObj.forEach((target: String, entryPath: JsonValue): void => {
       virtual[target] = entryPath as String;
     });
-    return new ModuleExport(virtual);
+    return new ModuleExport(virtual, null, internal);
   }
 
   if (obj.has("path")) {
-    return new ModuleExport(null, obj["path"] as String);
+    return new ModuleExport(null, obj["path"] as String, internal);
   }
 
-  return new ModuleExport(null);
+  return new ModuleExport(null, null, internal);
 };
 
 // The stdlib's own manifest lives in ./stdlib-manifest.zena; re-exported

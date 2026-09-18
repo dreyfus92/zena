@@ -65,6 +65,24 @@ export let tests = suite("Package Manifest", () => {
       equal(virtual["wasi"], "console/wasi.zena");
     });
 
+    test("parses the internal flag, on any entry shape", () => {
+      let host = new MockHost();
+      host.addFile("/project/zena-packages.json",
+          '{"packages": {"mylib": {"root": "./lib", "exports": {' +
+          '"plain": {"internal": true}, ' +
+          '"withPath": {"path": "impl/x.zena", "internal": true}, ' +
+          '"virt": {"virtual": {"host": "impl/h.zena"}, "internal": true}, ' +
+          '"open": {}}}}}');
+
+      let packages = loadPackageMap(host, "/project/zena-packages.json");
+      let exports = packages["mylib"].exports as HashMap<String, ModuleExport>;
+      isTrue(exports["plain"].internal);
+      isTrue(exports["withPath"].internal);
+      isTrue(exports["virt"].internal);
+      // An entry that says nothing is public, which is the common case.
+      isFalse(exports["open"].internal);
+    });
+
     test("skips zena package from manifest", () => {
       let host = new MockHost();
       host.addFile("/project/zena-packages.json", '{"packages": {"zena": {"root": "/stdlib"}, "mylib": "./lib"}}');

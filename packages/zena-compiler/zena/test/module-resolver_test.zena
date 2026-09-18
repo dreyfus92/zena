@@ -20,6 +20,12 @@ let makeStdlibConfig = (): PackageConfig => {
   // A module with an explicit entry file (a directory-based library).
   exports["url"] = new ModuleExport(null, "url/index.zena");
 
+  // An internal module: the manifest entry is what picks its file, and
+  // only the package's own modules may name it.
+  let stackVirtual = new HashMap<String, String>();
+  stackVirtual["host"] = "core/error/stack-host.zena";
+  exports["error-stack"] = new ModuleExport(stackVirtual, null, true);
+
   let consoleVirtual = new HashMap<String, String>();
   consoleVirtual["host"] = "console/host.zena";
   consoleVirtual["wasi"] = "console/wasi.zena";
@@ -200,6 +206,21 @@ export let tests = suite("Module Resolver", (): void => {
     let resolver = makeResolver("host");
     let result = resolver.resolve("./url/index.zena", "zena:string");
     equal(result.path, "zena:url/index.zena");
+  });
+
+  test("an internal module resolves for its own package", (t: TestContext): void => {
+    let resolver = makeResolver("host");
+    let result = resolver.resolve("zena:error-stack", "zena:core/error.zena");
+    equal(result.path, "zena:core/error/stack-host.zena");
+  });
+
+  test("an internal module is refused from outside its package", (t: TestContext): void => {
+    // The name exists and picks a file per target. That is machinery for
+    // the library that owns it, and not an API a program may import.
+    let resolver = makeResolver("host");
+    throws((): void => {
+      resolver.resolve("zena:error-stack", "/project/src/main.zena");
+    });
   });
 
   test("relative import escaping the stdlib throws", (t: TestContext): void => {
