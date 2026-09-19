@@ -591,7 +591,7 @@ export let tests = suite('Component emission', (): void => {
 
   test('a component moving no strings links none of the marshaling',
       (ctx: TestContext): void => {
-    // `zena:component-abi` is in the component target's prelude, so it is
+    // `zena:wasi` is in the component target's prelude, so it is
     // loaded for every program. Reachability is what keeps it out: the
     // allocator and the copy loops are rooted only when a String
     // actually crosses an export, so the timer and clock components are
@@ -757,7 +757,7 @@ world only {
     // signature — two i32s per staged value, a trailing return-area
     // address when the result spills past one core value — and the
     // wrapper stages before the call, releases after it, and lifts the
-    // result through zena:component-abi.
+    // result through zena:wasi.
     let source = synthesizeWitModule(
         `wit:${fixtures}/wit-pkg#wasi:text/transform`);
     isTrue(source.contains(
@@ -1005,7 +1005,7 @@ world only {
       (ctx: TestContext): void => {
     // A `stream<u8>` in any position is one end-handle on the wire
     // and `zena:stream`'s `Stream<u8>` in the signature, connected by
-    // `zena:component-stream`'s pumps: `lowerByteStream` going in
+    // `zena:wasi`'s pumps: `lowerByteStream` going in
     // (fresh pair, pump, pass the readable end), `liftByteStream`
     // coming out. Streams inside aggregates ride the same expression
     // forms as any handle. Non-u8 elements and future values refuse.
@@ -1015,7 +1015,7 @@ world only {
       'the stream type is not imported:\n' + source);
     isTrue(source.contains(
         "import { liftByteStream, lowerByteStream } " +
-        "from 'zena:component-stream';"),
+        "from 'zena:wasi';"),
       'the pumps are not imported:\n' + source);
     // A direct stream result: one flat i32, lifted without a spill.
     isTrue(source.contains('declare function source_raw(): i32;'),
@@ -1138,7 +1138,7 @@ world only {
     // module, so `forwarding`'s module imports them — the sealed base
     // and every case, for a variant — and declares nothing locally.
     // The resource crosses because the marshaling symbols live in
-    // `zena:component-abi`, one identity for every synthesized
+    // `zena:wasi`, one identity for every synthesized
     // module, rather than per-module.
     let source = synthesizeWitModule(
         `wit:${fixtures}/wit-pkg#wasi:relay/forwarding`);
@@ -1299,7 +1299,7 @@ world only {
       'synchronous lift', (ctx: TestContext): void => {
     // clock-wit.zena imports only `now`, but the interface also
     // declares the async `wait-for` — so the synthesized module links
-    // `zena:component-async` for its wrapper. Linking the driver's unit
+    // `zena:wasi` for its wrapper. Linking the driver's unit
     // must not root it: only a program that actually awaits an
     // async-lowered import gets the callback-lifted entry, and this one
     // keeps its synchronous `main(): u64`.

@@ -1117,7 +1117,7 @@ export final class WasmModule {
   var hostReadsStrings = false;
   /**
    * The same evidence for the component target: a String crosses one of
-   * this module's exports, so `zena:component-abi` is rooted and the
+   * this module's exports, so `zena:wasi` is rooted and the
    * lifts carry the memory options.
    *
    * Separate from the two above because the boundaries are different.
@@ -1166,7 +1166,7 @@ export final class WasmModule {
    */
   var componentExportWrappers = new HashMap<ExportKey, WasmFunction>();
   /**
-   * `zena:component-abi`'s allocator and its `post-return`, exported
+   * `zena:wasi`'s allocator and its `post-return`, exported
    * from the core module under the names the canonical options use.
    * Present exactly when something in the component moves a `string`.
    */

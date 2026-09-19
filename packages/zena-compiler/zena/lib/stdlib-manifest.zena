@@ -69,24 +69,16 @@ export let buildStdlibConfig = (stdlibRoot: String): PackageConfig => {
   consoleVirtual["freestanding"] = "console/component.zena";
   exports["console"] = new ModuleExport(consoleVirtual);
 
-  // Virtual module: component-async → the async-import driver. Only a
-  // component has the subtask protocol, so the component target
-  // resolves it, and `freestanding` with it: a freestanding build is a
-  // component's core module without the wrapper, and its prelude's
-  // console is the component's. The entry/callback the compiler wires
-  // live in it.
-  let componentAsyncVirtual = new HashMap<String, String>();
-  componentAsyncVirtual["component"] = "component/async.zena";
-  componentAsyncVirtual["freestanding"] = "component/async.zena";
-  exports["component-async"] = new ModuleExport(componentAsyncVirtual);
-
-  // Virtual module: component-stream → the guest side of the canonical
-  // stream protocol (pair creation, blocking writes; the Stream<T>
-  // binding as it lands). The same two targets, for the same reason.
-  let componentStreamVirtual = new HashMap<String, String>();
-  componentStreamVirtual["component"] = "component/stream.zena";
-  componentStreamVirtual["freestanding"] = "component/stream.zena";
-  exports["component-stream"] = new ModuleExport(componentStreamVirtual);
+  // Virtual module: wasi → the guest side of the Component Model. The
+  // canonical ABI's string marshaling and allocator, the async-import
+  // driver that turns the subtask protocol into a `Future`, and the
+  // guest half of `stream<u8>`. Only a component has any of that
+  // beneath it, so the component target resolves it, and `freestanding`
+  // with it: a freestanding build is a component's core module without
+  // the wrapper, and its prelude's console is the component's. The
+  // component runtime's own memory entry sits beside these files
+  // without being one of them.
+  exports["wasi"] = new ModuleExport(null, "wasi/index.zena");
 
   // Virtual module: error-stack → the `Error` stack-trace hooks. The host
   // hooks trade in `anyref`/`externref`, which have no Component Model
@@ -154,10 +146,6 @@ export let buildStdlibConfig = (stdlibRoot: String): PackageConfig => {
   // Directory-based modules: entry file inside a library directory. The
   // sibling implementation files are private — reachable only via relative
   // imports from the library's own files.
-  // component-abi is all-target: a component build links its string
-  // marshaling, and nothing else resolves it. Its implementation sits with
-  // the rest of the component runtime under component/.
-  exports["component-abi"] = new ModuleExport(null, "component/abi.zena");
   // The rendezvous stream is its own library, not part of zena:async: the
   // prelude names zena:async, so anything folded in is parsed and checked
   // by every compilation whether or not it is used.

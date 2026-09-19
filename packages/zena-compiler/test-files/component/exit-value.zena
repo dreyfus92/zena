@@ -4,7 +4,7 @@
 // the timer here, from the callback re-entry that fired it. The
 // compiler writes the wrapper that declares that return
 // (lib/component-entry.zena) and the driver calls it from the task's
-// own entry (`finishTask` in zena:component-async).
+// own entry (`finishTask` in zena:wasi).
 import { sleep, milliseconds } from 'zena:time';
 import { Future } from 'zena:async';
 

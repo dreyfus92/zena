@@ -207,7 +207,7 @@ export function componentEntryWrapperFor(
   let sb = new StringBuilder();
   renderWrapperHeader(sb);
   sb.append('import { main } from \'').append(specifier).append('\';\n');
-  sb.append('import { finishTask } from \'zena:component-async\';\n\n');
+  sb.append('import { finishTask } from \'zena:wasi\';\n\n');
   renderMainWrapper(sb, result);
   return new ComponentEntryWrapper(componentEntryPathFor(entryPath),
       sb.toString(), specifier, entryPath);

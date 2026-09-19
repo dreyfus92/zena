@@ -164,6 +164,11 @@ let importCount = (bytes: ByteArray): i32 => {
 let errorTarget = 'packages/zena-compiler/test-files/error-construct.zena';
 
 /**
+ * Names `zena:wasi` and calls nothing in it.
+ */
+let wasiTarget = 'packages/zena-compiler/test-files/wasi-import-only.zena';
+
+/**
  * A step up from minimal: an array literal summed by a for-in loop, so
  * it genuinely needs an array type, its iterator, and
  * `Iterable`/`Iterator` dispatch. Minimal alone cannot notice a
@@ -427,6 +432,20 @@ export let tests = suite('Binary size', (): void => {
     isTrue(hasExport(compile(helloTarget), '$stringGetLength'),
       `${helloTarget} does not export $stringGetLength — the host cannot ` +
       `read the String this program returns.`);
+  });
+
+  test('naming zena:wasi links none of the component runtime', (ctx: TestContext): void => {
+    // The library is all-target, because the name is the subject and not
+    // the host: a wasi-family program can say `zena:wasi` and a component
+    // is only where the canonical parts have anything beneath them. What
+    // makes that safe is that the `@external("canon", ...)` declarations
+    // are declarations — reachability links one when the program calls
+    // it, and this program calls none.
+    equal(importCount(compile(wasiTarget, 'wasi')), 0,
+      `${wasiTarget} imports something on the wasi target. Naming the ` +
+      `module must not link the component runtime behind it.`);
+    equal(importCount(compile(wasiTarget, 'freestanding')), 0,
+      `${wasiTarget} imports something on the freestanding target.`);
   });
 
   test('freestanding imports nothing the program did not ask for', (ctx: TestContext): void => {

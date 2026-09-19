@@ -10,7 +10,7 @@
 // since no host serves a fixture interface.
 import { console } from 'zena:console';
 import { Memory, defaultAllocator } from 'zena:memory';
-import { awaitWaitable } from 'zena:component-async';
+import { awaitWaitable } from 'zena:wasi';
 import { Future } from 'zena:async';
 import { i32ToString, Error } from 'zena:core';
 

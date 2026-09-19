@@ -28,7 +28,7 @@ import { Program, CompilationUnit } from '../program.zena';
 import { BinaryGenerator } from './binary-generator.zena';
 
 /** The runtime module's entry, relative to the standard library root. */
-let runtimeEntry = "component/memory.zena";
+let runtimeEntry = "wasi/memory.zena";
 
 /**
  * Compile the runtime memory module; the finished core-module bytes.

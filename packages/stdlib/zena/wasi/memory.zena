@@ -17,13 +17,13 @@
  * exactly one allocator over the pages, and it lives here.
  *
  * The wrapper below would rather be
- * `export { realloc } from 'zena:component-abi';` — but a re-export
+ * `export { realloc } from 'zena:wasi';` — but a re-export
  * binding is module-system surface only, and an entry consisting of one
  * emits an empty module with no exports at all. Until re-exports reach
  * the export section, the function is declared here and delegates.
  */
 
-import { realloc as abiRealloc } from 'zena:component-abi';
+import { realloc as abiRealloc } from './abi.zena';
 
 export function realloc(
   ptr: i32,

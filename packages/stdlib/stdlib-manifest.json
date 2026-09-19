@@ -15,21 +15,6 @@
     "collections": {
       "path": "collections/index.zena"
     },
-    "component-abi": {
-      "path": "component/abi.zena"
-    },
-    "component-async": {
-      "virtual": {
-        "component": "component/async.zena",
-        "freestanding": "component/async.zena"
-      }
-    },
-    "component-stream": {
-      "virtual": {
-        "component": "component/stream.zena",
-        "freestanding": "component/stream.zena"
-      }
-    },
     "console": {
       "virtual": {
         "host": "console/host.zena",
@@ -103,6 +88,9 @@
     },
     "url": {
       "path": "url/index.zena"
+    },
+    "wasi": {
+      "path": "wasi/index.zena"
     }
   }
 }

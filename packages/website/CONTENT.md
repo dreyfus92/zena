@@ -478,7 +478,7 @@ To add a page: add it to the sidebar with an `outline`, then run
   - ⚙️ zena:bench — `/reference/stdlib/bench/`
   - ⚙️ zena:cli — `/reference/stdlib/cli/`
   - ⚙️ zena:collections — `/reference/stdlib/collections/`
-  - ⚙️ zena:component-abi — `/reference/stdlib/component-abi/`
+  - ⚙️ zena:wasi — `/reference/stdlib/component-abi/`
   - ⚙️ zena:console — `/reference/stdlib/console/`
   - ⚙️ zena:core — `/reference/stdlib/core/`
   - ⚙️ zena:error-stack — `/reference/stdlib/error-stack/`

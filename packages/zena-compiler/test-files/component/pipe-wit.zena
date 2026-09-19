@@ -1,6 +1,6 @@
 // Byte streams and futures through a WIT-typed module: stream
 // positions bind to `zena:stream`'s `Stream<u8>` pumped by
-// `zena:component-stream`, future positions bind to `Future` moved by
+// `zena:wasi`, future positions bind to `Future` moved by
 // generated per-payload-type helpers, and a bare result arm is a
 // `void` lane. Compile-only — no host serves `wasi:pipe` — so the
 // point is the whole surface compiling: a direct stream result, a

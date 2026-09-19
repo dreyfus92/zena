@@ -26,7 +26,7 @@
  *   variants in one interface may declare same-named cases).
  * - A flat-scalar function is one `@external` declaration. Staged
  *   parameters (`string`, `list<u8>`) and lifted results ride a
- *   wrapper over `zena:component-abi`, as before.
+ *   wrapper over `zena:wasi`, as before.
  * - A result that flattens past one core value spills: the raw call
  *   takes a return-area address, the canonical ABI writes the value
  *   there with our `realloc`, and generated lift code reads it out at
@@ -37,7 +37,7 @@
  *   waits.
  *
  * - `stream<u8>` in any position is `zena:stream`'s `Stream<u8>`: one
- *   end-handle on the wire, connected by `zena:component-stream`'s
+ *   end-handle on the wire, connected by `zena:wasi`'s
  *   pumps (`lowerByteStream` going in, `liftByteStream` coming out).
  * - `future<T>` in any position is a `Future`: one end-handle on the
  *   wire, moved by generated per-payload-type helpers over the
@@ -170,7 +170,7 @@ enum TyKind {
    * one i32 index on the wire, a Disposable wrapper class here. */
   ResourceH,
   /** `stream<u8>`: one end-handle i32 on the wire, `zena:stream`'s
-   * `Stream<u8>` here, pumped by `zena:component-stream`. */
+   * `Stream<u8>` here, pumped by `zena:wasi`. */
   StreamH,
   /** `future<T>`: one end-handle i32 on the wire, a `Future` here,
    * read and written by generated per-payload-type helpers. */
@@ -665,9 +665,9 @@ final class SynthUses {
   var result = false;
   /** Whether a `stream<u8>` position rendered — pulls in `Stream`. */
   var stream = false;
-  /** The `zena:component-abi` names used, in first-use order. */
+  /** The `zena:wasi` names used, in first-use order. */
   abi = new GrowableArray<String>();
-  /** The `zena:component-stream` names used, in first-use order. */
+  /** The `zena:wasi` names used, in first-use order. */
   componentStream = new GrowableArray<String>();
   /** Enums lifted from discriminants, each owed a range-checked lift. */
   enumLifts = new GrowableArray<Ty>();
@@ -2030,7 +2030,7 @@ export function synthesizeWitModule(canonicalPath: String): String {
       if (i > 0) { sb.append(", "); }
       sb.append(uses.abi[i]);
     }
-    sb.append(" } from 'zena:component-abi';\n");
+    sb.append(" } from 'zena:wasi';\n");
   }
   if (uses.componentStream.length > 0) {
     sb.append("import { ");
@@ -2038,7 +2038,7 @@ export function synthesizeWitModule(canonicalPath: String): String {
       if (i > 0) { sb.append(", "); }
       sb.append(uses.componentStream[i]);
     }
-    sb.append(" } from 'zena:component-stream';\n");
+    sb.append(" } from 'zena:wasi';\n");
   }
   // Sibling synthesized modules whose types this interface `use`s:
   // the declarations live there, so this module imports them.
@@ -2074,11 +2074,11 @@ export function synthesizeWitModule(canonicalPath: String): String {
   }
   if (uses.hasAsync && uses.awaitWaitable) {
     sb.append("import { awaitPacked, awaitWaitable } " +
-        "from 'zena:component-async';\n");
+        "from 'zena:wasi';\n");
   } else if (uses.hasAsync) {
-    sb.append("import { awaitPacked } from 'zena:component-async';\n");
+    sb.append("import { awaitPacked } from 'zena:wasi';\n");
   } else if (uses.awaitWaitable) {
-    sb.append("import { awaitWaitable } from 'zena:component-async';\n");
+    sb.append("import { awaitWaitable } from 'zena:wasi';\n");
   }
   sb.append(body.toString());
   let skippedText = skipped.toString();
@@ -2812,7 +2812,7 @@ export function synthesizeExportWrapper(
     sb.append(imported[i]);
   }
   sb.append(" } from '").append(specifier).append("';\n");
-  sb.append("import { finishTask } from 'zena:component-async';\n");
+  sb.append("import { finishTask } from 'zena:wasi';\n");
   if (uses.outcome) {
     sb.append("import { Outcome, Ok, Err } from 'zena:core';\n");
   }
@@ -2834,7 +2834,7 @@ export function synthesizeExportWrapper(
       if (i > 0) { sb.append(", "); }
       sb.append(uses.abi[i]);
     }
-    sb.append(" } from 'zena:component-abi';\n");
+    sb.append(" } from 'zena:wasi';\n");
   }
   // The synthesized modules whose types the wrappers name: a resource
   // parameter lifts into its class, a result lowers out of one.

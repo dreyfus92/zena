@@ -46,7 +46,7 @@ export let getStandardPrelude = (target: String): HashMap<String, FixedArray<Str
  * synthesizes calls into them, and a module it generates calls into has
  * to be in the graph before reachability runs. Reachability still
  * decides whether any of it is emitted — a component that moves no
- * strings links none of `zena:component-abi`.
+ * strings links none of `zena:wasi`'s marshaling.
  *
  * Loaded **after** the entry point. Reachability roots a module's
  * exports by iterating `globalDeclarations`, which is in declaration
@@ -59,7 +59,7 @@ export let getStandardPrelude = (target: String): HashMap<String, FixedArray<Str
  */
 export let getTargetRuntimeModules = (target: String): FixedArray<String> => {
   if (targetEmitsComponent(target)) {
-    return ["zena:component-abi"];
+    return ["zena:wasi"];
   }
   return new FixedArray<String>(0, "");
 };

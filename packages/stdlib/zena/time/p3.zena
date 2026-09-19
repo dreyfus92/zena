@@ -13,7 +13,7 @@
  * unchanged — the difference between a browser's `setTimeout` and a p3
  * timer is entirely in who does the waking.
  *
- * The waking itself lives in `zena:component-async`, the driver every
+ * The waking itself lives in `zena:wasi`, the driver every
  * async-lowered import shares: the clock hands `wait-for`'s packed
  * result to `awaitPacked` and keeps the future, and the driver's
  * callback resolves it when the host reports the subtask returned.
@@ -23,7 +23,7 @@
  * See docs/design/component-emission.md, Part 5, and async.md §4.
  */
 
-import { awaitPacked } from 'zena:component-async';
+import { awaitPacked } from 'zena:wasi';
 import { Clock, installClock, sleep as sleepImpl } from './queue.zena';
 import { Instant, Duration } from './types.zena';
 

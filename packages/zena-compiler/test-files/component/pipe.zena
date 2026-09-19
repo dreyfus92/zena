@@ -9,7 +9,7 @@
 // message and the message arrives in two writes, so partial drains
 // happen on both sides.
 import { console } from 'zena:console';
-import { lowerByteStream, liftByteStream } from 'zena:component-stream';
+import { lowerByteStream, liftByteStream } from 'zena:wasi';
 import { StreamWriter } from 'zena:stream';
 import { FixedArray, String } from 'zena:core';
 import { Future } from 'zena:async';

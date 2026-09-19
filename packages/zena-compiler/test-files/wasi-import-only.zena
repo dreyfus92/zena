@@ -1,0 +1,12 @@
+// Importing `zena:wasi` without calling into the component runtime.
+//
+// The library is all-target: its canonical-ABI marshaling is plain
+// Zena, and the rest is `@external("canon", ...)` declarations that a
+// non-component host has nothing to supply. A program that names the
+// module and calls none of them must link none of them, which is what
+// `binary-size_test.zena` asserts.
+import { CallbackCode } from 'zena:wasi';
+
+export function main(): i32 {
+  return 0;
+}

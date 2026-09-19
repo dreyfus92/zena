@@ -56,11 +56,11 @@ export final class Program {
       }
       // A stdlib unit is keyed by its canonical id, which for a module
       // with a `path` or `virtual` manifest entry is a path id
-      // ("zena:component-stream.zena", "zena:console/host.zena").
-      // Imports name the module ("zena:component-stream"), so index that
+      // ("zena:wasi/index.zena", "zena:console/host.zena").
+      // Imports name the module ("zena:wasi"), so index that
       // spelling too — from the manifest, so only real entry files get a
       // module name and private files get none. Deriving it from the file
-      // name instead produced "zena:zena:component-stream" for a top-level
+      // name instead produced "zena:zena:stream" for a top-level
       // path id, which is why the reachability import resolver needed a
       // filename-suffix search to find these at all.
       if (u.ast.path.startsWith("zena:")) {

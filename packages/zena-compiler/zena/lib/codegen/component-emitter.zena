@@ -221,7 +221,7 @@ export let componentCallbackExport = "__zena_component_callback";
  * They are exported under the names `wit-component` and `wit-bindgen`
  * use for the same functions, so a component of ours reads the way
  * every other one does. `cabi_post_return` is the program module's
- * (`zena:component-abi`'s); `realloc` and `memory` are the runtime
+ * (`zena:wasi`'s); `realloc` and `memory` are the runtime
  * memory module's.
  */
 export let componentReallocExport = "cabi_realloc";
@@ -245,7 +245,26 @@ export let componentRuntimeNamespace = "zena:runtime";
  * program is itself the target check.
  */
 /** The library the component ABI marshaling lives in. */
-export let componentAbiModule = "component-abi";
+export let componentAbiModule = "wasi";
+
+/**
+ * The module id of the file declaring the canonical ABI.
+ *
+ * `zena:wasi` is a facade: it re-exports three files and declares
+ * nothing itself, so rooting it roots nothing. Rooting the declaring
+ * file instead also keeps the async driver and the stream half out of
+ * a component that only moves strings.
+ */
+export let componentAbiUnitId = "zena:wasi/abi.zena";
+
+/**
+ * The module id of the file declaring the async-import driver.
+ *
+ * Named for the same reason as `componentAbiUnitId`: the library
+ * entry point re-exports this file and declares nothing itself, so
+ * the rooting walk has to name the file that does the declaring.
+ */
+export let componentDriverUnitId = "zena:wasi/async.zena";
 
 /**
  * One canonical builtin the core module imports. `name` is both the

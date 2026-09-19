@@ -7,7 +7,7 @@
  *
  * Two kinds of consumer meet the canonical stream protocol, and they
  * wait differently. Async code joins its ends to
- * `zena:component-async`'s waitable set and is resumed through the
+ * `zena:wasi`'s waitable set and is resumed through the
  * callback: `lowerByteStream` and `liftByteStream` connect a
  * `zena:stream` `Stream<u8>` to a canonical end through a background
  * pump riding that set. Synchronous code cannot
@@ -32,7 +32,7 @@ import { Stream, StreamWriter } from 'zena:stream';
 // module — the driver — and everyone else imports the declarations.
 import {
   waitableSetNew, waitableJoin, awaitWaitable, Waitable, WaitableSet
-} from 'zena:component-async';
+} from './async.zena';
 
 /**
  * The two ends of a `stream<u8>`, as unforgeable handle types: a

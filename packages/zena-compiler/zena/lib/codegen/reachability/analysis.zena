@@ -27,7 +27,9 @@ import { Specializer, applyMixinPrivateScope } from './specialization.zena';
 import { ReachabilityVisitor, TypeLowerer } from './visitor.zena';
 import { walkEnter } from '../../visitor.zena';
 import { performance } from '../../time.zena';
-import { componentAbiModule } from '../component-emitter.zena';
+import {
+  componentAbiUnitId, componentDriverUnitId
+} from '../component-emitter.zena';
 import { targetEmitsComponent } from '../../targets.zena';
 import { isComponentEntryPath } from '../../component-entry.zena';
 import { WellKnown, isWellKnown } from '../../well-known.zena';
@@ -597,7 +599,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
   }
 
   /**
-   * Root `zena:component-abi`, the component target's string marshaling.
+   * Root `zena:wasi`, the component target's string marshaling.
    *
    * Its functions are reached from nowhere inside the program: two of
    * them are called only by wrappers the compiler synthesizes after this
@@ -619,7 +621,9 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
     let prog = this.program;
     // A module id here, not the library: unitsByPath is keyed by module
     // id, while componentAbiModule names the library getStdlibFunc wants.
-    let abiUnitId = "zena:" + componentAbiModule;
+    // The id names the file that declares the ABI rather than the library
+    // entry point, which re-exports it and declares nothing of its own.
+    let abiUnitId = componentAbiUnitId;
     if (prog == null || !prog.unitsByPath.has(abiUnitId)) {
       return;
     }
@@ -643,7 +647,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
   }
 
   /**
-   * Root `zena:component-async`, the component target's async-import
+   * Root `zena:wasi`, the component target's async-import
    * driver — conditionally.
    *
    * Its `componentPoll`/`componentResume` are called only by the host,
@@ -660,14 +664,14 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
    * a canonical copy keeps the synchronous lift.
    */
   #rootComponentAsyncDriver(): void {
-    let driverPath = 'zena:component/async.zena';
+    let driverPath = componentDriverUnitId;
     let prog = this.program;
     if (prog == null || !prog.unitsByPath.has(driverPath)) {
       return;
     }
-    let awaitPacked = this.wasm.getStdlibFunc('component-async', 'awaitPacked');
+    let awaitPacked = this.wasm.getStdlibFunc('wasi', 'awaitPacked');
     let awaitWaitable =
-        this.wasm.getStdlibFunc('component-async', 'awaitWaitable');
+        this.wasm.getStdlibFunc('wasi', 'awaitWaitable');
     var anyDoorReached =
         (awaitPacked != null && (awaitPacked as WasmFunction).isReached) ||
         (awaitWaitable != null && (awaitWaitable as WasmFunction).isReached);
@@ -1099,7 +1103,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
       // them here rather than force-reaching a hardcoded list keeps the
       // gate exact — the unit only exists when the program imports the
       // module, so a program that does no host I/O links none of it.
-      // `zena:component-async` is a host boundary in the same sense —
+      // `zena:wasi` is a host boundary in the same sense —
       // the component's event loop calls `componentPoll` and
       // `componentResume` from outside the program — but its exports
       // root conditionally, after the main traversal below: see
@@ -1169,7 +1173,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
                 // `$string*` four exist for an embedder holding the core
                 // module directly, and nothing inside a component can
                 // reach them — its strings cross through the canonical
-                // ABI instead, which is `zena:component-abi`'s job and
+                // ABI instead, which is `zena:wasi`'s job and
                 // wants a flag of its own.
                 this.wasm.componentMovesStrings = true;
               } else if (declType is FunctionType) {

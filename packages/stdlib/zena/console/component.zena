@@ -2,7 +2,7 @@
 //
 // Prints through WASI p3 stdio: `wasi:cli/stdout@0.3.0` takes a
 // `stream<u8>` the guest creates, and the bytes flow through
-// `zena:component-stream`'s blocking writer. The import declarations
+// `zena:wasi`'s blocking writer. The import declarations
 // here are core-shaped in the compiler's eyes — a stream end and a
 // future are handle `i32`s on the wire, spelled with
 // `component-stream`'s handle types — and the compiler knows these
@@ -15,7 +15,7 @@
 // end. Blocking is what a console wants — output ordered with the
 // program, no event loop required to print, exactly as every other
 // target's console blocks; how a blocked write waits is
-// `zena:component-stream`'s business. The returned outcome future is
+// `zena:wasi`'s business. The returned outcome future is
 // deliberately not read: a console cannot report stdout's failure to
 // stdout, and the write itself already fails loudly when the host end
 // is gone. The handle it leaks is one per standard stream per program.
@@ -24,7 +24,7 @@ import { String } from 'zena:core';
 import {
   ByteStreamPair, ReadableByteStream, WritableByteStream,
   newByteStreamPair, writeStringBlocking
-} from 'zena:component-stream';
+} from 'zena:wasi';
 import { Console } from './interface.zena';
 
 export * from './interface.zena';
