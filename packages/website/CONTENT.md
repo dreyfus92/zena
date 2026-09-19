@@ -330,15 +330,17 @@ To add a page: add it to the sidebar with an `outline`, then run
     - Sets
     - Keys, hashing, and equality
     - Performance and representation
-  - 📝 [Ranges](src/reference/ranges.md) — `/reference/ranges/`
-    - Range syntax
-    - Iterating a range
-    - Slicing with ranges
-  - 📝 [Enums](src/reference/enums.md) — `/reference/enums/`
+  - ✅ [Enums](src/reference/enums.md) — `/reference/enums/`
     - Declaring an enum
-    - Backing types
-    - Conversions
+    - Backing types and initializers
+    - Nominality and conversions
+    - Pattern matching
     - Enums versus sealed classes
+  - ✅ [Ranges](src/reference/ranges.md) — `/reference/ranges/`
+    - First-class range objects
+    - Range syntax and precedence
+    - Slicing with ranges
+    - Range iteration
 - **Types**
   - 📝 [Type System Overview](src/reference/types.md) — `/reference/types/`
     - The type hierarchy
@@ -482,12 +484,10 @@ To add a page: add it to the sidebar with an `outline`, then run
   - ⚙️ zena:error-stack — `/reference/stdlib/error-stack/`
   - ⚙️ zena:fs — `/reference/stdlib/fs/`
   - ⚙️ zena:json — `/reference/stdlib/json/`
-  - ⚙️ zena:map — `/reference/stdlib/map/`
   - ⚙️ zena:math — `/reference/stdlib/math/`
   - ⚙️ zena:memory — `/reference/stdlib/memory/`
   - ⚙️ zena:process — `/reference/stdlib/process/`
   - ⚙️ zena:regex — `/reference/stdlib/regex/`
-  - ⚙️ zena:set — `/reference/stdlib/set/`
   - ⚙️ zena:simd — `/reference/stdlib/simd/`
   - ⚙️ zena:stream — `/reference/stdlib/stream/`
   - ⚙️ zena:task — `/reference/stdlib/task/`
@@ -604,4 +604,4 @@ To add a page: add it to the sidebar with an `outline`, then run
 
 ---
 
-46 of 95 pages written; 49 still placeholders.
+48 of 95 pages written; 47 still placeholders.

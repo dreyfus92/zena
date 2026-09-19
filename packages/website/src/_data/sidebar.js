@@ -621,16 +621,32 @@ const reference = [
       {
         text: 'Ranges',
         link: '/reference/ranges/',
-        outline: ['Range syntax', 'Iterating a range', 'Slicing with ranges'],
+        outline: [
+          'First-class range objects',
+          'Range syntax and precedence',
+          'Slicing with ranges',
+          'Range iteration',
+        ],
       },
       {
         text: 'Enums',
         link: '/reference/enums/',
         outline: [
           'Declaring an enum',
-          'Backing types',
-          'Conversions',
+          'Backing types and initializers',
+          'Nominality and conversions',
+          'Pattern matching',
           'Enums versus sealed classes',
+        ],
+      },
+      {
+        text: 'Ranges',
+        link: '/reference/ranges/',
+        outline: [
+          'First-class range objects',
+          'Range syntax and precedence',
+          'Slicing with ranges',
+          'Range iteration',
         ],
       },
     ],
