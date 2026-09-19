@@ -1,0 +1,7 @@
+// @mode: check
+// An or-pattern covers a member on each of its sides
+enum Color { Red, Green, Blue }
+let warmth = (c: Color): String => match (c) {
+  case Color.Red | Color.Green: 'warm'
+  case Color.Blue: 'cool'
+};

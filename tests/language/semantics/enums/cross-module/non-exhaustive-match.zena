@@ -1,0 +1,16 @@
+// @mode: check
+// Coverage is counted against the enum the members came from, so an enum
+// imported from another module is checked like a local one
+
+import { Color } from './lib.zena';
+
+let name = (c: Color): String => match (c) { // @error: Non-exhaustive match
+  case Color.Red: 'red'
+  case Color.Green: 'green'
+};
+
+let full = (c: Color): String => match (c) {
+  case Color.Red: 'red'
+  case Color.Green: 'green'
+  case Color.Blue: 'blue'
+};

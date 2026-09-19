@@ -1,0 +1,23 @@
+// @mode: check
+// An enum inside a union is covered once the arms name every member, and the
+// rest of the union still has to be covered on its own
+enum Color { Red, Green, Blue }
+
+let full = (c: Color | null): String => match (c) {
+  case null: 'none'
+  case Color.Red: 'red'
+  case Color.Green: 'green'
+  case Color.Blue: 'blue'
+};
+
+let missingMember = (c: Color | null): String => match (c) { // @error: Non-exhaustive match
+  case null: 'none'
+  case Color.Red: 'red'
+  case Color.Green: 'green'
+};
+
+let missingNull = (c: Color | null): String => match (c) { // @error: Non-exhaustive match
+  case Color.Red: 'red'
+  case Color.Green: 'green'
+  case Color.Blue: 'blue'
+};

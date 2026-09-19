@@ -1565,6 +1565,7 @@ final class CheckerContext {
             let isStringEnum = ed.members.length > 0 && ed.members[0].initializer is StringLiteral;
             let backingType = if (isStringEnum) { this.tryResolveWellKnownType(WellKnown.StringClass) as Type } else { new I32Type() as Type };
             let enumType = new TypeAliasType(ed.name.name, null, backingType, true, null, false, "");
+            enumType.enumDeclaration = ed;
             let fields = new HashMap<String, Type>();
             for (let member in ed.members) {
               fields[member.name.name] = enumType;
@@ -1733,7 +1734,9 @@ final class CheckerContext {
       case EnumDeclaration as ed: {
         let isStringEnum = ed.members.length > 0 && ed.members[0].initializer is StringLiteral;
         let backingType = if (isStringEnum) { this.tryResolveWellKnownType(WellKnown.StringClass) as Type } else { new I32Type() as Type };
-        return new TypeAliasType(ed.name.name, null, backingType, true, null, false, "");
+        let enumType = new TypeAliasType(ed.name.name, null, backingType, true, null, false, "");
+        enumType.enumDeclaration = ed;
+        return enumType;
       }
       case TypeAliasDeclaration as ta: {
         this.enterScope();
@@ -15122,6 +15125,7 @@ let checkEnumDeclaration = (ctx: CheckerContext, ed: EnumDeclaration): void => {
   let strType = if (stringType != null) { stringType } else { new ErrorType() as Type };
   let backingType = if (isStringEnum) { strType } else { i32Type as Type };
   let enumType = new TypeAliasType(name, null, backingType, true, null, false, "");
+  enumType.enumDeclaration = ed;
 
   // Register the enum in the type namespace.
   ctx.declareTypeName(name, enumType);
@@ -17455,6 +17459,7 @@ let isFiniteType = (t: Type): boolean => {
     case StringLiteralType: true
     case NullType: true
     case ClassType as ct: ct.isSealed
+    case TypeAliasType as alias: alias.enumDeclaration != null
     case UnionT {types}: {
       var allFinite = true;
       var i = 0;
@@ -17466,6 +17471,138 @@ let isFiniteType = (t: Type): boolean => {
     }
     case _: false
   };
+};
+
+/**
+ * One enum a match's scrutinee can hold, and the members its arms have named
+ * so far. A scrutinee can reach more than one — `Color | Fruit` reaches two —
+ * and a match covers the scrutinee only once it has named every member of
+ * each of them.
+ */
+final class EnumCoverage {
+  declaration: EnumDeclaration;
+  covered: HashSet<String> = new HashSet<String>();
+  var complete: boolean = false;
+  new(this.declaration);
+}
+
+/**
+ * The enums a value of type `t` can hold. An enum's type is a distinct alias
+ * over its backing primitive, so the declaration hanging off that alias is the
+ * only place its member list survives.
+ */
+let enumsIn = (t: Type): GrowableArray<EnumCoverage> => {
+  let found = new GrowableArray<EnumCoverage>();
+  match (t) {
+    case TypeAliasType as alias: {
+      let {enumDeclaration} = alias;
+      if (enumDeclaration != null) {
+        found.push(new EnumCoverage(enumDeclaration as EnumDeclaration));
+      }
+    }
+    case UnionT {types}: {
+      for (let member in types) {
+        match (member) {
+          case TypeAliasType as alias: {
+            let {enumDeclaration} = alias;
+            if (enumDeclaration != null) {
+              found.push(new EnumCoverage(enumDeclaration as EnumDeclaration));
+            }
+          }
+          case _: {}
+        }
+      }
+    }
+    case _: {}
+  }
+  return found;
+};
+
+/**
+ * Drop everything `ed` can be from `t`, leaving what a scrutinee of that type
+ * could still hold. Every member of an enum has the enum's own type, so this
+ * is all-or-nothing: the caller runs it once the arms have named them all.
+ */
+let subtractEnumFromType = (t: Type, ed: EnumDeclaration): Type => {
+  match (t) {
+    case TypeAliasType as alias: {
+      let {enumDeclaration} = alias;
+      if (enumDeclaration != null &&
+          (enumDeclaration as EnumDeclaration).id == ed.id) {
+        return new NeverType();
+      }
+      return t;
+    }
+    case UnionT {types}: {
+      let remaining = new GrowableArray<Type>();
+      for (let member in types) {
+        if (!(subtractEnumFromType(member, ed) is NeverType)) {
+          remaining.push(member);
+        }
+      }
+      if (remaining.length == 0) { return new NeverType(); }
+      if (remaining.length == 1) { return remaining[0]; }
+      return new UnionT(remaining);
+    }
+    case _: { return t; }
+  }
+};
+
+/**
+ * Add the members of `ed` that `pattern` covers to `covered`.
+ *
+ * `case Color.Red` names one member. There is no per-member type to subtract
+ * from the scrutinee — every member of `Color` has type `Color` — so coverage
+ * is tracked by name instead, and the match is exhaustive once the set has
+ * grown to the declared member count. Patterns that cover everything
+ * (`case _`, a binding) name no member and are handled by
+ * `subtractPatternFromType`, which takes the remaining type straight to Never.
+ */
+let collectCoveredEnumMembers = (
+  ctx: CheckerContext,
+  pattern: Node,
+  ed: EnumDeclaration,
+  covered: HashSet<String>
+): void => {
+  match (pattern) {
+    case MemberExpression as me: {
+      if (me.isSymbolAccess) {
+        return;
+      }
+      // The member's own type is the enum alias; what says WHICH enum is the
+      // namespace it was read off — `Color` is a record type carrying the
+      // declaration. An enum imported under another name still points here.
+      let objectType = ctx.model.getNodeType(me.object);
+      if (objectType == null) {
+        return;
+      }
+      match (objectType as Type) {
+        case RecordT as rec: {
+          let {enumDeclaration} = rec;
+          if (enumDeclaration != null &&
+              (enumDeclaration as EnumDeclaration).id == ed.id) {
+            covered.add(me.property.name);
+          }
+        }
+        case _: {}
+      }
+    }
+    case LogicalPattern {operator, left, right}: {
+      // A `|` pattern (spelled "||" here) covers what either side covers.
+      // An `&` pattern covers only their overlap, which names no member.
+      if (operator == "||") {
+        collectCoveredEnumMembers(ctx, left, ed, covered);
+        collectCoveredEnumMembers(ctx, right, ed, covered);
+      }
+    }
+    case AsPattern as ap: {
+      collectCoveredEnumMembers(ctx, ap.pattern, ed, covered);
+    }
+    case BindingPattern as bp: {
+      collectCoveredEnumMembers(ctx, bp.pattern, ed, covered);
+    }
+    case _: {}
+  }
 };
 
 /**
@@ -17732,6 +17869,11 @@ let checkMatchExpr = (
   // Track remaining type for exhaustiveness checking.
   var remainingType: Type = scrutineeType;
 
+  // An enum the scrutinee can hold is tracked by member name alongside the
+  // remaining type, because its members all share the enum's own type and so
+  // cannot be subtracted from it one at a time.
+  let enumCoverages = enumsIn(scrutineeType);
+
   // Collect result types from each case.
   let resultTypes = new GrowableArray<Type>();
   
@@ -17844,6 +17986,15 @@ let checkMatchExpr = (
     // Update remaining type (only if no guard — guards prevent exhaustiveness).
     if (matchCase.guard == null) {
       remainingType = subtractPatternFromType(ctx, remainingType, matchCase.pattern);
+      for (let coverage in enumCoverages) {
+        if (coverage.complete) { continue; }
+        let ed = coverage.declaration;
+        collectCoveredEnumMembers(ctx, matchCase.pattern, ed, coverage.covered);
+        if (coverage.covered.size == ed.members.length) {
+          coverage.complete = true;
+          remainingType = subtractEnumFromType(remainingType, ed);
+        }
+      }
     }
 
     // Check the guard if present.

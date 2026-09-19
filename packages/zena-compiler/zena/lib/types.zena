@@ -1188,6 +1188,14 @@ export final class TypeAliasType(
    */
   var resolving: boolean = false;
   /**
+   * For the alias that stands in for an enum's type (`Color`), the
+   * `EnumDeclaration` it came from. An enum is a distinct alias over its
+   * backing primitive, so the type alone does not say which values exist;
+   * match exhaustiveness reads the member list back off the declaration.
+   * Null for every other alias.
+   */
+  var enumDeclaration: Statement | null = null;
+  /**
    * The builtin type-operator rule this alias applies, from an
    * `@intrinsic('type.…')` decorator — 'type.awaited' is the first.
    * An intrinsic alias's TARGET is a placeholder: applying the alias

@@ -1,0 +1,9 @@
+// @mode: check
+// Once every member is named, nothing reaches a further case
+enum Color { Red, Green, Blue }
+let name = (c: Color): String => match (c) {
+  case Color.Red: 'red'
+  case Color.Green: 'green'
+  case Color.Blue: 'blue'
+  case _: 'other' // @error: Unreachable case
+};

@@ -1,0 +1,7 @@
+// @mode: check
+// A wildcard covers every member an enum match did not name
+enum Color { Red, Green, Blue }
+let name = (c: Color): String => match (c) {
+  case Color.Red: 'red'
+  case _: 'other'
+};

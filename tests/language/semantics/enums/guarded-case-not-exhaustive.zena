@@ -1,0 +1,8 @@
+// @mode: check
+// A guarded case may not run, so it covers nothing
+enum Color { Red, Green, Blue }
+let name = (c: Color, loud: boolean): String => match (c) { // @error: Non-exhaustive match
+  case Color.Red: 'red'
+  case Color.Green: 'green'
+  case Color.Blue if loud: 'BLUE'
+};

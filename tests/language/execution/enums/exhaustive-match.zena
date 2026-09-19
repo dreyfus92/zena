@@ -1,0 +1,16 @@
+// @mode: run
+// @result: 20
+
+enum Color {
+  Red,
+  Green,
+  Blue
+}
+
+let weight = (c: Color): i32 => match (c) {
+  case Color.Red: 10
+  case Color.Green: 20
+  case Color.Blue: 30
+};
+
+export let main = (): i32 => weight(Color.Green);

@@ -1,0 +1,19 @@
+// @mode: check
+// A scrutinee can reach more than one enum, and each has to be named in full
+enum Color { Red, Green, Blue }
+enum Fruit { Apple, Pear }
+
+let full = (v: Color | Fruit): String => match (v) {
+  case Color.Red: 'red'
+  case Color.Green: 'green'
+  case Color.Blue: 'blue'
+  case Fruit.Apple: 'apple'
+  case Fruit.Pear: 'pear'
+};
+
+let missingFruit = (v: Color | Fruit): String => match (v) { // @error: Non-exhaustive match
+  case Color.Red: 'red'
+  case Color.Green: 'green'
+  case Color.Blue: 'blue'
+  case Fruit.Apple: 'apple'
+};

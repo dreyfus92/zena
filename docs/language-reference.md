@@ -237,6 +237,30 @@ let c: Color = Color.Red;
 let z: i32 = c as i32;
 ```
 
+### Matching
+
+An enum has a finite set of members, so a `match` over one has to name them
+all:
+
+```zena
+// Error: Non-exhaustive match. Not all cases are covered.
+let name = (c: Color): String => match (c) {
+  case Color.Red: 'red'
+  case Color.Green: 'green'
+};
+```
+
+A wildcard covers the members the arms did not name, and an or-pattern covers
+a member on each of its sides. A guarded case may not run, so it covers
+nothing.
+
+```zena
+let warmth = (c: Color): String => match (c) {
+  case Color.Red | Color.Green: 'warm'
+  case _: 'cool'
+};
+```
+
 ### Type Inference
 
 Local variable types are inferred from their initializer expression.

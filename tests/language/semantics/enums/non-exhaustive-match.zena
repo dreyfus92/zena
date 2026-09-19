@@ -1,0 +1,8 @@
+// @mode: check
+// A match over an enum that leaves a member uncovered reports an error,
+// rather than falling through to `unreachable` at runtime
+enum Color { Red, Green, Blue }
+let name = (c: Color): String => match (c) { // @error: Non-exhaustive match
+  case Color.Red: 'red'
+  case Color.Green: 'green'
+};
