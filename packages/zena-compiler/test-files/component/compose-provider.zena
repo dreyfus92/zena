@@ -1,0 +1,30 @@
+// The provider half of the composition fixture: it exports the
+// `oracle` interface `compose.wit` declares. `ask` returns at once
+// with a future the answer will arrive on, and a background task
+// settles that future after a sleep — so the consumer's await has
+// something to wait for, and the value crosses the composed boundary
+// through a canonical future the compiler-written wrapper lowers.
+//
+// That this program implements the `provider` world is checked at
+// compile time, in two places: the declared-world encoder matches the
+// program's exports against the world's — every declared export must
+// be exported, async for async, nothing extra — and the wrapper the
+// compiler writes calls `ask` with the WIT's parameter types and hands
+// its result to a return typed by the WIT, so a signature that
+// disagrees fails the wrapper's type check. Indirect, and the error
+// points at generated code. TODO(#592): library interfaces, so the
+// world is a contract the language checks this module against by
+// name and type, with the error on the declaration that breaks it.
+import { Completer, Future } from 'zena:async';
+import { sleep, milliseconds } from 'zena:time';
+
+async function answerLater(answer: Completer<i32>, n: i32): Future<void> {
+  await sleep(milliseconds(50));
+  answer.complete(n * 2);
+}
+
+export async function ask(n: i32): Future<Future<i32>> {
+  let answer = new Completer<i32>();
+  answerLater(answer, n);
+  return answer.future;
+}

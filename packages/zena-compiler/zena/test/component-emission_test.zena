@@ -460,6 +460,32 @@ export let tests = suite('Component emission', (): void => {
       'the response handle is not lowered out of its class:\n' + source);
   });
 
+  test('an exported interface\'s future result lowers through its helpers',
+      (ctx: TestContext): void => {
+    // The composition fixture's provider: `ask` returns a
+    // `future<s32>`, so the program's `Future<i32>` lowers into a
+    // canonical future the wrapper module must carry the helpers
+    // for — the `future.new`/`future.write` declares typed against
+    // the exporting interface, and the pump that writes the value
+    // once the program's future settles.
+    let wit = readFile(`${fixtures}/compose.wit`);
+    let entry = `${fixtures}/compose-provider.zena`;
+    let wrapperOpt = synthesizeExportWrapper(wit, 'provider', entry,
+        parse(readFile(entry), entry));
+    isTrue(wrapperOpt != null, 'the provider world gets no wrapper');
+    let source = (wrapperOpt as ComponentEntryWrapper).source;
+    isTrue(source.contains(
+        `@external("canon", "future.new#0", "future:test:compose/oracle@1.0.0#s32")`),
+      `the future builtins are not typed against the exporting interface:\n${source}`);
+    isTrue(source.contains(`function lowerFuture0(value: Future<i32>): i32 {`),
+      `the lowering helper is missing:\n${source}`);
+    isTrue(source.contains(
+        `async function pumpFuture0(value: Future<i32>, end: i32): Future<void> {`),
+      `the pump that writes the settled value is missing:\n${source}`);
+    isTrue(source.contains(`import { awaitWaitable } from 'zena:wasi';`),
+      `the pump's park on the write is not imported:\n${source}`);
+  });
+
   test('a component with no imports carries no import machinery', (ctx: TestContext): void => {
     // No instance type, no import, no lowering, no synthesized instance
     // — just the module, its instantiation, and the lifted export. This

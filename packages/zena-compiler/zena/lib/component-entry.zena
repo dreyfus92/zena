@@ -123,11 +123,26 @@ let asyncScalarResultOf = (func: FunctionExpression): String => {
  * and `export let main = async () => ...`.
  */
 export function mainScalarResultOf(ast: Module): String {
+  let main = exportedMainOf(ast);
+  return if (main == null) '' else asyncScalarResultOf(main as FunctionExpression);
+}
+
+/** Whether the module exports an async `main`: the entry the
+ * component lifts on its own, whichever way a declared world spells
+ * it. */
+export function hasAsyncMain(ast: Module): boolean {
+  let main = exportedMainOf(ast);
+  return main != null && (main as FunctionExpression).isAsync;
+}
+
+/** The module's exported `main` function, in either spelling, or
+ * null. */
+let exportedMainOf = (ast: Module): FunctionExpression | null => {
   for (let stmt in ast.body) {
     if (stmt is FunctionDeclaration) {
       if (stmt.exported) {
         if (stmt.name.name == 'main') {
-          return asyncScalarResultOf(stmt.func);
+          return stmt.func;
         }
       }
     } else if (stmt is VariableDeclaration) {
@@ -137,15 +152,15 @@ export function mainScalarResultOf(ast: Module): String {
           if (pattern.name == 'main') {
             let init = stmt.init;
             if (init is FunctionExpression) {
-              return asyncScalarResultOf(init);
+              return init;
             }
           }
         }
       }
     }
   }
-  return '';
-}
+  return null;
+};
 
 /** The last path segment. */
 let baseName = (path: String): String => {

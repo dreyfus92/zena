@@ -513,30 +513,30 @@ export final class ComponentTypeEncoder {
    * The component-level type index of `future<payloadText>`, the
    * payload parsed as WIT against `qualifiedInterface`'s declarations
    * — named types alias-exported from the imported instance on first
-   * use. Public for the canon builtins: the future.* family's canon
-   * entry carries the future's own component type, and a payload like
-   * `result<option<trailers>, error-code>` names the interface's
+   * use, or, for an exported interface, from the imported source its
+   * `use` names. Public for the canon builtins: the future.* family's
+   * canon entry carries the future's own component type, and a payload
+   * like `result<option<trailers>, error-code>` names the interface's
    * types from outside any instance scope. An empty `payloadText` is
-   * the bare `future`.
+   * the bare `future`; an empty `qualifiedInterface` is a world-level
+   * function's future, whose payload is structural.
    */
   aliasFutureType(qualifiedInterface: String, payloadText: String): i32 {
     let key = qualifiedInterface + "#future<" + payloadText + ">";
     if (let (true, existing) = this.#aliasedTypes.get(key)) {
       return existing;
     }
-    let reg = this.#findRegistered(qualifiedInterface);
-    if (reg == null) {
-      throw new EncodeError("'" + qualifiedInterface +
-          "' is not a known interface");
-    }
-    if (!this.#instanceIndex.has(qualifiedInterface)) {
-      throw new EncodeError("'" + qualifiedInterface +
-          "' is not imported yet, so nothing can use its types");
-    }
     let scope = new Scope();
     scope.atComponentLevel = true;
     scope.typeCount = this.#result.typeCount;
-    scope.aliasSource = reg;
+    if (qualifiedInterface != "") {
+      let reg = this.#findRegistered(qualifiedInterface);
+      if (reg == null) {
+        throw new EncodeError("'" + qualifiedInterface +
+            "' is not a known interface");
+      }
+      scope.aliasSource = reg;
+    }
     var inner = -1;
     if (payloadText != "") {
       inner = this.#encodeType(scope, parseTypeText(payloadText));

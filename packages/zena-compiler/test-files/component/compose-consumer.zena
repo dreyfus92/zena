@@ -1,0 +1,15 @@
+// The consumer half of the composition fixture: it imports the
+// `oracle` interface another component provides, and awaits the
+// `future<s32>` that `ask` hands back. The lifted future reads its
+// end on this first await — the read is deferred until then — and the
+// value is one the provider wrote from its own task, after a sleep,
+// in its own instance.
+import { ask } from 'test:compose/oracle';
+import { Future } from 'zena:async';
+
+export async function main(): Future<void> {
+  let answer = await ask(21);
+  console.log('asked');
+  let value = await answer;
+  console.log(`answer ${value}`);
+}

@@ -1,0 +1,40 @@
+// Two Zena components composed into one: `provider` exports the
+// `oracle` interface, `consumer` imports it, and `wasm-tools compose`
+// wires the one to the other. The answer to `ask` is a `future<s32>`
+// the provider writes after its own sleep — so the consumer awaits a
+// future that another component settles, across the composed
+// boundary, rather than one its own program completes.
+//
+// The clock is vendored: the compiler carries only wasi:cli's WIT for
+// a declared world to import by name. TODO: vendor the whole WASI 0.3
+// WIT into the stdlib from the pinned corpus (wit-corpus.json's
+// `wasi` source is the v0.3.0 release) so no fixture carries a copy.
+package test:compose@1.0.0;
+
+interface oracle {
+  ask: async func(n: s32) -> future<s32>;
+}
+
+world provider {
+  import wasi:clocks/monotonic-clock@0.3.0;
+
+  export oracle;
+}
+
+world consumer {
+  import wasi:cli/stdout@0.3.0;
+  import wasi:cli/stderr@0.3.0;
+  import oracle;
+
+  export main: async func();
+}
+
+package wasi:clocks@0.3.0 {
+  interface monotonic-clock {
+    type instant = u64;
+    type duration = u64;
+
+    now: func() -> instant;
+    wait-for: async func(how-long: duration);
+  }
+}

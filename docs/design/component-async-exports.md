@@ -312,3 +312,26 @@ serve`: `http-service.zena` implements `handle`, builds a
    components for the fixture interfaces (composition tests), the
    self-wake future for concurrent tasks, and sync functions in
    exported interfaces.
+7. Two Zena components composed — landed as the `compose` fixtures.
+   `compose.wit` declares an `oracle` interface whose `ask` is
+   `async func(n: s32) -> future<s32>`, a `provider` world exporting
+   it and a `consumer` world importing it. The provider's `ask`
+   returns a `Future<i32>` a background task completes after a sleep;
+   the wrapper lowers it into a canonical future (`future.new`, a
+   pump that `future.write`s the settled value), with the helpers
+   rendered into the wrapper module and their canon types named
+   against the exporting interface, which the encoder now resolves
+   whether the interface is imported or exported. The consumer awaits
+   the lifted future, so its deferred read starts on that await and
+   the value it reads was written by the other component's task in
+   the other instance. `wasm-tools compose` wires the two and the e2e
+   runs the composition. Three things had to give: a program
+   compiled against a declared world can import the document's own
+   interfaces by name (the CLI registers each namespace the document
+   declares as a WIT-backed package rooted at the document, unless the
+   manifest or the stdlib already provides it); a module synthesized
+   from such a document gets the compiler's WASI WIT spliced in, as
+   the encoder's parse already did, since the document's worlds
+   import `wasi:cli` by name; and a declared world's `export main:
+   async func()` is the entry itself — the wrapper synthesizer skips
+   it rather than exporting `main` twice.

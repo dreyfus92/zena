@@ -84,6 +84,13 @@ interface Fixture {
    * `i` asks for `path/i` and expects `body/i`. Default 1.
    */
   serveConcurrent?: number;
+  /**
+   * Fixtures, built earlier in the list, whose exports satisfy this
+   * one's imports: the invocations run the composition of this
+   * component with them, wired by `wasm-tools compose`, so a value
+   * that crosses between two Zena components is what is tested.
+   */
+  compose?: string[];
   invocations: Invocation[];
 }
 
@@ -322,6 +329,36 @@ const FIXTURES: Fixture[] = [
     ],
   },
   {
+    name: 'compose-provider',
+    wasi: ['p3=y'],
+    wit: ['compose.wit', 'provider'],
+    // The provider half of a composition: it exports the `oracle`
+    // interface, whose `ask` answers with a `future<s32>` — the
+    // program's `Future<i32>`, lowered by the compiler-written wrapper
+    // into a canonical future a background task writes after a
+    // sleep. Built and validated here; run composed, below.
+    invocations: [],
+  },
+  {
+    name: 'compose-consumer',
+    wasi: ['p3=y'],
+    wit: ['compose.wit', 'consumer'],
+    compose: ['compose-provider'],
+    // Two Zena components composed: the consumer imports `oracle`
+    // from the provider and awaits the future `ask` returns — a lifted
+    // `future<s32>` whose read starts on that await, settled by the
+    // other component's task in the other instance. The one place a
+    // runtime await of a WIT future is exercised.
+    invocations: [
+      {
+        invoke: 'main()',
+        expect: '()',
+        expectOutput: ['asked', 'answer 42'],
+        minWallMs: 40,
+      },
+    ],
+  },
+  {
     name: 'exit-value',
     wasi: ['p3=y'],
     // An async main with a value: the entry is lifted `async func() ->
@@ -417,6 +454,26 @@ for (const fixture of FIXTURES) {
   }
   console.log(`  ${GREEN}✓${NC} validates`);
 
+  // What the invocations run: the component itself, or its composition
+  // with the fixtures it imports from.
+  let runnable = out;
+  if (fixture.compose) {
+    runnable = join(outDir, `${fixture.name}.composed.wasm`);
+    const args = ['compose', out, '-o', runnable];
+    for (const dep of fixture.compose) {
+      args.push('-d', join(outDir, `${dep}.wasm`));
+    }
+    // `wasm-tools compose` prints a deprecation notice in favour of
+    // `wac`, which the dev shell does not carry; the notice is on
+    // stderr and the status says whether the composition happened.
+    const composed = spawnSync('wasm-tools', args, {encoding: 'utf8'});
+    if (composed.status !== 0) {
+      fail(`does not compose with ${fixture.compose.join(', ')}:\n${composed.stderr}`);
+      continue;
+    }
+    console.log(`  ${GREEN}✓${NC} composes with ${fixture.compose.join(', ')}`);
+  }
+
   if (fixture.serveRequest) {
     // A service: wasmtime serves it, and the runner is its client.
     const [port, path, body] = fixture.serveRequest;
@@ -503,7 +560,7 @@ for (const fixture of FIXTURES) {
     // Through `time -p` (POSIX, so the format is fixed) rather than
     // spawnSync directly: Node reports no CPU time for a child, and CPU
     // time is what tells a timer apart from a spin.
-    const command = `time -p wasmtime run ${flags.join(' ')} --invoke '${invoke}' '${out}'`;
+    const command = `time -p wasmtime run ${flags.join(' ')} --invoke '${invoke}' '${runnable}'`;
     const run = spawnSync('bash', ['-c', command], {encoding: 'utf8'});
     if (run.error) {
       fail(`could not run wasmtime: ${run.error.message}`);

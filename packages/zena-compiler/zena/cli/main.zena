@@ -18,7 +18,8 @@ import { isKnownTarget, knownTargetsDescription, targetEmitsComponent } from '..
 import { compileComponentRuntimeModule } from '../lib/codegen/component-runtime.zena';
 import { makeImportEncoder } from '../lib/codegen/wit-imports.zena';
 import {
-  isWitModulePath, synthesizeWitModule, synthesizeExportWrapper
+  isWitModulePath, synthesizeWitModule, synthesizeExportWrapper,
+  declaredPackageNamespaces
 } from '../lib/wit-module-synth.zena';
 import { ComponentEntryWrapper } from '../lib/component-entry.zena';
 import { readWitSource } from 'wit-parser:document';
@@ -184,6 +185,21 @@ export let main = (): i32 => {
 
   let host = new WasiHost(testMode, filename);
   let packages = loadPackages(host);
+  // A declared world's document answers for its own packages: the
+  // program imports the world's interfaces by name (`test:app/oracle`
+  // for a document declaring `package test:app`), and the resolver
+  // maps the namespace to a WIT-backed package rooted at the document.
+  // A namespace the manifest or the stdlib already provides keeps its
+  // package — a document vendoring `wasi:clocks` does not take over
+  // `wasi` — and its interfaces are reached as before.
+  if (witSource != "") {
+    for (let namespace in declaredPackageNamespaces(witSource)) {
+      if (namespace == "wasi" || packages.has(namespace)) { continue; }
+      let declared = new PackageConfig("", null);
+      declared.witRoot = witPath;
+      packages[namespace] = declared;
+    }
+  }
   let options = new CompilerOptions(target, "/stdlib", packages);
   options.time = time;
   // The WIT-backed packages' real source, so the encoder emits their
@@ -200,7 +216,10 @@ export let main = (): i32 => {
     let witPackages = new GrowableArray<String>();
     let packageNames = allPackages.keys();
     while (let (true, packageName) = packageNames.next()) {
-      if (allPackages[packageName].witRoot != null) {
+      let root = allPackages[packageName].witRoot;
+      // The declared document is the world's own source, parsed
+      // alongside these; it does not ride along a second time.
+      if (root != null && (root as String) != witPath) {
         witPackages.push(packageName);
       }
     }

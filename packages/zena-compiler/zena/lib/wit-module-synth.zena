@@ -53,7 +53,7 @@
  */
 
 import { StringBuilder } from 'zena:core';
-import { parse } from 'wit-parser:wit';
+import { parse, parseSyntax } from 'wit-parser:wit';
 import {
   readWitSource, findInterface, findInterfaceOrNull, FoundInterface
 } from 'wit-parser:document';
@@ -69,7 +69,7 @@ import { withWasiPackages } from './codegen/wit-imports.zena';
 import {
   ComponentEntryWrapper, componentEntryPathFor,
   componentEntrySpecifierFor, componentExportSuffix,
-  mainScalarResultOf, renderMainWrapper, renderWrapperHeader
+  mainScalarResultOf, hasAsyncMain, renderMainWrapper, renderWrapperHeader
 } from './component-entry.zena';
 
 
@@ -692,6 +692,8 @@ final class SynthUses {
   var unit = false;
   /** Future payload types moved, each owed declares and helpers. */
   futures = new GrowableArray<FutureEntry>();
+  /** How many of `futures` have had their helpers emitted. */
+  var emittedFutures = 0;
   /** Whether a lifted future rendered — pulls in `DeferredFuture`,
    * since a lifted future's read starts on its first await. */
   var deferred = false;
@@ -1887,6 +1889,34 @@ function renderVariant(sb: StringBuilder, td: TypeDef,
 }
 
 /**
+ * The namespaces the WIT document declares packages under — its own
+ * and each nested `package ns:name { ... }` — each once. A program
+ * compiled against a declared world imports the world's interfaces
+ * by name, `ns:name/iface`, and the resolver maps a specifier's
+ * namespace to a package; these are the namespaces the document
+ * itself answers for.
+ */
+export function declaredPackageNamespaces(witSource: String): Array<String> {
+  // Syntax only: the world's `use` paths reach packages the compiler
+  // splices in later, and the package names need no resolution.
+  let ast = parseSyntax(witSource);
+  let names = new GrowableArray<String>();
+  let add = (pkg: PackageName | null): void => {
+    if (pkg == null) { return; }
+    let ns = (pkg as PackageName).namespace.name;
+    for (let known in names) {
+      if (known == ns) { return; }
+    }
+    names.push(ns);
+  };
+  add(ast.packageName);
+  for (let nested in ast.nestedPackages) {
+    add(nested.name);
+  }
+  return names;
+}
+
+/**
  * The synthesized Zena source for a `wit:<root>#<ns>:<iface-path>`
  * canonical path.
  */
@@ -1913,7 +1943,11 @@ export function synthesizeWitModule(canonicalPath: String): String {
   let namespace = spec.sliceBytes(0, colon);
   let interfacePath = spec.sliceBytes(colon + 1, spec.length);
 
-  let witSource = readWitSource(witRoot);
+  // With the compiler's WASI WIT spliced in where the document lacks
+  // it: a declared world's document is a package root too, and its
+  // worlds import `wasi:cli` by name, which the parser resolves. The
+  // splice appends, so the spans the type text is read from hold.
+  let witSource = withWasiPackages(readWitSource(witRoot));
   currentWitSource = witSource;
   let ast = parse(witSource);
   let iface = findInterface(ast, namespace, interfacePath);
@@ -1968,44 +2002,8 @@ export function synthesizeWitModule(canonicalPath: String): String {
           .append(rendered).append("\n");
     }
   }
-  // Lift helpers registered while rendering may register more as they
-  // are emitted (a record's field lifting a nested option), so this
-  // drains a worklist rather than walking a snapshot. Future helpers
-  // join the same drain: emitting one may register payload lift
-  // helpers, and a payload may register further futures.
-  var emittedFutures = 0;
-  while (uses.emittedLifts < uses.lifts.length ||
-      emittedFutures < uses.futures.length) {
-    while (uses.emittedLifts < uses.lifts.length) {
-      let entry = uses.lifts[uses.emittedLifts];
-      uses.emittedLifts += 1;
-      emitLiftHelper(body, entry, uses);
-    }
-    if (emittedFutures < uses.futures.length) {
-      emitFutureHelpers(body, uses.futures[emittedFutures],
-          interfaceName, uses);
-      emittedFutures += 1;
-    }
-  }
-  if (uses.unit) {
-    body.append("/** The one spellable void value: a bare result ")
-        .append("arm's stand-in. */\n");
-    body.append("function witUnit(): void {}\n");
-  }
-  for (let lifted in uses.enumLifts) {
-    // The host is obligated to produce a valid discriminant, but a
-    // range check is one compare, and an out-of-range value cast
-    // silently into an enum would defeat exhaustive matching somewhere
-    // far from here.
-    body.append("function lift").append(lifted.typeName)
-        .append("(disc: i32): ").append(lifted.typeName)
-        .append(" {\n  if (disc < 0 || disc >= ")
-        .append(i32ToString(lifted.caseCount))
-        .append(") {\n    throw new Error('invalid ")
-        .append(lifted.typeName).append(" discriminant');\n  }\n")
-        .append("  return disc as ").append(lifted.typeName)
-        .append(";\n}\n");
-  }
+  drainHelpers(body, uses, interfaceName);
+  emitHelperTrailer(body, uses);
   if (uses.fixedArray) {
     sb.append("import { FixedArray } from 'zena:core';\n");
   }
@@ -2088,6 +2086,58 @@ export function synthesizeWitModule(canonicalPath: String): String {
         .append(skippedText);
   }
   return sb.toString();
+}
+
+/**
+ * The lift and future helpers registered so far, into `body`. Lift
+ * helpers registered while rendering may register more as they are
+ * emitted (a record's field lifting a nested option), so this drains
+ * a worklist rather than walking a snapshot. Future helpers join the
+ * same drain: emitting one may register payload lift helpers, and a
+ * payload may register further futures. A future's canon type is
+ * named against `interfaceName` — the interface whose function moved
+ * it, which is where its payload's named types resolve — so a module
+ * that renders several interfaces' functions drains after each.
+ */
+function drainHelpers(body: StringBuilder, uses: SynthUses,
+    interfaceName: String): void {
+  while (uses.emittedLifts < uses.lifts.length ||
+      uses.emittedFutures < uses.futures.length) {
+    while (uses.emittedLifts < uses.lifts.length) {
+      let entry = uses.lifts[uses.emittedLifts];
+      uses.emittedLifts += 1;
+      emitLiftHelper(body, entry, uses);
+    }
+    if (uses.emittedFutures < uses.futures.length) {
+      emitFutureHelpers(body, uses.futures[uses.emittedFutures],
+          interfaceName, uses);
+      uses.emittedFutures += 1;
+    }
+  }
+}
+
+/** The helpers a rendered module owes once, after every drain: the
+ * bare-result stand-in and the enum discriminant checks. */
+function emitHelperTrailer(body: StringBuilder, uses: SynthUses): void {
+  if (uses.unit) {
+    body.append("/** The one spellable void value: a bare result ")
+        .append("arm's stand-in. */\n");
+    body.append("function witUnit(): void {}\n");
+  }
+  for (let lifted in uses.enumLifts) {
+    // The host is obligated to produce a valid discriminant, but a
+    // range check is one compare, and an out-of-range value cast
+    // silently into an enum would defeat exhaustive matching somewhere
+    // far from here.
+    body.append("function lift").append(lifted.typeName)
+        .append("(disc: i32): ").append(lifted.typeName)
+        .append(" {\n  if (disc < 0 || disc >= ")
+        .append(i32ToString(lifted.caseCount))
+        .append(") {\n    throw new Error('invalid ")
+        .append(lifted.typeName).append(" discriminant');\n  }\n")
+        .append("  return disc as ").append(lifted.typeName)
+        .append(";\n}\n");
+  }
 }
 
 /**
@@ -2724,7 +2774,13 @@ export function synthesizeExportWrapper(
       if (kind.tag == ExternKindTag.Func) {
         let func = kind.funcDef as Func;
         if (!func.isAsync) { continue; }
-        exports.push(new AsyncWorldExport((kind.name as Id).name, func));
+        let name = (kind.name as Id).name;
+        // The world's async `main` is the entry: the component lifts
+        // the program's async main on its own, with its typed return
+        // declared by the entry wrapper (lib/component-entry.zena), and
+        // a second wrapper here would export the name twice.
+        if (name == "main" && hasAsyncMain(entryAst)) { continue; }
+        exports.push(new AsyncWorldExport(name, func));
       } else if (kind.tag == ExternKindTag.Path) {
         let path = kind.path as UsePath;
         var namespace = "";
@@ -2788,6 +2844,9 @@ export function synthesizeExportWrapper(
     imported.push(zenaName);
     body.append("\n");
     renderExportWrapper(body, e.name, zenaName, e.func, noItems, uses, "");
+    // A world-level export's future is structural: its canon type
+    // names no interface.
+    drainHelpers(body, uses, "");
   }
   for (let e in interfaceExports) {
     let iface = interfaces[e.interfaceIndex];
@@ -2801,7 +2860,12 @@ export function synthesizeExportWrapper(
     body.append("\n");
     renderExportWrapper(body, e.name, zenaName, e.func, iface.def.items,
         uses, e.qualifiedInterface);
+    // A future this export moves — a `future<T>` result the program's
+    // `Future<T>` lowers into — gets its helpers here, typed against
+    // the exporting interface.
+    drainHelpers(body, uses, e.qualifiedInterface);
   }
+  emitHelperTrailer(body, uses);
 
   let specifier = componentEntrySpecifierFor(entryPath);
   let sb = new StringBuilder();
@@ -2828,6 +2892,12 @@ export function synthesizeExportWrapper(
   if (uses.error) {
     sb.append("import { Error } from 'zena:core';\n");
   }
+  if (uses.result) {
+    sb.append("import { Result } from 'zena:core';\n");
+  }
+  if (uses.stream) {
+    sb.append("import { Stream } from 'zena:stream';\n");
+  }
   if (uses.abi.length > 0) {
     sb.append("import { ");
     for (var i = 0; i < uses.abi.length; i += 1) {
@@ -2835,6 +2905,20 @@ export function synthesizeExportWrapper(
       sb.append(uses.abi[i]);
     }
     sb.append(" } from 'zena:wasi';\n");
+  }
+  if (uses.componentStream.length > 0) {
+    sb.append("import { ");
+    for (var i = 0; i < uses.componentStream.length; i += 1) {
+      if (i > 0) { sb.append(", "); }
+      sb.append(uses.componentStream[i]);
+    }
+    sb.append(" } from 'zena:wasi';\n");
+  }
+  if (uses.deferred) {
+    sb.append("import { DeferredFuture } from 'zena:async';\n");
+  }
+  if (uses.awaitWaitable) {
+    sb.append("import { awaitWaitable } from 'zena:wasi';\n");
   }
   // The synthesized modules whose types the wrappers name: a resource
   // parameter lifts into its class, a result lowers out of one.
