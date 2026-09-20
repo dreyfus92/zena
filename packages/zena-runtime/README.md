@@ -25,13 +25,13 @@ exports (`$stringCreate`, `$stringSetByte`, `$stringGetLength`,
 Beyond the imports, the crate holds what every embedder otherwise
 duplicates:
 
-- `engine::config(debug)`: the wasmtime `Config` Zena output needs. A
-  default wasmtime `Config` rejects a Zena module: as of wasmtime 46 it
-  enables tail calls but not GC, exception handling, typed function
-  references or wide arithmetic, and it records no backtrace details
-  unless `WASMTIME_BACKTRACE_DETAILS` is set. `config` turns all of those
-  on, adds the ZENA_GC and ZENA_PROFILE environment switches, and
-  `reserve_gc_heap` reads ZENA_GC_RESERVE_MB.
+- `engine::config(debug)`: the wasmtime `Config` Zena output needs. The
+  proposals Zena relies on (GC, exception handling, typed function
+  references, tail calls) are on by default since wasmtime 48, so the
+  config only adds wide arithmetic (still opt-in), backtrace details
+  (off unless `WASMTIME_BACKTRACE_DETAILS` is set) and inlining, plus
+  the ZENA_GC and ZENA_PROFILE environment switches; `reserve_gc_heap`
+  reads ZENA_GC_RESERVE_MB.
 - `cache`: ahead-of-time compiled `.cwasm` files kept beside each `.wasm`,
   written under a file lock (`foo.lock`, beside it too) so concurrent
   processes compile a module once. `zena-cli` and `zena-run` share these

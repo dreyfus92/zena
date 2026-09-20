@@ -7,14 +7,16 @@ use crate::HostState;
 
 /// The wasmtime `Config` every Zena host uses.
 ///
-/// Zena's output needs GC, exception handling, typed function references,
-/// tail calls (`return_call` for `tail return`, see docs/design/tail-calls.md)
-/// and the wide-arithmetic instructions the compiler emits under
-/// ZENA_WIDE_ARITHMETIC=1. Of these, wasmtime 46 enables only tail calls by
-/// default; the rest are opt-in, as are backtrace details and inlining. All
-/// engines that share cwasm artifacts must agree on these settings: wasmtime
-/// refuses to deserialize a cwasm whose compile-affecting flags differ, and
-/// the fallback is a silent multi-second in-process recompile.
+/// Zena's output needs GC, exception handling, typed function references
+/// and tail calls (`return_call` for `tail return`, see
+/// docs/design/tail-calls.md). Since wasmtime 48 all four are on by
+/// default, so the only proposal enabled here is wide arithmetic, which the
+/// compiler emits under ZENA_WIDE_ARITHMETIC=1 and wasmtime still treats as
+/// opt-in. Backtrace details and inlining are off by default and turned on
+/// here too. All engines that share cwasm artifacts must agree on these
+/// settings: wasmtime refuses to deserialize a cwasm whose compile-affecting
+/// flags differ, and the fallback is a silent multi-second in-process
+/// recompile.
 ///
 /// `debug` turns off Cranelift's inlining so backtraces name the function
 /// that trapped; [`crate::cache`] keeps debug and release cwasm files
@@ -25,12 +27,7 @@ use crate::HostState;
 /// [`apply_gc_config`]).
 pub fn config(debug: bool) -> Config {
     let mut config = Config::new();
-    config.cranelift_opt_level(wasmtime::OptLevel::Speed);
     config.compiler_inlining(if debug { Inlining::No } else { Inlining::Yes });
-    config.wasm_gc(true);
-    config.wasm_function_references(true);
-    config.wasm_exceptions(true);
-    config.wasm_tail_call(true);
     config.wasm_wide_arithmetic(true);
     config.wasm_backtrace_details(wasmtime::WasmBacktraceDetails::Enable);
     if std::env::var("ZENA_PROFILE").is_ok() {

@@ -10,7 +10,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use std::path::Path;
 use wasmtime::{Engine, Linker, Store};
-use wasmtime_wasi::{DirPerms, FilePerms, WasiCtxBuilder};
+use wasmtime_wasi::{FsPerms, WasiCtxBuilder};
 use zena_runtime::{DirMapping, HostState, Spawn};
 
 #[derive(Parser, Debug)]
@@ -79,7 +79,7 @@ fn main() -> Result<()> {
         let mapping = DirMapping::parse(dir);
         let host = std::fs::canonicalize(&mapping.host)
             .with_context(|| format!("--dir {}: no such directory", mapping.host))?;
-        wasi_builder.preopened_dir(&host, &mapping.guest, DirPerms::all(), FilePerms::all())?;
+        wasi_builder.preopened_dir(&host, &mapping.guest, FsPerms::ReadWrite)?;
         path_map.push((mapping.guest, host));
     }
 

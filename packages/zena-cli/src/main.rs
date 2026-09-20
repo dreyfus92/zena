@@ -8,7 +8,7 @@ use walkdir::WalkDir;
 use wasmtime::{Engine, Linker, Store, Val};
 use wasmtime_wasi::WasiCtxBuilder;
 use wasmtime_wasi::p2::pipe::MemoryOutputPipe;
-use wasmtime_wasi::{DirPerms, FilePerms};
+use wasmtime_wasi::FsPerms;
 use zena_runtime::cache::{cwasm_path_for, load_or_compile_module};
 use zena_runtime::engine::reserve_gc_heap;
 use zena_runtime::{DirMapping, HostState, Spawn};
@@ -585,14 +585,13 @@ fn compile_to_cache(
         let wasi = wasi_builder
             .inherit_env()
             .args(&compiler_args)
-            .preopened_dir(repo_root, ".", DirPerms::all(), FilePerms::all())?
-            .preopened_dir(stdlib_dir, "/stdlib", DirPerms::all(), FilePerms::all())?
+            .preopened_dir(repo_root, ".", FsPerms::ReadWrite)?
+            .preopened_dir(stdlib_dir, "/stdlib", FsPerms::ReadWrite)?
             // Give the guest write access directly to the user's absolute cache directory
             .preopened_dir(
                 &cache_dir,
                 cache_dir.to_str().unwrap(),
-                DirPerms::all(),
-                FilePerms::all(),
+                FsPerms::ReadWrite,
             )?
             .build_p1();
 
@@ -676,7 +675,7 @@ fn run_wasm(file: &str, invoke: &str, _verbose: bool, dirs: &[String], args: &[S
         };
         let host_dir_adjusted = std::fs::canonicalize(host_dir_adjusted)?;
 
-        wasi_builder.preopened_dir(&host_dir_adjusted, &guest_dir, DirPerms::all(), FilePerms::all())?;
+        wasi_builder.preopened_dir(&host_dir_adjusted, &guest_dir, FsPerms::ReadWrite)?;
         path_map.push((guest_dir, host_dir_adjusted));
     }
     let spawn = if allow_spawn { Spawn::Allow(path_map) } else { Spawn::Deny };
@@ -934,8 +933,8 @@ fn run_internal_tool(
         .inherit_stdio()
         .inherit_env()
         .args(&args)
-        .preopened_dir(&repo_root, ".", DirPerms::all(), FilePerms::all())?
-        .preopened_dir("/", "/", DirPerms::all(), FilePerms::all())?
+        .preopened_dir(&repo_root, ".", FsPerms::ReadWrite)?
+        .preopened_dir("/", "/", FsPerms::ReadWrite)?
         .build_p1();
     let mut store = Store::new(&engine, HostState { wasi });
     reserve_gc_heap(&engine, &mut store)?;
@@ -1006,9 +1005,9 @@ fn run_single_test(
         .stderr(stderr_pipe.clone())
         .inherit_env()
         .args(&[test_file.to_string_lossy().to_string()])
-        .preopened_dir(&repo_root, ".", DirPerms::all(), FilePerms::all())?
-        .preopened_dir(&stdlib_dir, "/stdlib", DirPerms::all(), FilePerms::all())?
-        .preopened_dir(&tmp_host_dir, "/tmp", DirPerms::all(), FilePerms::all())?
+        .preopened_dir(&repo_root, ".", FsPerms::ReadWrite)?
+        .preopened_dir(&stdlib_dir, "/stdlib", FsPerms::ReadWrite)?
+        .preopened_dir(&tmp_host_dir, "/tmp", FsPerms::ReadWrite)?
         .build_p1();
 
     let mut store = Store::new(engine, HostState { wasi });
