@@ -1,7 +1,10 @@
 // The Map interface and the entry it yields. The hash tables that implement
 // it live in hash-map.zena.
 
-import { Option, Iterable, Iterator } from 'zena:core';
+import { Option, Iterable, Iterator, Hashable } from 'zena:core';
+// The classes the constructors below build. hash-map.zena imports this
+// module back; classes and interfaces may cross an import cycle.
+import { HashMap, OrderedMap } from './hash-map.zena';
 
 /**
  * The link from one entry to the next in its bucket.
@@ -45,6 +48,20 @@ export class MapEntry<K, V> {
  * cannot change: primitives, Strings, enums, and case classes over those.
  */
 export interface Map<K, V> extends Iterable<MapEntry<K, V>> {
+  // The interface asks nothing of K; a hash table needs it Hashable, so
+  // these constructors restate the parameters with that bound, checked
+  // at each `new Map<K, V>()`.
+
+  /** An empty HashMap, with room for `capacity` entries before it grows. */
+  new<K extends Hashable, V>(capacity: i32 = 16) {
+    return new HashMap<K, V>(capacity);
+  }
+
+  /** An empty OrderedHashMap: iteration follows insertion order. */
+  new ordered<K extends Hashable, V>(capacity: i32 = 16) {
+    return new OrderedMap<K, V>(capacity);
+  }
+
   /** How many entries the map holds. */
   size: i32 { get; }
 

@@ -30,6 +30,20 @@ let scores = new HashMap<String, i32>();
 let ordered = new OrderedHashMap<String, i32>();
 ```
 
+The `Map` interface has constructors of its own, so code that does not
+care which implementation it gets can say `new Map()`. `new Map()` builds a
+`HashMap` and `new Map.ordered()` an `OrderedHashMap`; both take an optional
+initial capacity. The type arguments can be written at the call or come
+from the context:
+
+```zena
+let scores = new Map<String, i32>();
+let ordered: Map<String, i32> = new Map.ordered();
+```
+
+Keys of a map built this way must implement `Hashable` (see below), as
+`HashMap`'s keys must.
+
 ### Map literals
 
 Map literals construct a `HashMap<K, V>` using braces with the `=>` separator:
@@ -352,6 +366,17 @@ import { HashSet, OrderedHashSet } from 'zena:collections';
 
 let ids = new HashSet<i32>();
 let sequence = new OrderedHashSet<String>();
+```
+
+As with maps, the `Set` interface's own constructors build the standard
+implementations: `new Set()` is a `HashSet` and `new Set.ordered()` an
+`OrderedHashSet`.
+
+```zena
+import { Set } from 'zena:collections';
+
+let ids = new Set<i32>();
+let sequence: Set<String> = new Set.ordered();
 ```
 
 ### Set operations

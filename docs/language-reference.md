@@ -3008,10 +3008,10 @@ let a: Shape = new Shape();        // a Circle, typed as Shape
 let b = new Shape.square(3);       // a Square, typed as Shape
 ```
 
-The standard library's collection interfaces are getting constructors this
-way: `new Map()` will build a `HashMap`, `new Map.ordered()` an
-`OrderedHashMap`, `new Set()` a `HashSet`, `new Array()` a `GrowableArray`,
-and `new Array.fixed(n, value)` a `FixedArray`.
+The standard library uses this for its collection interfaces: `new Map()`
+builds a `HashMap`, `new Map.ordered()` an `OrderedHashMap`, `new Set()` a
+`HashSet`, `new Array()` a `GrowableArray`, and `new Array.fixed(n, value)`
+a `FixedArray`.
 
 A generic interface's constructors see its type parameters. The type
 arguments are written at the call, or inferred from the constructor's own

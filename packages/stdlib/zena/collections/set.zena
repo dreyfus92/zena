@@ -2,9 +2,26 @@
 //
 // `zena:collections` is a prelude entry, so every module it re-exports is
 // denied the prelude. These names are spelled out for that reason.
-import { Iterable } from 'zena:core';
+import { Iterable, Hashable } from 'zena:core';
+// The classes the constructors below build. hash-set.zena imports this
+// module back; classes and interfaces may cross an import cycle.
+import { HashSet, OrderedHashSet } from './hash-set.zena';
 
 export interface Set<T> extends Iterable<T> {
+  // The interface asks nothing of T; a hash table needs it Hashable, so
+  // these constructors restate the parameter with that bound, checked
+  // at each `new Set<T>()`.
+
+  /** An empty HashSet, with room for `capacity` values before it grows. */
+  new<T extends Hashable>(capacity: i32 = 16) {
+    return new HashSet<T>(capacity);
+  }
+
+  /** An empty OrderedHashSet: iteration follows insertion order. */
+  new ordered<T extends Hashable>(capacity: i32 = 16) {
+    return new OrderedHashSet<T>(capacity);
+  }
+
   size: i32 { get; }
 
   /**

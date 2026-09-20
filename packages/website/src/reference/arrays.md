@@ -259,6 +259,18 @@ let cloned = GrowableArray.from([1, 2, 3]);
 let ready = growable([10, 20, 30]);
 ```
 
+The `Array` interface's own constructors build the standard classes, so
+`new Array()` reads like other languages while the result keeps the class's
+full API: `new Array()` and `new Array.growable(capacity)` return a
+`GrowableArray<T>`, and `new Array.fixed(length, value)` a `FixedArray<T>`.
+
+```zena
+let list = new Array<String>();        // GrowableArray<String>
+list.push('a');
+let zeros = new Array.fixed(4, 0);     // FixedArray<i32>, T inferred from the value
+let names: Array<String> = new Array(); // T from the context
+```
+
 ### Resizing operations
 
 - `list.push(value)`: Appends an element to the end of the array. When the

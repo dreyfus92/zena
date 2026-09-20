@@ -1,6 +1,33 @@
 import { Iterable } from './iterator.zena';
+import { GrowableArray } from './growable-array.zena';
+import { FixedArray } from './fixed-array.zena';
 
+/**
+ * A sequence with a length and indexed reads.
+ *
+ * This is the read-only view; `MutableArray` adds indexed writes. The
+ * constructors build the standard implementations — `new Array()` is a
+ * GrowableArray and `new Array.fixed(n, value)` a FixedArray — and are
+ * typed as those classes, so the result has the class's full API.
+ * (The modules declaring those classes import this one back; classes and
+ * interfaces may cross an import cycle.)
+ */
 export interface Array<T> extends Iterable<T> {
+  /** An empty growable array, with room for `capacity` items before it grows. */
+  new(capacity: i32 = 8): GrowableArray<T> {
+    return new GrowableArray<T>(capacity);
+  }
+
+  /** The same as `new Array()`, named for symmetry with `fixed`. */
+  new growable(capacity: i32 = 8): GrowableArray<T> {
+    return new GrowableArray<T>(capacity);
+  }
+
+  /** A fixed-length array of `length` copies of `value`. */
+  new fixed(length: i32, value: T): FixedArray<T> {
+    return new FixedArray<T>(length, value);
+  }
+
   length: i32 { get; }
   operator [](index: i32): T;
   map<U>(f: (item: T, index: i32, seq: this) => U): Array<U>;
