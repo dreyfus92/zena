@@ -921,12 +921,13 @@ Gating methods per instantiation ("`get` exists when `T` is
 unrestricted") is exactly the member-level `where` clause equality.md
 D4 already calls for, so the collections audit waits on it.
 
-The operator and the container shapes are implemented, and a static
-async method may declare a scoped or `ScopedFrom` return. Annotating
-the stdlib `allSettled` waits on the reseed that carries the operator,
-because the checked-in bootstrap compiles `zena:async` with its own
-checker — stdlib code may use a new checker rule only after a reseed
-carries it, the same two-step that governs new syntax.
+All of it is implemented: the operator, the container shapes, scoped
+and `ScopedFrom` returns on static async methods, and the stdlib
+`Future.allSettled<scoped T>` itself. The stdlib half landed one reseed
+after the checker half, because the checked-in bootstrap compiles
+`zena:async` with its own checker — stdlib code may use a new checker
+rule only after a reseed carries it, the same two-step that governs
+new syntax.
 
 #### Value types, containers, and slot references
 
@@ -1795,11 +1796,12 @@ relaxations (§"What the annotation allows"), the bare-parameter
 rejection, the modifier with its body discipline, the scoped iterator
 adapters, and the container shapes of §"Scoped containers and extent
 nesting" — `Array<T>` signatures, call-site literals, and the
-`Awaited` rules, and the `ScopedFrom` operator. What remains is
-annotating the stdlib `allSettled` with it, which waits on the next
-reseed (§"Combinator audit"), and in-body container CREATION (`new
+`Awaited` rules, the `ScopedFrom` operator, and `Future.allSettled`
+over scoped inputs. What remains is in-body container CREATION (`new
 GrowableArray<T>()` under a `scoped T`), which stays rejected until
-containers get a consumption story.
+containers get a consumption story, and `all`/`race`/`any` over scoped
+inputs, which wait on drop-triggered cancellation (§"Dropped scoped
+futures").
 The `dropped` state is set at the top of
 every consuming dispose — written or synthesized — so every release
 route marks it and a bad `adopt` reports "dropped" rather than blaming

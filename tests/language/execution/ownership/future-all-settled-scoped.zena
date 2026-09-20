@@ -1,0 +1,47 @@
+// @mode: run
+// @result: 169
+// Future.allSettled over scoped inputs: the standard library's
+// combinator takes a literal of scoped futures (a first-class one
+// coercing in), awaits every input — a failing one in the middle does
+// not abandon the one after it — and returns a scoped result the caller
+// awaits inside the owner's scope. Over ordinary futures the same
+// signature returns an ordinary, storable future.
+import {Own, Borrow, Scoped, Disposable, Outcome, Ok} from 'zena:core';
+
+resource class Res {
+  #n: i32;
+  new(n: i32) : #n = n;
+  size(): i32 { return this.#n; }
+  [Disposable.dispose](this: Own<this>): void {}
+}
+
+let tick = async (): Future<i32> => {
+  return 1;
+};
+
+let boom = async (): Future<i32> => {
+  throw new Error('boom');
+};
+
+let read = async (r: Borrow<Res>): Scoped<Future<i32>> => {
+  let x = await tick();
+  return r.size() + x;
+};
+
+export let main = async (): Future<i32> => {
+  let owner = new Res(30);
+  let outcomes = await Future.allSettled([read(owner), boom(), read(owner)]);
+  var sum = 0;
+  for (let o in outcomes) {
+    if (o is Ok<i32, Error>) {
+      let ok = o as Ok<i32, Error>;
+      sum += ok.value;
+    } else {
+      sum += 100;
+    }
+  }
+  let plain: Future<Array<Outcome<i32, Error>>> = Future.allSettled([tick(), tick()]);
+  let vals = await plain;
+  // 31 + 100 + 31 = 162, plus 2 outcomes, plus 5.
+  return sum + vals.length + 5;
+};

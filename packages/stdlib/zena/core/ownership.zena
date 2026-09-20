@@ -180,6 +180,21 @@ export opaque type Unmanaged<T> = T;
 export opaque type Scoped<T> = T;
 
 /**
+ * `Scoped<R>` when `T` carries a second-class type — a scoped value, a
+ * restricted borrow, or a `scoped` type parameter — and `R` otherwise
+ * (ownership.md §"Combinator audit", docs/design/type-operators.md).
+ * For a generic whose result must be scoped exactly when an input is:
+ * `Future.allSettled<scoped T>` returns
+ * `ScopedFrom<T, Future<Array<Outcome<Awaited<T>, Error>>>>`, so a
+ * call over scoped futures yields a scoped result the caller must
+ * consume, and a call over ordinary futures yields the ordinary future
+ * it always did. Inside the generic body the operator reads as
+ * `Scoped<R>`; substitution collapses it once `T` is known.
+ */
+@intrinsic('type.scopedFrom')
+export declare type ScopedFrom<T, R>;
+
+/**
  * A resource's position in its lifecycle, held in `Resource`'s private
  * `#state`. See ownership.md §"Disowning and adopting".
  *

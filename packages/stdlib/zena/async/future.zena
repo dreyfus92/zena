@@ -19,7 +19,7 @@
  * and allocates nothing at all when a future settles.
  */
 
-import { Error, i32ToString, GrowableArray, Box, Outcome, Ok, Err } from 'zena:core';
+import { Error, i32ToString, GrowableArray, Box, Outcome, Ok, Err, ScopedFrom } from 'zena:core';
 import { Waiter, scheduleTask, drainMicrotasks } from './executor.zena';
 
 /**
@@ -474,6 +474,14 @@ export class Future<T> {
    * (`all` and `race` answer BEFORE some inputs settle, so they need
    * concurrent observation and stay subscription-shaped.)
    *
+   * `T` is `scoped`, so the inputs may be scoped futures — a literal at
+   * the call site, ownership.md §"Scoped containers and extent
+   * nesting" — as well as ordinary ones, and this is the one
+   * combinator that may take them: every input is awaited before the
+   * result settles, so none is left running with its borrow. The
+   * result is scoped exactly when an input is (`ScopedFrom`); over
+   * ordinary futures it is the ordinary future it always was.
+   *
    * Cancellation is not an outcome (no `Err` is minted for it, and
    * `Outcome` has no third arm): `catch` cannot observe the
    * cancellation channel, so awaiting a cancelled input unwinds this
@@ -481,14 +489,14 @@ export class Future<T> {
    * downstream of cancelled work is inside the blast radius
    * (docs/design/cancellation.md).
    */
-  static async allSettled<A>(
-      futures: Array<Future<A>>): Future<Array<Outcome<A, Error>>> {
-    let out = new GrowableArray<Outcome<A, Error>>();
+  static async allSettled<scoped T>(
+      futures: Array<T>): ScopedFrom<T, Future<Array<Outcome<Awaited<T>, Error>>>> {
+    let out = new GrowableArray<Outcome<Awaited<T>, Error>>();
     for (let f in futures) {
       try {
-        out.push(new Ok<A, Error>(await f));
+        out.push(new Ok<Awaited<T>, Error>(await f));
       } catch (e) {
-        out.push(new Err<A, Error>(e));
+        out.push(new Err<Awaited<T>, Error>(e));
       }
     }
     return out;

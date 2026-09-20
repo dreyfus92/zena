@@ -31,7 +31,7 @@ export let tests = suite('Future combinators', (): void => {
     inputs.push(a.future);
     inputs.push(b.future);
     inputs.push(c.future);
-    let all = Future.allSettled<i32>(inputs);
+    let all = Future.allSettled<Future<i32>>(inputs);
     // Settle out of order, failure in the middle.
     c.complete(3);
     b.fail(new Error('mid'));
@@ -40,7 +40,7 @@ export let tests = suite('Future combinators', (): void => {
   });
 
   test('allSettled of nothing is an empty array', (ctx: TestContext): void => {
-    let all = Future.allSettled<i32>(new GrowableArray<Future<i32>>());
+    let all = Future.allSettled<Future<i32>>(new GrowableArray<Future<i32>>());
     equal(runFuture(all).length, 0);
   });
 
@@ -50,7 +50,7 @@ export let tests = suite('Future combinators', (): void => {
     let inputs = new GrowableArray<Future<i32>>();
     inputs.push(a.future);
     inputs.push(b.future);
-    let all = Future.allSettled<i32>(inputs);
+    let all = Future.allSettled<Future<i32>>(inputs);
     a.fail(new Error('x'));
     drainMicrotasks();
     isFalse(all.isCompleted);
@@ -64,7 +64,7 @@ export let tests = suite('Future combinators', (): void => {
     let inputs = new GrowableArray<Future<void>>();
     inputs.push(a.future);
     inputs.push(b.future);
-    let all = Future.allSettled<void>(inputs);
+    let all = Future.allSettled<Future<void>>(inputs);
     a.complete();
     b.fail(new Error('v'));
     let outcomes = runFuture(all);
