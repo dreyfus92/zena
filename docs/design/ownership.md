@@ -1430,8 +1430,37 @@ is an error outright, because the release glue is decided once for the
 whole method. The glue then skips every moved-out field — which is also
 how a dispose takes control of release order: move the fields into
 locals in the order wanted, and their scope-exit releases replace the
-glue's. A `var` affine field remains rejected; overwriting one would
-need to release the previous value first, which is still open.
+glue's.
+
+**A `var` affine field takes a store as a move, and the store releases
+what it replaces.** The target of `this.current = next` is the field's
+declared `Own<R>` (or `Own<R> | null`), not the borrow a read of it
+yields: `next` is moved into the field and dead afterwards, and a
+borrow on the right-hand side is a type error. Before the new value
+lands, the store disposes the old one (a null in a nullable field
+releases nothing), so at any moment the field holds exactly one live
+owner and the release glue at dispose only ever sees the current
+value. A store into a field already moved out in a consuming method is
+refused as a use after move, since the release the store would run has
+no live value to run on; letting a store revive a moved-out field is a
+possible extension. `??=` on an owner field is refused too — the
+conditional move it would perform is easier to reason about written as
+an `if`.
+
+**The receiver of the store must be an owner.** The store releases the
+old value, and a borrow of that value may be alive somewhere the store
+cannot see: a caller that handed out a borrow of the holder, or another
+argument of the same call. Through a borrow of the holder nothing rules
+that out, so `h.current = next` needs `h: Own<Holder>`, and inside a
+method it needs `this: Own<this>` — a method that stores consumes the
+receiver and, if the caller keeps using the holder, hands it back
+(`replace(this: Own<this>, next: Own<R>): Own<Holder>`). An owner
+receiver is exclusive: a caller that moved the holder in holds no
+borrow of it, and the borrows of a local owner are in the checker's
+view. The cost is that a long-lived holder whose field turns over is
+rebound at each store (`let h2 = h.replace(x)`; a `var` owner is not
+implicitly dropped, so `h = h.replace(x)` leaks). Relaxing to borrowed
+receivers is open.
 
 **Release is glue after `[Disposable.dispose]`, and the dispose itself may
 be implicit.** A class whose only release action is its fields writes no

@@ -54,9 +54,10 @@ class Plain {
   new(this.entry);
 }
 
-// The field is immutable: overwriting would need to release first.
+// A `var` owner field is allowed: a store releases the previous value
+// (var-owner-field.zena has the store rules).
 resource class Mut {
-  var entry: Own<File>; // @error: immutable
+  var entry: Own<File>;
   new(this.entry);
   [Disposable.dispose](this: Own<this>): void {}
 }

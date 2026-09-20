@@ -4723,6 +4723,39 @@ final class ScopedConsumeCandidate {
 }
 
 /**
+ * The declared type of the owner field `lm` names, when it is one — an
+ * affine field of a resource class (ownership.md §Affine fields) — or
+ * null. A store into such a field is a move into the field's `Own<R>`,
+ * so the assignment's sink is this declared type rather than the
+ * borrow a read of the field yields.
+ */
+let affineOwnerFieldType = (ctx: CheckerContext, lm: MemberExpression): Type | null => {
+  let objT = ctx.model.getNodeType(lm.object);
+  if (objT == null) { return null; }
+  // The receiver reaches here as it is typed at the access: usually
+  // behind an ownership handle (`this` is `Borrow<C>` or `Own<C>`),
+  // sometimes nullable under an optional chain.
+  var recvT: Type = objT;
+  var peeled = ownershipHandleInner(recvT);
+  if (peeled != null) { recvT = peeled; }
+  let nonNull = unwrapNullableForMemberLookup(recvT);
+  if (nonNull == null) { return null; }
+  recvT = nonNull;
+  peeled = ownershipHandleInner(recvT);
+  if (peeled != null) { recvT = peeled; }
+  if (!(recvT is ClassType)) { return null; }
+  let ct = recvT as ClassType;
+  if (!ct.isResource) { return null; }
+  let propName = getMemberPropertyName(lm.isSymbolAccess, lm.property.name);
+  if (!ct.members.has(propName)) { return null; }
+  let m = ct.members[propName];
+  if (!(m is FieldInfo)) { return null; }
+  let fi = m as FieldInfo;
+  if (!typeCarriesOwner(fi.type)) { return null; }
+  return fi.type;
+};
+
+/**
  * The resource classes an `Own` inner type names: one for a lone
  * resource class, all members for a union of them, null when anything
  * else appears (a non-resource member has no release obligation, so
@@ -10936,6 +10969,17 @@ let checkExpressionInner = (ctx: CheckerContext, expr: Expression, expectedType:
     // Null-coalescing assignment: x ??= value
     // Result type is the non-null part of left's type.
     // Narrows the binding to non-null afterward.
+    if (operator != null && operator == "??" && left is MemberExpression) {
+      if (affineOwnerFieldType(ctx, left) != null) {
+        ctx.error(
+          "'??=' on an owner field is not supported: write the store as " +
+          "an 'if' so the move of the right-hand side is unconditional.",
+          DiagnosticCode.InvalidAssignment,
+          loc
+        );
+        return new ErrorType();
+      }
+    }
     if (operator != null && operator == "??") {
       let leftType = checkExpression(ctx, left, null);
 
@@ -11012,6 +11056,57 @@ let checkExpressionInner = (ctx: CheckerContext, expr: Expression, expectedType:
           let bindingType = ctx.model.getBindingType(info);
           if (bindingType != null) {
             leftType = bindingType;
+          }
+        }
+      }
+      case MemberExpression as lm: {
+        // A store into an owner field takes ownership: the sink is the
+        // field's declared Own<R>, so the right-hand side is moved and
+        // a borrow is rejected. The store releases the previous value
+        // (lowering), which roots the field's dispose here. In a
+        // consuming method a field already moved out on some path
+        // holds a dead value, and releasing it again would be a double
+        // release; checking the target as a read above already refuses
+        // that store as a use after move, so stores cannot yet revive a
+        // moved-out field.
+        let ownerFieldType = affineOwnerFieldType(ctx, lm);
+        if (ownerFieldType != null) {
+          leftType = ownerFieldType;
+          // The receiver must be an owner. A store releases the old
+          // value, and through a borrow of the holder that value could
+          // still be borrowed elsewhere, by a caller that handed this
+          // borrow out or by another argument of the same call; nothing
+          // here can see those. An owner receiver is exclusive: a
+          // caller that moved the holder in holds no borrow of it, and a
+          // local owner's borrows are in view of the checker
+          // (ownership.md §"Borrow provenance").
+          let recvT = ctx.model.getNodeType(lm.object);
+          let recvCore = if (recvT == null) null
+            else soleNonNullMember(recvT) ?? recvT;
+          if (recvCore == null || ownershipHandleName(recvCore) != "Own") {
+            ctx.error(
+              "A store into an owner field needs an owner for its receiver: " +
+              "through a borrow of the holder, the value the store releases " +
+              "could still be borrowed elsewhere. Store through an 'Own' " +
+              "binding, or in a method taking 'this: Own<this>'.",
+              DiagnosticCode.InvalidAssignment,
+              loc
+            );
+          }
+          let coreT = soleNonNullMember(ownerFieldType) ?? ownerFieldType;
+          let innerT = ownershipHandleInner(coreT);
+          if (innerT != null) {
+            let resources = ownedResourceClasses(innerT);
+            let deps = ctx.currentDependencies();
+            if (resources != null && deps != null) {
+              deps.needsExceptionInfra = true;
+              for (let resource in resources) {
+                let classSymId = (resource.genericSource ?? resource).symbolId;
+                deps.referencedSymbols.add(classSymId);
+                deps.referencedClassMethods.add(
+                  i32ToString(classSymId as i32) + ".:dispose");
+              }
+            }
           }
         }
       }
@@ -13968,15 +14063,6 @@ let checkClassBodies = (ctx: CheckerContext, cd: ClassDeclaration): void => {
           member.loc
         );
         continue;
-      }
-      if (member.mutability != null && member.mutability == "var") {
-        ctx.error(
-          "An owner field is immutable: overwriting one would need to " +
-          "release the previous value first, which is not implemented " +
-          "yet. Declare '" + fName + "' without 'var'.",
-          DiagnosticCode.IncompatibleTypes,
-          member.loc
-        );
       }
       ownAffineFields += 1;
       // The release glue is synthesized by lowering, so nothing in the

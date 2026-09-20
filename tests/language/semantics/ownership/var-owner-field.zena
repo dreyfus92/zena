@@ -1,0 +1,73 @@
+// @mode: check
+// `var` owner fields (ownership.md §Affine fields): declared on a
+// resource class, a store moves the right-hand side into the field
+// and releases the previous value. The receiver of the store must be
+// an owner; a borrow cannot be stored; a store after moving the field
+// out in a consuming method is refused; and a plain class still may
+// not hold one.
+import {Own, Borrow, Disposable} from 'zena:core';
+
+resource class Res {
+  new();
+  [Disposable.dispose](this: Own<this>): void {}
+}
+
+resource class Holder {
+  var current: Own<Res>;
+  new(this.current);
+
+  // The store moves the argument: it is dead afterwards.
+  replace(this: Own<this>, next: Own<Res>): Own<Holder> {
+    this.current = next;
+    let again = next; // @error: may have been moved
+    return this;
+  }
+
+  // Through a borrowed receiver the value the store releases could
+  // still be borrowed elsewhere, so the store needs the owner.
+  swap(next: Own<Res>): void {
+    this.current = next; // @error: needs an owner for its receiver
+  }
+
+  // A borrow is not an owner, so it cannot be stored.
+  lend(this: Own<this>, b: Borrow<Res>): Own<Holder> {
+    this.current = b; // @error: not assignable
+    return this;
+  }
+
+  // Once moved out, the field holds nothing to release.
+  take(this: Own<this>): Own<Res> {
+    let out = this.current;
+    this.current = new Res(); // @error: may have been moved out
+    return out;
+  }
+
+  [Disposable.dispose](this: Own<this>): void {}
+}
+
+resource class Maybe {
+  var slot: Own<Res> | null;
+  new(this.slot);
+  // Conditional stores on a nullable field are written out as an `if`.
+  fill(this: Own<this>, r: Own<Res>): Own<Maybe> {
+    this.slot ??= r; // @error: not supported
+    return this;
+  }
+  [Disposable.dispose](this: Own<this>): void {}
+}
+
+class Plain {
+  var current: Own<Res>; // @error: only a resource class
+  new(this.current);
+}
+
+// From outside, a store goes through an owner binding of the holder.
+let fromOwner = (h: Own<Holder>, r: Own<Res>): i32 => {
+  h.current = r;
+  return 1;
+};
+
+let fromBorrow = (h: Borrow<Holder>, r: Own<Res>): i32 => {
+  h.current = r; // @error: needs an owner for its receiver
+  return 1;
+};

@@ -1,0 +1,58 @@
+// @mode: run
+// @result: 12943
+// A `var` owner field: a store releases the value it replaces before
+// the new one lands, a store of null into a nullable owner field
+// releases too, and disposing the holder releases only the current
+// value. Events are decimal digits, so the order is observable:
+// 1 (replaced), 2 (nulled), 9 (dispose body), 4 then 3 (field glue).
+import {Own, Disposable} from 'zena:core';
+
+class Log {
+  var seq: i32 = 0;
+  add(d: i32): void {
+    this.seq = this.seq * 10 + d;
+  }
+}
+
+resource class Res {
+  #log: Log;
+  id: i32;
+  new(log: Log, this.id) : #log = log;
+  [Disposable.dispose](this: Own<this>): void {
+    this.#log.add(this.id);
+  }
+}
+
+resource class Holder {
+  #log: Log;
+  var current: Own<Res>;
+  var spare: Own<Res> | null;
+  new(log: Log, this.current, this.spare) : #log = log;
+  // A store needs the owner, so a method that stores consumes the
+  // receiver and hands it back.
+  replace(this: Own<this>, next: Own<Res>): Own<Holder> {
+    this.current = next;
+    return this;
+  }
+  [Disposable.dispose](this: Own<this>): void {
+    this.#log.add(9);
+  }
+}
+
+export let main = (): i32 => {
+  let log = new Log();
+  if (true) {
+    let h0 = new Holder(log, new Res(log, 1), new Res(log, 2));
+    // Replacing current releases 1 before 3 is stored. The consuming
+    // method hands the holder back under a new owner binding (a `var`
+    // owner is not implicitly dropped).
+    let h = h0.replace(new Res(log, 3));
+    // Storing null through the owner releases the spare (2); storing
+    // into null releases nothing.
+    h.spare = null;
+    h.spare = new Res(log, 4);
+  }
+  // Disposal: the body logs 9, then the fields release in reverse
+  // declaration order — spare (4) then current (3).
+  return log.seq;
+};

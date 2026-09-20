@@ -220,9 +220,12 @@ resource class Connection {
   moving on only some paths is an error. Moving fields into locals is also
   how a dispose controls release order: the locals' scope-exit releases
   replace the automatic ones.
-- Owner fields are immutable (`var` owner fields are rejected), and records
-  and tuples cannot hold owners: structural values copy when they adapt,
-  and a copy would duplicate the obligation.
+- A store into a `var` owner field moves the new value in and releases
+  the value it replaces, so the field holds one live owner at a time.
+  The store goes through an owner of the holder (an `Own` binding, or
+  `this` in a method taking `this: Own<this>`), never through a borrow.
+  Records and tuples cannot hold owners: structural values copy when
+  they adapt, and a copy would duplicate the obligation.
 
 ### Affine type semantics
 

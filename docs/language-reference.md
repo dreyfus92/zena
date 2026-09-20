@@ -4691,13 +4691,22 @@ resource class LoggedDir {
 }   // dispose runs, then entry releases
 ```
 
-The rules: the class must be a `resource class`; the field is immutable
-(`var` owner fields are rejected); reading the field yields a `Borrow`
-— `d.entry` is a `Borrow<File>`, never a second owner — and a nullable
-owner field (`Own<File> | null`) reads as a nullable borrow and is
-skipped by the release when null. Owner fields release in reverse
-declaration order after the dispose body, so disposal is transitive
-through whole ownership trees without forwarding code.
+The rules: the class must be a `resource class`; reading the field
+yields a `Borrow` — `d.entry` is a `Borrow<File>`, never a second owner
+— and a nullable owner field (`Own<File> | null`) reads as a nullable
+borrow and is skipped by the release when null. Owner fields release in
+reverse declaration order after the dispose body, so disposal is
+transitive through whole ownership trees without forwarding code.
+
+A `var` owner field takes a store as a move: `this.entry = next` moves
+`next` into the field (a `Borrow` cannot be stored, and `next` is dead
+afterwards) and first releases the value the field held, so the field
+holds one live owner at a time. Storing `null` into a nullable owner
+field releases the old value too. The receiver of the store must be an
+owner — an `Own<Dir>` binding, or `this` in a method declaring
+`this: Own<this>` — because through a borrow of the holder the value
+being released could still be borrowed elsewhere. `??=` on an owner
+field is not supported; write the conditional store as an `if`.
 
 Inside a consuming method (one declaring `this: Own<this>` —
 `[Disposable.dispose]`

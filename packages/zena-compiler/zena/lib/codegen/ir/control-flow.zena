@@ -1483,7 +1483,7 @@ export let lowerTryExpression = (cx: LoweringContext, expr: TryExpression): i32 
  * `Descriptor`'s member; the checker has already established that the
  * members exist, and that a `Borrow<R>` never reaches here.
  */
-let disposeOwnerClasses = (cx: LoweringContext, t: Type): Array<ClassType> => {
+export let disposeOwnerClasses = (cx: LoweringContext, t: Type): Array<ClassType> => {
   // Peel the handle the way the checker did when it found the `:dispose`.
   // Neither `baseType` nor `unwrapAliases` gets here: the handles are
   // *generic* aliases, so `Own<T> = T` has the bare type parameter as its
@@ -1611,7 +1611,7 @@ let emitDisposeDispatch = (cx: LoweringContext, value: i32, owners: Array<ClassT
  * nullable binding holds nothing when it holds null, and the dispose is
  * skipped rather than trapped — the same rule TC39 `using` adopted.
  */
-let emitMaybeDispose = (cx: LoweringContext, value: i32, owners: Array<ClassType>): void => {
+export let emitMaybeDispose = (cx: LoweringContext, value: i32, owners: Array<ClassType>): void => {
   let vt = cx.valueTypeOf(value);
   if (!isRefValType(vt)) {
     bail(cx, 'dispose operand kind');

@@ -18,6 +18,7 @@ import {
 } from '../../ast.zena';
 import {
   Type, VoidType, NeverType, ClassType, InterfaceType, FunctionType, FieldInfo, MethodInfo, ArrayType, InlineTupleType, TupleType, RecordType, TypeParameterType, UnionType, baseType, isVoidOrNeverType, isRefType, AnyRefType, EqRefType, arrayElementType, isSignedNarrowIntType, typeToString,
+  ownershipHandleName, soleNonNullMember,
 } from '../../types.zena';
 import {
   RecordAdaptation, FunctionAdaptation,
@@ -71,7 +72,7 @@ import {
   breakThroughFinally, continueThroughFinally, returnThroughFinally,
   returnMultiThroughFinally,
   collectAffineDropFields, emitMarkDropped, lowerFieldDropRegions,
-  lowerSyntheticDispose,
+  lowerSyntheticDispose, disposeOwnerClasses, emitMaybeDispose,
   lowerLetCondition, lowerMatch, lowerParamDropRegions,
   lowerScopeDropRegion, lowerTryExpression,
   lowerShieldedRegion, lowerUsingRegion, lowerValueNode, lowerWhile,
@@ -4842,6 +4843,24 @@ export final class FunctionLowerer {
     // (lowerAs passes same-target values through raw).
     value = this.#conformToSlot(value, fieldVt, 'member write type');
     let fieldRef = this.b.addRef(new IrRefField(target.owner, fieldName));
+    // A store into an owner field releases the value it replaces
+    // (ownership.md §Affine fields): the new value is computed first,
+    // so a throwing right-hand side leaves the field intact, then the
+    // old value is read and disposed — null-guarded for a nullable
+    // field — and the store lands. The checker rooted the dispose.
+    if (assign.operator == null && receiverCt.isResource &&
+        receiverCt.members.has(propName)) {
+      let fieldMember = receiverCt.members[propName];
+      if (fieldMember is FieldInfo) {
+        let fieldT = fieldMember.type;
+        let coreT = soleNonNullMember(fieldT) ?? fieldT;
+        if (ownershipHandleName(coreT) == "Own") {
+          let old = this.b.emit(IrOp.struct_get, fieldVt, receiver, fieldRef);
+          let owners = disposeOwnerClasses(this.#cx(), fieldT);
+          emitMaybeDispose(this.#cx(), old, owners);
+        }
+      }
+    }
     let pairIdx = this.b.pushExtra(this.#twoValues(receiver, value));
     this.b.emitVoid(IrOp.struct_set, pairIdx, fieldRef);
     return value;
