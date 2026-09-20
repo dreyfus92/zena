@@ -639,6 +639,20 @@ final class CheckerContext {
   var #inInterface = false;
 
   /**
+   * What a written `this` type annotation means at the current
+   * position, or null when it means the polymorphic `this` itself.
+   *
+   * In a signature `this` stays polymorphic: it is what makes a
+   * subclass's `clone()` return the subclass. Inside a body there is
+   * nothing left to be polymorphic about — the receiver is the class
+   * being checked — so the method's declared `this` return already
+   * substitutes to the self type (issue #434), and a `this` written
+   * in the body has to mean the same thing or the two disagree and a
+   * cast like `return value as this` cannot type-check.
+   */
+  var #bodyThisType: Type | null = null;
+
+  /**
    * Whether the method being checked declared `this: Own<this>`, which makes
    * `this` in its body the owner rather than a borrow.
    */
@@ -2097,6 +2111,14 @@ final class CheckerContext {
   owningReceiver: boolean { get { return this.#owningReceiver; } }
 
   setOwningReceiver(v: boolean): void { this.#owningReceiver = v; }
+
+  /**
+   * What a written `this` type means here: the self type inside a
+   * class or mixin body, null in a signature.
+   */
+  bodyThisType: Type | null { get { return this.#bodyThisType; } }
+
+  setBodyThisType(t: Type | null): void { this.#bodyThisType = t; }
 
   /** Enter an interface declaration context (for ThisType resolution). */
   enterInterface(): void { this.#inInterface = true; }
@@ -5159,7 +5181,10 @@ let resolveTypeAnnotationInner = (ctx: CheckerContext, ann: TypeAnnotation, allo
     new InlineTupleT(elTypes)
   }
   case ThisTypeAnnotation {loc}: {
-    if (ctx.currentClass != null || ctx.inInterface) {
+    let bound = ctx.bodyThisType;
+    if (bound != null) {
+      bound
+    } else if (ctx.currentClass != null || ctx.inInterface) {
       new ThisType()
     } else {
       ctx.error(
@@ -11193,7 +11218,26 @@ let checkExpressionInner = (ctx: CheckerContext, expr: Expression, expectedType:
     } else {
       // In extension classes, 'this' resolves to the underlying type, not the extension class.
       if (cc.isExtension && cc.onType != null) {
-        cc.onType as Type
+        let onT = cc.onType as Type;
+        var thisType = onT;
+        // The underlying value is what a body wants nearly everywhere,
+        // since the extension type carries no members of its own —
+        // `this.length` inside an extension on String is String's.
+        // But nothing reaches the extension type from that value except
+        // a cast, so where one is what's wanted and the underlying
+        // value will not do — a `this` return, most of all — hand back
+        // the extension type, which the receiver provably is. Asking
+        // for the underlying type first keeps every existing body
+        // reading `this` as the value it always was.
+        if (expectedType != null) {
+          let expected = expectedType;
+          let selfT = selfTypeOfClass(cc);
+          if (!isAssignableTo(ctx, onT, expected) &&
+              isAssignableTo(ctx, selfT, expected)) {
+            thisType = selfT;
+          }
+        }
+        thisType
       } else if (cc.isResource) {
         // A resource's `this` is a borrow: usable for anything a method
         // does to its own receiver, and second-class, so it cannot be
@@ -13543,6 +13587,12 @@ let checkClassBodies = (ctx: CheckerContext, cd: ClassDeclaration): void => {
   }
 
   ctx.enterClass(classType);
+  // Every body below belongs to this class, so a `this` written in
+  // one of them means this class. Saved and restored rather than
+  // cleared, so a class nested inside another class's body gets its
+  // own binding back when it finishes.
+  let prevBodyThis = ctx.bodyThisType;
+  ctx.setBodyThisType(selfTypeOfClass(classType));
 
   // Check method bodies and field initializers.
   // Collect field names in declaration order for forward-reference detection.
@@ -14057,6 +14107,7 @@ let checkClassBodies = (ctx: CheckerContext, cd: ClassDeclaration): void => {
     }
   }
 
+  ctx.setBodyThisType(prevBodyThis);
   ctx.exitClass();
   ctx.exitScope();
 };
@@ -15482,6 +15533,8 @@ let checkMixinDeclaration = (ctx: CheckerContext, md: MixinDeclaration): void =>
 
   // 2. Check bodies
   ctx.enterClass(thisType);
+  let prevBodyThis = ctx.bodyThisType;
+  ctx.setBodyThisType(selfTypeOfClass(thisType));
 
   var bmi = 0;
   while (bmi < md.body.length) {
@@ -15555,6 +15608,7 @@ let checkMixinDeclaration = (ctx: CheckerContext, md: MixinDeclaration): void =>
     bmi += 1;
   }
 
+  ctx.setBodyThisType(prevBodyThis);
   ctx.exitClass();
 
   ctx.exitScope();

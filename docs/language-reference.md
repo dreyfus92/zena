@@ -3462,6 +3462,49 @@ Subclasses can also add new overloads not present in the base class.
 - **Constructor**: Named `new`.
 - **Methods**: Functions defined within the class.
 
+### The `this` Type
+
+`this` is a type as well as a value. A method that declares it returns
+`this` hands the caller back whatever type the receiver had:
+
+```zena
+class Animal {
+  clone(): this { return this; }
+}
+
+class Dog extends Animal {
+  bark(): void {}
+}
+
+let d = new Dog();
+d.clone().bark();  // clone() gave back a Dog, so bark() is in scope
+```
+
+Had `clone()` been declared `(): Animal`, the result would have been an
+`Animal` and `bark()` would not resolve. The same works for parameters:
+`equals(other: this)` on `Animal` takes an `Animal`, and on `Dog` a `Dog`.
+
+Inside a body, `this` as a type means the class being checked — there is
+nothing left to vary, since the body belongs to one class. So a cast
+whose target is `this` is a cast to that class:
+
+```zena
+class Builder {
+  fresh(): this {
+    let b = new Builder();
+    return b as this;  // `this` here is Builder
+  }
+}
+```
+
+The declaration still promises the caller their own type, so a subclass
+inheriting `fresh()` gets the subclass back. A `this` return that does
+not actually hand back the receiver relies on the cast being right, the
+same as any other `as`.
+
+Outside a class, mixin or interface there is no receiver for `this` to
+name, and writing it as a type is an error.
+
 ### Extension Classes
 
 Extension classes allow adding methods to existing types. This is useful for extending built-in types or types from other libraries without modifying their definition.
@@ -3513,6 +3556,28 @@ Rules:
 - `super` takes exactly one argument, assignable to the `on` type.
 - Field initializer lists (`this.x` parameters) are not available — extension
   classes cannot declare instance fields.
+
+In a method body, `this` is the underlying value, so an extension on `String`
+reads `this.length` and hands `this` to anything taking a `String`. The
+extension type carries no members of its own, so that is what a body almost
+always wants. Where the extension type is what is wanted instead — a method
+declared to return `this`, most of all — `this` serves there too:
+
+```zena
+extension class Path on String {
+  new(value: String) : super(value);
+
+  // `this` is a String here, and satisfies the `this` return.
+  same(): this { return this; }
+
+  // A value that is not the receiver needs a cast, as always.
+  withoutLeadingSlash(): this {
+    let s = this as String;
+    let cut = if (s.sliceBytes(0, 1) == '/') s.sliceBytes(1, s.length) else s;
+    return cut as this;
+  }
+}
+```
 
 #### Extending Another Extension Class
 

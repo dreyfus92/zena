@@ -1,0 +1,45 @@
+// @mode: check
+
+// `this` written as a type inside a body means the class being
+// checked. A method's declared `this` return already substitutes to
+// that, so a `this` in the body has to agree or the two cannot meet.
+
+class Box {
+  var n: i32 = 0;
+
+  // A cast whose target is `this`.
+  copy(): this {
+    let fresh = new Box();
+    return fresh as this;
+  }
+
+  // A local annotated `this`.
+  copy2(): this {
+    let b: this = this;
+    return b;
+  }
+
+  // A `this` return declared on an accessor.
+  self: this {
+    get { return this as this; }
+  }
+
+  // `this` as a test target.
+  sameShape(other: Box): boolean {
+    return other is this;
+  }
+}
+
+mixin Cloner {
+  dup(): this { return this as this; }
+}
+
+// The return stays polymorphic for callers: a Crate's copy() is a
+// Crate, so a Crate-only member is in scope on the result.
+class Crate extends Box {
+  label(): String { return 'crate'; }
+}
+
+let c = new Crate();
+let s: String = c.copy().label();
+let t: String = c.self.label();

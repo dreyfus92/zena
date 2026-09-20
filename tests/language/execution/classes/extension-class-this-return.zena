@@ -1,0 +1,59 @@
+// @mode: run
+// @stdout: a/b/c.zena\nzena\nzena\nx/y/z
+
+// A `this` return on an erased path hierarchy. normalize() does not
+// change WHICH kind of path it was handed, so it returns `this`, and
+// the caller keeps the subclass it started with.
+
+extension class Path on String {
+  new(value: String) : super(value);
+
+  text(): String { return this as String; }
+
+  normalize(): this {
+    let s = this as String;
+    var out = '';
+    var i = 0;
+    while (i < s.length) {
+      let c = s.sliceBytes(i, i + 1);
+      let lastWasSlash = out.length > 0 &&
+          out.sliceBytes(out.length - 1, out.length) == '/';
+      if (!(c == '/' && lastWasSlash)) {
+        out = out + c;
+      }
+      i += 1;
+    }
+    // The cast target is `this`: inside the body that is Path, and the
+    // declared return keeps callers at the type they came in with.
+    return out as this;
+  }
+
+  // Handing back the receiver itself also satisfies a `this` return,
+  // even though `this` is the underlying String almost everywhere
+  // else in the body.
+  same(): this { return this; }
+}
+
+extension class FilePath extends Path {
+  new(value: String) : super(value);
+  fileExtension(): String { return 'zena'; }
+}
+
+extension class DirectoryPath extends Path {
+  new(value: String) : super(value);
+  join(segment: String): Path {
+    return ((this as String) + '/' + segment) as Path;
+  }
+}
+
+export let main = () => {
+  let f = new FilePath('a//b//c.zena');
+  console.log(f.normalize().text());
+  // fileExtension() is FilePath's, so this only resolves because
+  // normalize() gave a FilePath back.
+  console.log(f.normalize().fileExtension());
+  console.log(f.same().fileExtension());
+
+  let d = new DirectoryPath('x//y');
+  console.log(d.normalize().join('z').text());
+};
