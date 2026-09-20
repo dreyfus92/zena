@@ -1592,6 +1592,84 @@ let checkFile = (
 };
 
 /**
+ * The strongly connected components of a compilation's import graph
+ * (Tarjan's algorithm), as lists of indexes into the files.
+ *
+ * A component with more than one member is an import cycle. Its members
+ * are the modules whose first check ran before some module they import
+ * from had a model, and so the only ones that need the second checking
+ * pass of docs/design/import-cycles.md. A module outside every cycle
+ * that imports from one is checked once, after that cycle's second
+ * pass: the files are in evaluation (post-)order, so every member of a
+ * cycle precedes every module outside it that imports from it.
+ */
+final class ImportComponents {
+  #files: GrowableArray<SourceFile>;
+  #pathIndex: HashMap<String, i32>;
+  #index = new GrowableArray<i32>();
+  #low = new GrowableArray<i32>();
+  #onStack = new GrowableArray<boolean>();
+  #stack = new GrowableArray<i32>();
+  var #next = 0;
+  components = new GrowableArray<GrowableArray<i32>>();
+
+  new(files: GrowableArray<SourceFile>, pathIndex: HashMap<String, i32>)
+    : #files = files, #pathIndex = pathIndex {
+    var i = 0;
+    while (i < files.length) {
+      this.#index.push(-1);
+      this.#low.push(0);
+      this.#onStack.push(false);
+      i += 1;
+    }
+    i = 0;
+    while (i < files.length) {
+      if (this.#index[i] == -1) {
+        this.#connect(i);
+      }
+      i += 1;
+    }
+  }
+
+  #connect(v: i32): void {
+    this.#index[v] = this.#next;
+    this.#low[v] = this.#next;
+    this.#next += 1;
+    this.#stack.push(v);
+    this.#onStack[v] = true;
+    let file = this.#files[v];
+    let iter = file.imports.keys();
+    while (let (true, spec) = iter.next()) {
+      let depPath = file.imports[spec];
+      if (!this.#pathIndex.has(depPath)) {
+        continue;
+      }
+      let w = this.#pathIndex[depPath];
+      if (this.#index[w] == -1) {
+        this.#connect(w);
+        if (this.#low[w] < this.#low[v]) {
+          this.#low[v] = this.#low[w];
+        }
+      } else if (this.#onStack[w]) {
+        if (this.#index[w] < this.#low[v]) {
+          this.#low[v] = this.#index[w];
+        }
+      }
+    }
+    if (this.#low[v] == this.#index[v]) {
+      let component = new GrowableArray<i32>();
+      var w = -1;
+      while (w != v) {
+        w = this.#stack.pop();
+        this.#onStack[w] = false;
+        component.push(w);
+      }
+      this.components.push(component);
+    }
+  }
+}
+
+/**
  * Type-check all modules in a compilation result in dependency order.
  *
  * Uses export signature comparison for precise incremental invalidation:
@@ -1685,7 +1763,19 @@ export let checkCompilation = (
   // the checker's cycle rules (types and inferred signatures may only
   // cross a back edge when they originate OUTSIDE this set — an
   // origin checked exactly once has stable, unique types).
+  //
+  // The set is the members of the import cycles themselves — the
+  // strongly connected components with more than one module. It used
+  // to also take in every module importing from a re-checked one,
+  // transitively, which made a cycle anywhere in the standard library
+  // re-check the whole program (the prelude reaches everything). Each
+  // cycle's second pass now runs as soon as its last member has had
+  // its first, before any module outside the cycle that imports from
+  // it is checked, so those importers see final models and check once.
   var recheckPaths: HashSet<String> | null = null;
+  // For the index of a cycle's last member in evaluation order: the
+  // cycle's members, in evaluation order.
+  let cyclesEndingAt = new HashMap<i32, GrowableArray<SourceFile>>();
   if (result.hasCycle) {
     let pathIndex = new HashMap<String, i32>();
     var pi = 0;
@@ -1694,29 +1784,37 @@ export let checkCompilation = (
       pi = pi + 1;
     }
     let recheck = new HashSet<String>();
-    var fi2 = 0;
-    while (fi2 < result.files.length) {
-      let file = result.files[fi2];
-      var needs = false;
-      let depIter = file.imports.keys();
-      while (let (true, spec) = depIter.next()) {
-        let depPath = file.imports[spec];
-        if (pathIndex.has(depPath)) {
-          if (pathIndex[depPath] > fi2 || recheck.has(depPath)) {
-            needs = true;
-          }
+    let finder = new ImportComponents(result.files, pathIndex);
+    for (let component in finder.components) {
+      if (component.length < 2) {
+        continue;
+      }
+      var last = -1;
+      let inComponent = new HashSet<i32>();
+      for (let member in component) {
+        inComponent.add(member);
+        if (member > last) {
+          last = member;
         }
       }
-      if (needs) {
-        recheck.add(file.path);
+      let members = new GrowableArray<SourceFile>();
+      var mi = 0;
+      while (mi < result.files.length) {
+        if (inComponent.has(mi)) {
+          members.push(result.files[mi]);
+          recheck.add(result.files[mi].path);
+        }
+        mi += 1;
       }
-      fi2 = fi2 + 1;
+      cyclesEndingAt[last] = members;
     }
     recheckPaths = recheck;
   }
 
   // Check each file in topo order.
+  var fileIndex = -1;
   for (let file in result.files) {
+    fileIndex += 1;
     // Carry forward if source unchanged AND not invalidated by a dependency.
     // Members of the re-check closure never carry forward: their first-pass
     // results are order-dependent by design, and the second pass consults
@@ -1840,23 +1938,22 @@ export let checkCompilation = (
         }
       }
     }
-  }
-  // Second pass, only when the import graph has cycles
-  // (docs/design/import-cycles.md): a module with a back-edge import
-  // could not resolve it on the first pass (the exporting module had
-  // no model yet), and any module importing from a re-checked module
-  // must re-check so it sees the final model. The re-check set is that
-  // closure; everything acyclic and upstream (the stdlib, in
-  // particular) is checked exactly once. First-pass diagnostics of
-  // re-checked files are superseded wholesale by their second result.
-  if (recheckPaths != null) {
-    for (let file in result.files) {
-      if (recheckPaths.has(file.path)) {
-        let second = checkFile(file, allResults, result.files, emitLocations, sharedState, warnUnnecessaryCasts, recheckPaths);
-        allResults[file.path] = second;
-        if (file.scopeResult != null) {
-          let sr = file.scopeResult as ScopeResult;
-          allSignatures[file.path] = computeExportSignature(sr.exports, sr.rootScope, second.model);
+
+    // Second pass over an import cycle, once its last member has had
+    // its first (docs/design/import-cycles.md): a module with a
+    // back-edge import could not resolve it on the first pass, the
+    // exporting module having no model yet. Every member re-checks
+    // against the others' first-pass models; first-pass diagnostics
+    // are superseded wholesale by the second result. Modules outside
+    // the cycle come later in evaluation order and are checked once,
+    // against these final models.
+    if (let (true, members) = cyclesEndingAt.get(fileIndex)) {
+      for (let member in members) {
+        let second = checkFile(member, allResults, result.files, emitLocations, sharedState, warnUnnecessaryCasts, recheckPaths);
+        allResults[member.path] = second;
+        if (member.scopeResult != null) {
+          let sr = member.scopeResult as ScopeResult;
+          allSignatures[member.path] = computeExportSignature(sr.exports, sr.rootScope, second.model);
         }
       }
     }
