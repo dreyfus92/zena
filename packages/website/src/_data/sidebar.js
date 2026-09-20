@@ -619,16 +619,6 @@ const reference = [
         ],
       },
       {
-        text: 'Ranges',
-        link: '/reference/ranges/',
-        outline: [
-          'First-class range objects',
-          'Range syntax and precedence',
-          'Slicing with ranges',
-          'Range iteration',
-        ],
-      },
-      {
         text: 'Enums',
         link: '/reference/enums/',
         outline: [
