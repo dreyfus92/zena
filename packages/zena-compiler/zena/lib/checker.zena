@@ -15450,21 +15450,77 @@ let registerInterfaceConstructor = (
   }
   ownConstructorNames.add(ctorName);
   let ctorType = checkMethodSignature(ctx, null, md);
-  // The result is the interface at its own type parameters unless the
-  // constructor declares a narrower type — `new(): GrowableArray<T>` on
-  // `Array<T>`, so that the caller gets the class's full API. A declared
-  // type must still be an instance of the interface.
-  // (That it is one is checked with the body, in the second phase: a
-  // class declared below the interface has no `implements` list yet.)
-  if (md.returnType == null) {
-    ctorType.returnType = selfTypeOfInterface(ifaceType);
+  // The constructor's type parameters are the interface's own — codegen
+  // mints one copy per type-argument list, the way it does for a
+  // generic function, and finds the parameters those arguments bind
+  // here — unless the constructor restates them with bounds:
+  // `new<K extends Hashable, V>(...)` on `Map<K, V>`, whose body builds
+  // a HashMap and so needs more of K than the interface asks. A
+  // restatement names the interface's parameters, in order; its bounds
+  // are checked at each `new`.
+  if (md.typeParameters != null) {
+    let restated = md.typeParameters as GrowableArray<TypeParameter>;
+    let ifaceParams = ifaceType.typeParameters;
+    var matches = ifaceParams != null && restated.length == (ifaceParams as Array<TypeParameterType>).length;
+    if (matches) {
+      let ips = ifaceParams as Array<TypeParameterType>;
+      var i = 0;
+      while (i < restated.length) {
+        if (restated[i].name != ips[i].name) {
+          matches = false;
+        }
+        i += 1;
+      }
+    }
+    if (!matches) {
+      var expected = "";
+      if (ifaceParams != null) {
+        var first = true;
+        for (let tp in ifaceParams as Array<TypeParameterType>) {
+          if (!first) { expected = expected + ", "; }
+          first = false;
+          expected = expected + tp.name;
+        }
+      }
+      ctx.error(
+        where + " must restate the interface's type parameters, in order: <" +
+          expected + ">.",
+        DiagnosticCode.IncompatibleTypes,
+        md.loc
+      );
+      ctorType.typeParameters = ifaceType.typeParameters;
+    }
+  } else {
+    ctorType.typeParameters = ifaceType.typeParameters;
   }
-  // The interface's parameters are the constructor's own: codegen mints
-  // one copy per type-argument list, the way it does for a generic
-  // function, and finds the parameters those arguments bind here.
-  ctorType.typeParameters = ifaceType.typeParameters;
+  // The result is the interface at the constructor's type parameters
+  // unless the constructor declares a narrower type — `new():
+  // GrowableArray<T>` on `Array<T>`, so that the caller gets the class's
+  // full API. A declared type must still be an instance of the
+  // interface; that is checked with the body, in the second phase,
+  // because a class declared below the interface has no `implements`
+  // list yet.
+  if (md.returnType == null) {
+    ctorType.returnType = constructorSelfType(ifaceType, ctorType);
+  }
   ifaceType.constructors[ctorName] = ctorType;
   ctx.setNodeType(md, ctorType);
+};
+
+/**
+ * The interface at a constructor's type parameters — the interface's
+ * own, or the constructor's restatement of them.
+ */
+let constructorSelfType = (ifaceType: InterfaceType, ctorType: FunctionType): Type => {
+  let params = ctorType.typeParameters;
+  if (params == null || params.length == 0) {
+    return ifaceType as Type;
+  }
+  let args = new GrowableArray<Type>();
+  for (let tp in params) {
+    args.push(tp as Type);
+  }
+  return instantiateInterfaceType(ifaceType, args) as Type;
 };
 
 /**
@@ -15499,7 +15555,7 @@ let checkInterfaceConstructorBodies = (ctx: CheckerContext, id: InterfaceDeclara
       // `implements` list once every declaration in the module is
       // registered.
       if (member.returnType != null) {
-        let selfType = selfTypeOfInterface(ifaceType) as Type;
+        let selfType = constructorSelfType(ifaceType, ctorType);
         if (!isAssignableTo(ctx, ctorType.returnType, selfType)) {
           let shown = if (ctorName == "<constructor>") "new" else "new " + ctorName;
           ctx.error(
@@ -15531,7 +15587,9 @@ let checkInterfaceConstructorBody = (
   md: MethodDefinition
 ): void => {
   ctx.enterScope();
-  let {typeParameters} = ifaceType;
+  // The constructor's own type parameters (a restatement with bounds
+  // shadows the interface's by name, so the body sees the bounds).
+  let {typeParameters} = ctorType;
   if (typeParameters != null) {
     for (let tp in typeParameters) {
       ctx.declareTypeName(tp.name, tp);
@@ -16513,15 +16571,27 @@ let checkNewExpression = (
       if (deps != null) {
         deps.referencedTypes.add(instantiated as Type);
       }
+      // The constructor's signature is written at ITS type parameters:
+      // the interface's, or a restatement with bounds, whose bounds the
+      // type arguments must satisfy.
+      let ctorParams = ctorType.typeParameters;
+      if (ctorParams != null && instantiated.typeArguments != null &&
+          ctorParams != instantiated.typeParameters) {
+        let boundArgs = new GrowableArray<Type>();
+        for (let ta in instantiated.typeArguments as Array<Type>) {
+          boundArgs.push(ta);
+        }
+        applyAndCheckTypeArguments(ctx, ctorParams, boundArgs, loc);
+      }
       checkConstructorArguments(ctx, newExpr, args, callerArgCount, ctorType,
-          instantiated.typeParameters, instantiated.typeArguments, loc);
+          ctorParams, instantiated.typeArguments, loc);
       // The expression's type is the constructor's declared result — the
       // interface itself unless it narrows — at these type arguments.
       // Codegen finds the constructor through the CALLEE, which is typed
       // as the instantiated interface whatever the result narrows to.
       ctx.setNodeType(callee, instantiated as Type);
       return substituteTypeParams(
-          instantiated.typeParameters, instantiated.typeArguments, ctorType.returnType);
+          ctorParams, instantiated.typeArguments, ctorType.returnType);
     }
     case _: {
       ctx.error(

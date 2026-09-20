@@ -3992,14 +3992,21 @@ export final class Parser {
     // declaration.
     if (this.#check(TokenType.New)) {
       this.#advance();
-      let ctorName: Node = if (this.#check(TokenType.LParen)) {
+      let ctorName: Node = if (this.#check(TokenType.LParen) || this.#check(TokenType.Less)) {
         new Identifier('<constructor>', this.#makeLocation(startToken))
       } else if (this.#isIdentifier()) {
         this.#parseIdentifier()
       } else {
         throw this.#error("Expected '(' or a constructor name after 'new' in an interface");
       };
-      return this.#parseMethodBody(ctorName, null, false, false, false, false, false, false, new GrowableArray<Decorator>(0), startToken, true, true);
+      // `new<K extends Hashable, V>(...)`: the constructor restates the
+      // interface's type parameters with the bounds its body needs. The
+      // checker requires the names to be the interface's, in order.
+      var ctorTypeParams: GrowableArray<TypeParameter> | null = null;
+      if (this.#match(TokenType.Less)) {
+        ctorTypeParams = this.#parseTypeParameterList();
+      }
+      return this.#parseMethodBody(ctorName, ctorTypeParams, false, false, false, false, false, false, new GrowableArray<Decorator>(0), startToken, true, true);
     }
 
     // Check for `var` modifier on interface fields

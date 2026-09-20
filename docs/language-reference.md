@@ -3049,6 +3049,26 @@ The rules that follow from "a factory with no class behind it":
   interface.
 - There is no initializer list, no `super(...)` call, no `this.` parameter,
   and no `this` in the body.
+- A constructor may restate the interface's type parameters with tighter
+  bounds, when its body needs more of them than the interface asks. `Map<K,
+  V>` asks nothing of `K`, but the hash table `new Map()` builds needs it to
+  be `Hashable`:
+
+  ```zena
+  interface Map<K, V> extends Iterable<MapEntry<K, V>> {
+    new<K extends Hashable, V>(capacity: i32 = 16) {
+      return new HashMap<K, V>(capacity);
+    }
+    // ...
+  }
+
+  let m = new Map<String, i32>();  // OK: String is Hashable
+  let n = new Map<Opaque, i32>();  // Error: 'Opaque' does not satisfy constraint 'Hashable'
+  ```
+
+  The restatement names the interface's parameters, all of them and in
+  order; the bounds are checked at each `new`, and inside the body the
+  parameters carry them.
 - Constructors are not inherited: `interface MutableArray<T> extends Array<T>`
   does not get `new MutableArray()` from `Array`.
 - Default parameter values work as they do on class constructors.

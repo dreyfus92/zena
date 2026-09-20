@@ -264,6 +264,12 @@ let tests = suite('formatter', () => {
     check('interface constructors', result, input);
   });
 
+  test('formats an interface constructor that restates type parameters', (t: TestContext) => {
+    let input = "interface Table<K, V> {\n  new<K extends Hashable, V>() {\n    return new HashTable<K, V>();\n  }\n  new ordered<K extends Hashable, V>(): HashTable<K, V> {\n    return new HashTable<K, V>();\n  }\n}\n";
+    let result = format(input);
+    check('interface constructors', result, input);
+  });
+
   test('formats enum', (t: TestContext) => {
     let input = "enum Color {\n  Red,\n  Green,\n  Blue\n}\n";
     let result = format(input);

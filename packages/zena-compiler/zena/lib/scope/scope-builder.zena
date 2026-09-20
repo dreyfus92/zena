@@ -1213,8 +1213,12 @@ export final class ScopeBuilder {
         case MethodDefinition as md: {
           // An interface constructor: a function body with parameters,
           // scoped like a class method's. The interface's type
-          // parameters are in the enclosing scope.
+          // parameters are in the enclosing scope; a constructor that
+          // restates them with bounds declares its own.
           this.#enterScope(ScopeKind.Function);
+          if (md.typeParameters != null) {
+            this.#declareTypeParameters(md.typeParameters);
+          }
           for (let param in md.params) {
             this.#declareParameter(param);
             if (param.typeAnnotation != null) {

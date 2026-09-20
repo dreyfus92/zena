@@ -1,0 +1,30 @@
+// @mode: run
+// @result: 3
+
+// A constructor may restate the interface's type parameters with the
+// bounds its body needs: the interface asks nothing of K, the hash table
+// the constructor builds needs it Hashable.
+interface Table<K, V> {
+  new<K extends Hashable, V>() {
+    return new HashTable<K, V>();
+  }
+
+  put(key: K, value: V): void;
+  size(): i32;
+}
+
+class HashTable<K extends Hashable, V> implements Table<K, V> {
+  #map: HashMap<K, V> = new HashMap<K, V>();
+  put(key: K, value: V): void { this.#map[key] = value; }
+  size(): i32 { return this.#map.size; }
+}
+
+export let main = (): i32 => {
+  let t = new Table<String, i32>();
+  t.put("a", 1);
+  t.put("b", 2);
+  t.put("a", 3);
+  let u: Table<i32, i32> = new Table();
+  u.put(1, 1);
+  return t.size() + u.size();
+};

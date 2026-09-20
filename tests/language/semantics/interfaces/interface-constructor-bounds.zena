@@ -1,0 +1,29 @@
+// @mode: check
+
+// A constructor's restatement of the interface's type parameters must
+// name them in order, and its bounds are checked at each `new`.
+
+class Opaque {}
+
+interface Table<K, V> {
+  new<K extends Hashable, V>() {
+    return new HashTable<K, V>();
+  }
+  // @error: Constructor 'new swapped' of interface 'Table' must restate the interface's type parameters, in order: <K, V>.
+  new swapped<V, K extends Hashable>() {
+    return new HashTable<K, V>();
+  }
+  // @error: Constructor 'new partial' of interface 'Table' must restate the interface's type parameters, in order: <K, V>.
+  new partial<K extends Hashable>() {
+    return new HashTable<K, V>();
+  }
+  put(key: K, value: V): void;
+}
+
+class HashTable<K extends Hashable, V> implements Table<K, V> {
+  #map: HashMap<K, V> = new HashMap<K, V>();
+  put(key: K, value: V): void { this.#map[key] = value; }
+}
+
+let ok = new Table<String, i32>();
+let bad = new Table<Opaque, i32>(); // @error: Type 'Opaque' does not satisfy constraint 'Hashable' for type parameter 'K'.

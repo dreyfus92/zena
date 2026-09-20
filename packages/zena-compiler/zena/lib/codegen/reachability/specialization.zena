@@ -2297,8 +2297,10 @@ export final class Specializer implements SpecializerInterface {
     // type parameters (registerInterfaceConstructor); substitute the
     // instantiation's arguments into the signature, as
     // instantiateGenericFunction does for a generic function.
+    // The constructor's own parameters: the interface's, or a restatement
+    // of them with bounds (checker: registerInterfaceConstructor).
     let ft = model.getNodeType(methodNode) as FunctionType;
-    let typeParams = source.typeParameters;
+    let typeParams = ft.typeParameters;
     let concreteParams = new GrowableArray<ValType>();
     let concreteReturns = new GrowableArray<ValType>();
     for (let p in ft.parameters) {
