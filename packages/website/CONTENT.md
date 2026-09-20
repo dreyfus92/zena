@@ -283,7 +283,7 @@ To add a page: add it to the sidebar with an `outline`, then run
   - Operator precedence and associativity
 - ✅ [Comments](src/reference/comments.md) — `/reference/comments/`
   - Line comments (//)
-  - Block comments (/* */)
+  - Block comments (/\* \*/)
   - Doc comments
 - **Data Types**
   - ✅ [Numbers](src/reference/numbers.md) — `/reference/numbers/`
@@ -353,10 +353,13 @@ To add a page: add it to the sidebar with an `outline`, then run
     - Ownership and resource types
     - Comparison with other languages
     - Future type system directions
-  - 📝 [Inference](src/reference/inference.md) — `/reference/inference/`
+  - ✅ [Inference](src/reference/inference.md) — `/reference/inference/`
     - Local variable inference
+    - Literal widening
     - Contextual typing
+    - Generic type argument inference
     - Return type inference
+    - When type annotations are required
   - 📝 [Type Aliases and Distinct Types](src/reference/type-aliases.md) — `/reference/type-aliases/`
     - type
     - distinct type
@@ -484,10 +487,8 @@ To add a page: add it to the sidebar with an `outline`, then run
   - ⚙️ zena:bench — `/reference/stdlib/bench/`
   - ⚙️ zena:cli — `/reference/stdlib/cli/`
   - ⚙️ zena:collections — `/reference/stdlib/collections/`
-  - ⚙️ zena:wasi — `/reference/stdlib/component-abi/`
   - ⚙️ zena:console — `/reference/stdlib/console/`
   - ⚙️ zena:core — `/reference/stdlib/core/`
-  - ⚙️ zena:error-stack — `/reference/stdlib/error-stack/`
   - ⚙️ zena:fs — `/reference/stdlib/fs/`
   - ⚙️ zena:json — `/reference/stdlib/json/`
   - ⚙️ zena:math — `/reference/stdlib/math/`
@@ -500,6 +501,7 @@ To add a page: add it to the sidebar with an `outline`, then run
   - ⚙️ zena:test — `/reference/stdlib/test/`
   - ⚙️ zena:time — `/reference/stdlib/time/`
   - ⚙️ zena:url — `/reference/stdlib/url/`
+  - ⚙️ zena:wasi — `/reference/stdlib/wasi/`
 - **Toolchain**
   - 📝 [CLI](src/reference/cli.md) — `/reference/cli/`
     - zena build
@@ -610,4 +612,4 @@ To add a page: add it to the sidebar with an `outline`, then run
 
 ---
 
-49 of 95 pages written; 46 still placeholders.
+50 of 95 pages written; 45 still placeholders.

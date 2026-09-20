@@ -665,8 +665,11 @@ const reference = [
         link: '/reference/inference/',
         outline: [
           'Local variable inference',
+          'Literal widening',
           'Contextual typing',
+          'Generic type argument inference',
           'Return type inference',
+          'When type annotations are required',
         ],
       },
       {
