@@ -361,6 +361,27 @@ export final class ClassType extends Type {
   }
 }
 
+/**
+ * A class or interface instantiation substituteInType is in the middle
+ * of building. A type can mention itself — `MapEntry`'s constructor
+ * takes a `MapEntry<K, V>`, `Iterator<T>`'s methods return
+ * `Iterator<T>` — and substituting through such a mention must hand
+ * back the instantiation already under construction rather than start
+ * another, which would never finish.
+ */
+final class SubstitutionFrame(source: Type, key: String, result: Type)
+
+var substitutionFrames = new GrowableArray<SubstitutionFrame>();
+
+let reentrantSubstitution = (source: Type, key: String): Type | null => {
+  for (let frame in substitutionFrames) {
+    if (frame.source === source && frame.key == key) {
+      return frame.result;
+    }
+  }
+  return null;
+};
+
 let substituteInType = (
   t: Type | null,
   typeParameters: Array<TypeParameterType> | null,
@@ -477,10 +498,16 @@ let substituteInType = (
           newArgs.push((sub ?? arg));
         }
 
+        let frameKey = getInstantiationKey(newArgs);
+        let reentrant = reentrantSubstitution(ct as Type, frameKey);
+        if (reentrant != null) {
+          return reentrant;
+        }
         let inst = new ClassType(ct.id, ct.symbolId, ct.name);
         inst.typeParameters = ctParams;
         inst.typeArguments = newArgs;
         inst.genericSource = ct.genericSource ?? ct;
+        substitutionFrames.push(new SubstitutionFrame(ct as Type, frameKey, inst as Type));
         let combinedParams = new GrowableArray<TypeParameterType>();
         let combinedArgs = new GrowableArray<Type>();
         if (ctParams != null) {
@@ -570,6 +597,7 @@ let substituteInType = (
           inst.onType = substituteInType(ct.onType, combinedParams, combinedArgs);
         }
         inst.sourcePath = ct.sourcePath;
+        substitutionFrames.pop();
         inst
       } else {
         ct
@@ -603,10 +631,16 @@ let substituteInType = (
           let sub = substituteInType(arg, typeParameters, typeArguments);
           newArgs.push((sub ?? arg));
         }
+        let frameKey = getInstantiationKey(newArgs);
+        let reentrant = reentrantSubstitution(it as Type, frameKey);
+        if (reentrant != null) {
+          return reentrant;
+        }
         let inst = new InterfaceType(it.id, it.symbolId, it.name);
         inst.typeParameters = itParams;
         inst.typeArguments = newArgs;
         inst.genericSource = it.genericSource ?? it;
+        substitutionFrames.push(new SubstitutionFrame(it as Type, frameKey, inst as Type));
         let combinedParams = new GrowableArray<TypeParameterType>();
         let combinedArgs = new GrowableArray<Type>();
         if (itParams != null) {
@@ -632,7 +666,9 @@ let substituteInType = (
         }
         inst.extendsList = newExtends;
         inst.members = it.members;
+        inst.constructors = it.constructors;
         inst.sourcePath = it.sourcePath;
+        substitutionFrames.pop();
         inst
       } else {
         it
