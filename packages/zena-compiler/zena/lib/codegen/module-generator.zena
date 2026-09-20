@@ -37,6 +37,7 @@ import { runLicm } from './ir/licm.zena';
 import { runSccp } from './ir/sccp.zena';
 import { runSroa } from './ir/sroa.zena';
 import { runJumpThreading } from './ir/thread.zena';
+import { runSpecialize } from './ir/specialize.zena';
 import { printIr } from './ir/printer.zena';
 import { IrCfg } from './ir/cfg.zena';
 import { emitZirFunction } from './ir/emit.zena';
@@ -604,6 +605,7 @@ export final class ModuleGenerator {
     var zirPropagated = 0;
     var zirScalarized = 0;
     var zirThreaded = 0;
+    var zirSpecialized = 0;
     // Harvest roots: the exported functions (exported globals and the
     // start function are found inside the pass).
     let roots = new GrowableArray<WasmFunction>();
@@ -696,12 +698,19 @@ export final class ModuleGenerator {
           }
         }
         cleanupChanged("devirtualization");
+        // A function every caller hands the same class of fat pointer
+        // gets a clone taking the instance; the clone's re-pack is
+        // what the next cleanup forwards and the next round's sweeps
+        // devirtualize and inline through.
+        let specialized = runSpecialize(wasm, bodies, changed);
+        cleanupChanged("specialization");
         zirInlined += inlined;
         zirDevirtualized += devirtualized;
         zirScalarized += scalarized;
         zirThreaded += threaded;
         zirPropagated += propagated;
-        if (inlined == 0 && devirtualized == 0) {
+        zirSpecialized += specialized;
+        if (inlined == 0 && devirtualized == 0 && specialized == 0) {
           break;
         }
         round += 1;
@@ -1064,6 +1073,8 @@ export final class ModuleGenerator {
           " local objects replaced by their fields");
       console.log("zir thread: " + i32ToString(zirThreaded) +
           " branches on a returned flag threaded");
+      console.log("zir specialize: " + i32ToString(zirSpecialized) +
+          " functions cloned for a fat-pointer parameter");
       console.log("zir harvest: " + i32ToString(zirHarvestedFunctions) +
           " unreachable functions and " + i32ToString(zirHarvestedGlobals) +
           " globals removed");

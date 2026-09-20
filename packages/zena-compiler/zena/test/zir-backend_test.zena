@@ -1093,6 +1093,47 @@ export let tests = suite('zir backend', (): void => {
     isTrue(!parts[1].contains('ref.cast'), 'and no longer inside it');
   });
 
+  test('-O2 specializes a function on the class its callers pack', (ctx: TestContext): void => {
+    // total takes Shape and has two call sites with two loops, so it
+    // stays a function; every caller packs a Circle. The clone takes
+    // the Circle: no fat pointer, no cast, and area inlines to the
+    // field read. Nothing else references total, so it is gone.
+    let result = compileWithZirAt(
+        'interface Shape { area(): i32; }\n' +
+        'class Circle implements Shape {\n' +
+        '  r: i32;\n' +
+        '  new(this.r);\n' +
+        '  area(): i32 { return this.r * this.r; }\n' +
+        '}\n' +
+        'let total = (s: Shape, n: i32): i32 => {\n' +
+        '  var t = 0;\n' +
+        '  var i = 0;\n' +
+        '  while (i < n) { t += s.area(); i += 1; }\n' +
+        '  var j = 0;\n' +
+        '  while (j < n) { t += s.area() * 2; j += 1; }\n' +
+        '  return t;\n' +
+        '};\n' +
+        'export let main = (): i32 => {\n' +
+        '  let c = new Circle(3);\n' +
+        '  return total(c, 10) + total(c, 5);\n' +
+        '};', 2);
+    let clone = watFunction(result, '$total$spec');
+    isTrue(clone.length > 0, 'no function $total$spec in the emitted module');
+    isTrue(watFunction(result, '$total').length == 0,
+        'the original total has no callers left and is deleted');
+    isTrue(clone.contains('struct.get'),
+        'the clone reads the Circle field straight off its parameter');
+    let absent = new GrowableArray<String>();
+    absent.push('call');
+    absent.push('ref.cast');
+    absent.push('struct.new');
+    assertFunctionOmits(result, '$total$spec', absent,
+        'area inlines against the exact receiver, and the entry pack dies');
+    absent.push('call_ref');
+    assertFunctionUsesTimes(result, '$main', 'struct.new', 1,
+        'main allocates the Circle and no fat pointer');
+  });
+
   test('-O2 hoists an immutable field load out of a loop', (ctx: TestContext): void => {
     let result = compileWithZirAt(
         'class P {\n' +

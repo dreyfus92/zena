@@ -1309,6 +1309,27 @@ export final class WasmModule {
     return sig;
   }
 
+  /**
+   * A signature needed after layout: the type section is appended a
+   * singleton rec group at the next index. Every type the signature
+   * names is already laid out, so the new entry refers only to smaller
+   * indices, which a later group may do. For the specialization pass,
+   * which clones a function with a narrower parameter once the
+   * module's types are fixed.
+   */
+  getSignatureLate(params: GrowableArray<ValType>, returns: GrowableArray<ValType>): WasmSignature {
+    let key = getSignatureKey(params, returns);
+    if (let (true, cached) = this.#signatureCache.get(key)) {
+      return cached;
+    }
+    let sig = new WasmSignature(params, returns);
+    sig.index = this.types.length;
+    this.types.push(sig);
+    this.typeRecGroupSizes.push(1);
+    this.#signatureCache[key] = sig;
+    return sig;
+  }
+
   getStruct(name: String | null, fields: Array<WasmField>): WasmStruct {
     let key = getStructKey(name, fields);
     if (let (true, cached) = this.#structCache.get(key)) {
