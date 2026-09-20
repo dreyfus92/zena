@@ -1,0 +1,33 @@
+// @mode: run
+// @stdout: dir\npath\ndir\npath
+
+// An extension class erases to its underlying value, so nothing at
+// runtime says which class in the hierarchy a String was reached as.
+// An override therefore shadows rather than dispatches: which body
+// runs follows the STATIC type of the receiver. Reaching an override
+// through a base-typed binding used to ask for a vtable slot that an
+// erased type has none of, and failed to compile.
+
+extension class Path on String {
+  new(value: String) : super(value);
+  kind(): String { return 'path'; }
+}
+
+extension class DirPath extends Path {
+  new(value: String) : super(value);
+  kind(): String { return 'dir'; }
+}
+
+// The parameter is the base, so every call in here runs Path's body.
+let asBase = (p: Path): String => p.kind();
+
+// The parameter is the subclass, so this one runs DirPath's.
+let asSub = (d: DirPath): String => d.kind();
+
+export let main = () => {
+  let d = new DirPath('/a');
+  console.log(d.kind());      // static type DirPath
+  console.log(asBase(d));     // static type Path
+  console.log(asSub(d));      // static type DirPath
+  console.log(asBase(new Path('/b')));
+};

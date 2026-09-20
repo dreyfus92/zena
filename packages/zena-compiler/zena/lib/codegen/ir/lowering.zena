@@ -5975,8 +5975,17 @@ export final class FunctionLowerer {
     // Private access is never virtual; overload slots are overridden
     // independently (member-lookup.md §5.3), so the check keys on the
     // SLOT name. An overridden slot dispatches through the vtable.
+    //
+    // An extension class never dispatches. It erases to its underlying
+    // value, which carries nothing saying which class in the hierarchy
+    // it was reached as — a `RootedFilePath` and a `RootedPath` are the
+    // same String at runtime — so there is no vtable to consult and no
+    // question to ask it. An override there shadows: which body runs
+    // follows the static type of the receiver, as the language
+    // reference specifies. Without this the call tried to dispatch and
+    // hit the missing slot as an internal error.
     var isVirtual = false;
-    if (!isPrivate && !this.#cx().exactValues.has(receiver) &&
+    if (!isPrivate && !ct.isExtension && !this.#cx().exactValues.has(receiver) &&
         this.#cx().memberProvidedBySubclass(classInfo, slotName)) {
       if (this.#vtableSlotIndex(classInfo, slotName) < 0) {
         this.#bail('overridden method without vtable slot');
