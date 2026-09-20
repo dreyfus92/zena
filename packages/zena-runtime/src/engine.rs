@@ -10,10 +10,11 @@ use crate::HostState;
 /// Zena's output needs GC, exception handling, typed function references,
 /// tail calls (`return_call` for `tail return`, see docs/design/tail-calls.md)
 /// and the wide-arithmetic instructions the compiler emits under
-/// ZENA_WIDE_ARITHMETIC=1. All engines that share cwasm artifacts must agree
-/// on these settings: wasmtime refuses to deserialize a cwasm whose
-/// compile-affecting flags differ, and the fallback is a silent multi-second
-/// in-process recompile.
+/// ZENA_WIDE_ARITHMETIC=1. Of these, wasmtime 46 enables only tail calls by
+/// default; the rest are opt-in, as are backtrace details and inlining. All
+/// engines that share cwasm artifacts must agree on these settings: wasmtime
+/// refuses to deserialize a cwasm whose compile-affecting flags differ, and
+/// the fallback is a silent multi-second in-process recompile.
 ///
 /// `debug` turns off Cranelift's inlining so backtraces name the function
 /// that trapped; [`crate::cache`] keeps debug and release cwasm files

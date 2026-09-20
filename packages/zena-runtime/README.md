@@ -25,14 +25,23 @@ exports (`$stringCreate`, `$stringSetByte`, `$stringGetLength`,
 Beyond the imports, the crate holds what every embedder otherwise
 duplicates:
 
-- `engine::config(debug)`: the wasmtime `Config` Zena output needs (GC,
-  exception handling, typed function references, tail calls, wide
-  arithmetic, backtrace details), plus the ZENA_GC and ZENA_PROFILE
-  environment switches and `reserve_gc_heap` (ZENA_GC_RESERVE_MB).
+- `engine::config(debug)`: the wasmtime `Config` Zena output needs. A
+  default wasmtime `Config` rejects a Zena module: as of wasmtime 46 it
+  enables tail calls but not GC, exception handling, typed function
+  references or wide arithmetic, and it records no backtrace details
+  unless `WASMTIME_BACKTRACE_DETAILS` is set. `config` turns all of those
+  on, adds the ZENA_GC and ZENA_PROFILE environment switches, and
+  `reserve_gc_heap` reads ZENA_GC_RESERVE_MB.
 - `cache`: ahead-of-time compiled `.cwasm` files kept beside each `.wasm`,
-  written under a file lock so concurrent processes compile a module once.
-  Debug engines use a separate `.debug.cwasm`, since a cwasm only loads
-  into an engine with the same compile-affecting settings.
+  written under a file lock (`foo.lock`, beside it too) so concurrent
+  processes compile a module once. `zena-cli` and `zena-run` share these
+  files: the cache is keyed by the module's path, and both binaries build
+  their engines from the same `config` and the same wasmtime version (one
+  `Cargo.lock` at the repository root), so a `.cwasm` written by one loads
+  in the other. Debug engines use a separate `.debug.cwasm`, since a cwasm
+  only loads into an engine with the same compile-affecting settings. The
+  other cache, compiled Zena source under `.zena/cache` or the user's cache
+  directory, belongs to `zena-cli` alone, because only it compiles source.
 
 ## Use
 
