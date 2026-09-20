@@ -12,7 +12,7 @@ import {
 } from '../wasm.zena';
 import { SymbolId, noSymbolId } from '../../scope/symbol.zena';
 import { HashSet } from 'zena:collections';
-import { getClassKey, getInterfaceKey, getClassMethodKey, getClassInterfaceKey, getSignatureKey, matchOverload, collectMixinMembers, getMemberRootClass, getClassPrivateFieldKey, getSpecializedFunctionKey, getSpecializedName, isConcrete, MixinKey, containsErasedType } from '../codegen-utils.zena';
+import { getClassKey, getInterfaceKey, getInterfaceConstructorBaseName, getClassMethodKey, getClassInterfaceKey, getSignatureKey, matchOverload, collectMixinMembers, getMemberRootClass, getClassPrivateFieldKey, getSpecializedFunctionKey, getSpecializedName, isConcrete, MixinKey, containsErasedType } from '../codegen-utils.zena';
 import { typeToValType, mapReturnTypeToWasmResults, mapParamTypeToWasmParams, substituteTypeParamsInCodegen, substituteTypeParamsInClassContext, getClassTypeParameters, getInterfaceTypeParameters, getInterfaceMemberSignature } from '../type-mapping.zena';
 
 /**
@@ -2279,10 +2279,65 @@ export final class Specializer implements SpecializerInterface {
     }
   }
 
+  instantiateInterfaceConstructor(it: InterfaceType, ctorName: String, methodNode: Node, model: SemanticModel): WasmFunction {
+    let source = it.genericSource ?? it;
+    let targsOpt = it.typeArguments;
+    let typeArgs: Array<Type> = if (targsOpt != null) targsOpt else new GrowableArray<Type>();
+    let baseName = getInterfaceConstructorBaseName(it, ctorName);
+    let specKey = getSpecializedFunctionKey(baseName, typeArgs);
+    if (let (true, existing) = this.pass.wasm.specializedFunctions.get(specKey)) {
+      this.pass.markFunctionReached(existing);
+      return existing;
+    }
+    // The factory returns the interface value: its fat-pointer struct
+    // must exist before the signature is built.
+    this.registerSpecializedInterface(it, this.pass.interfaceDecls[source.symbolId], model);
+
+    // The constructor's checked type is written at the interface's own
+    // type parameters (registerInterfaceConstructor); substitute the
+    // instantiation's arguments into the signature, as
+    // instantiateGenericFunction does for a generic function.
+    let ft = model.getNodeType(methodNode) as FunctionType;
+    let typeParams = source.typeParameters;
+    let concreteParams = new GrowableArray<ValType>();
+    let concreteReturns = new GrowableArray<ValType>();
+    for (let p in ft.parameters) {
+      let subType = if (typeParams != null) {
+        substituteTypeParamsInCodegen(this.pass.wasm, typeParams, typeArgs, p)
+      } else {
+        p
+      };
+      mapParamTypeToWasmParams(this.pass.wasm, subType, concreteParams);
+    }
+    let subReturn = if (typeParams != null) {
+      substituteTypeParamsInCodegen(this.pass.wasm, typeParams, typeArgs, ft.returnType)
+    } else {
+      ft.returnType
+    };
+    mapReturnTypeToWasmResults(this.pass.wasm, subReturn, concreteReturns);
+
+    let sig = this.pass.wasm.getSignature(concreteParams, concreteReturns);
+    let wasmFunc = new WasmFunction(sig, methodNode, model);
+    if (typeParams != null) {
+      wasmFunc.typeParameters = typeParams;
+      wasmFunc.typeArguments = typeArgs;
+    }
+    wasmFunc.name = getSpecializedName(baseName, typeArgs);
+    this.pass.wasm.specializedFunctions[specKey] = wasmFunc;
+    this.pass.wasm.addFunction(wasmFunc);
+    // markFunctionReached queues a node referrer for the body with
+    // this specialization's type arguments (see instantiateGenericFunction
+    // for why these entries are needed first).
+    this.pass.nodeIdToNode[methodNode.id as i32] = methodNode;
+    this.pass.nodeIdToModel[methodNode.id as i32] = model;
+    this.pass.markFunctionReached(wasmFunc);
+    return wasmFunc;
+  }
+
   instantiateGenericFunction(symId: SymbolId, typeArgs: Array<Type>): WasmFunction {
     let funcExpr = this.pass.wasm.genericFunctions[symId];
     let model = this.pass.wasm.genericFunctionModels[symId];
-    
+
     // Determine target name
     var originalName = "";
     let parentNode = model.getParent(funcExpr);

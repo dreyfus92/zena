@@ -108,6 +108,19 @@ let tests = suite('extract', () => {
     equal(c.members.length, 3);
   });
 
+  test('renders named constructors, on classes and interfaces', (t: TestContext) => {
+    let module = extract(
+        'export interface Shape {\n  new() { return new Circle(1); }\n  new unit(r: i32) { return new Circle(r); }\n  area(): i32;\n}\nexport class Circle implements Shape {\n  r: i32;\n  new(this.r);\n  new origin() : r = 0;\n  area(): i32 { return this.r; }\n}\n');
+    let shape = declaration(module, 'Shape');
+    equal(member(shape, 'new').kind == MemberKind.Constructor, true);
+    equal(member(shape, 'new').signature, 'new()');
+    equal(member(shape, 'unit').kind == MemberKind.Constructor, true);
+    equal(member(shape, 'unit').signature, 'new unit(r: i32)');
+    let circle = declaration(module, 'Circle');
+    equal(member(circle, 'origin').kind == MemberKind.Constructor, true);
+    equal(member(circle, 'origin').signature, 'new origin()');
+  });
+
   test('documents private members when asked', (t: TestContext) => {
     let module = extract('export class C {\n  #hidden(): void {}\n}\n', true);
     equal(declaration(module, 'C').members.length, 1);

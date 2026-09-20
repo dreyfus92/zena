@@ -1,0 +1,59 @@
+// @mode: check
+
+// An interface constructor is a factory: a body that returns an instance.
+// The parts of a class constructor that need a class are rejected.
+
+interface Plain {
+  area(): i32;
+}
+
+class Impl implements Plain, Shape {
+  area(): i32 { return 1; }
+}
+
+interface Shape {
+  new unit() {
+    return new Impl();
+  }
+  // @error: Constructor 'new withSide' of interface 'Shape' cannot have an initializer list: an interface has no fields to initialize. Return the instance from the body instead.
+  new withSide(side: i32) : side = side {
+    return new Impl();
+  }
+  // @error: Constructor 'new fromField' of interface 'Shape' cannot take a 'this.' parameter: an interface has no fields.
+  new fromField(this.side) {
+    return new Impl();
+  }
+  // A body-less constructor is an empty body: nothing is returned.
+  // @error: An interface constructor must return an instance on every path.
+  new bare();
+  // @error: Duplicate constructor 'new unit' in interface 'Shape'.
+  new unit() {
+    return new Impl();
+  }
+  // @error: An interface constructor must return an instance on every path.
+  new maybe(flag: boolean) {
+    if (flag) {
+      return new Impl();
+    }
+  }
+  new wrong() {
+    return 1; // @error: Type mismatch: cannot return 'i32' from function expecting 'Shape'.
+  }
+  // A declared return type narrows the result; it must still be a Shape.
+  new narrowed(): Impl {
+    return new Impl();
+  }
+  new astray(): i32 { // @error: Constructor 'new astray' of interface 'Shape' must return a 'Shape', but declares 'i32'.
+    return 1;
+  }
+  new self() {
+    return this; // @error: 'this' used outside of a class.
+  }
+  area(): i32;
+}
+
+let a = new Plain(); // @error: Cannot instantiate interface 'Plain': it declares no constructor.
+let b = new Shape(); // @error: Interface 'Shape' has no default constructor.
+let c = new Shape.missing(); // @error: Constructor 'missing' not found on interface 'Shape'.
+let d = new Shape.unit(1); // @error: Expected 0 arguments, got 1.
+let e = new Shape.unit();

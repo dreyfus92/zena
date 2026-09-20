@@ -1,0 +1,9 @@
+// Support module for interface-constructor-cycle.zena: the class the
+// interface's constructor builds.
+import { Shape } from './interface-constructor-cycle-shape.zena';
+
+export class Square implements Shape {
+  side: i32;
+  new(this.side);
+  area(): i32 { return this.side * this.side; }
+}

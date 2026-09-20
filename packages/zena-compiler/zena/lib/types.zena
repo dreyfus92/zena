@@ -1040,6 +1040,13 @@ export final class InterfaceType extends Type {
   var interfaceKey: String | null = null;
   var sourcePath: String = "";
   instantiations = new HashMap<String, InterfaceType>();
+  /**
+   * The interface's constructors, keyed like a class's: "<constructor>"
+   * for `new(...)`, the bare name for `new name(...)`. Each is a factory
+   * function whose return type is the interface at its own type
+   * parameters; an instantiation shares the map and substitutes.
+   */
+  var constructors: HashMap<String, FunctionType> = new HashMap<String, FunctionType>();
 
   new(id: TypeId, symbolId: SymbolId, name: String) : id = id, symbolId = symbolId, name = name, super();
 }
@@ -1067,6 +1074,7 @@ export let instantiateInterfaceType = (
   // issue we can copy the arrays here.
   result.extendsList = source.extendsList;
   result.members = source.members;
+  result.constructors = source.constructors;
   result.sourcePath = source.sourcePath;
   return result;
 };

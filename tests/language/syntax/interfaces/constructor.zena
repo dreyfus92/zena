@@ -1,0 +1,12 @@
+// @target: module
+interface Shape<T> {
+  new() {
+    return new Circle<T>();
+  }
+
+  new unit(radius: T): Circle<T> {
+    return new Circle<T>();
+  }
+
+  area(): T;
+}

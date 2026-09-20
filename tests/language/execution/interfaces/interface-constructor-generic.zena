@@ -1,0 +1,34 @@
+// @mode: run
+// @result: 30
+
+// A generic interface's constructors see its type parameters. Type
+// arguments are written at the call, or inferred from the constructor's
+// own parameters, as for a generic class.
+interface Stack<T> {
+  new() {
+    return new ListStack<T>();
+  }
+
+  new withFirst(first: T) {
+    let s = new ListStack<T>();
+    s.push(first);
+    return s;
+  }
+
+  push(value: T): void;
+  pop(): T;
+}
+
+class ListStack<T> implements Stack<T> {
+  #items: GrowableArray<T> = new GrowableArray<T>();
+  push(value: T): void { this.#items.push(value); }
+  pop(): T { return this.#items.pop(); }
+}
+
+export let main = (): i32 => {
+  let s = new Stack<i32>();
+  s.push(10);
+  // `T` inferred from the argument.
+  let t = new Stack.withFirst(20);
+  return s.pop() + t.pop();
+};

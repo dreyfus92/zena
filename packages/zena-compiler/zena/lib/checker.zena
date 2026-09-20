@@ -3990,9 +3990,9 @@ export let checkModule = (
   for (let stmt in ast.body) {
     match (stmt) {
       case ClassDeclaration as cd: { checkClassBodies(ctx, cd); }
+      case InterfaceDeclaration as id: { checkInterfaceConstructorBodies(ctx, id); }
       // Already fully handled in Phase 1.
       case ImportDeclaration {}: {}
-      case InterfaceDeclaration {}: {}
       case EnumDeclaration {}: {}
       case MixinDeclaration {}: {}
       case TypeAliasDeclaration as ta: { checkTypeAliasDeclaration(ctx, ta); }
@@ -6369,7 +6369,8 @@ let instantiateGenericClass = (
   explicitTypeArgs: GrowableArray<TypeAnnotation> | null,
   args: GrowableArray<Expression>,
   loc: SourceLocation | null,
-  ctorName: String | null = null
+  ctorName: String | null = null,
+  expectedType: Type | null = null
 ): ClassType => {
   let typeParams = ct.typeParameters;
   if (typeParams == null) { return ct; }
@@ -6394,7 +6395,9 @@ let instantiateGenericClass = (
   } else {
     ct.constructorType
   };
-  if (ctor == null) { return ct; }
+  // Without a constructor there are no arguments to infer from; only
+  // the context can still name the type arguments.
+  if (ctor == null && expectedType == null) { return ct; }
 
   // Build a map from type param names to inferred types. The `new`
   // checking re-checks every argument against the instantiated
@@ -6402,14 +6405,34 @@ let instantiateGenericClass = (
   // it found it (see the call pre-pass for why that matters).
   let preInferFlow = ctx.currentFlow;
   let inferred = new HashMap<String, Type>();
-  var ai = 0;
-  while (ai < args.length && ai < ctor.parameters.length) {
-    let paramType = ctor.parameters[ai];
-    let argType = checkExpression(ctx, args[ai], null);
-    inferTypeArg(paramType, argType, inferred);
-    ai += 1;
+  if (ctor != null) {
+    var ai = 0;
+    while (ai < args.length && ai < ctor.parameters.length) {
+      let paramType = ctor.parameters[ai];
+      let argType = checkExpression(ctx, args[ai], null);
+      inferTypeArg(paramType, argType, inferred);
+      ai += 1;
+    }
   }
   ctx.setFlow(preInferFlow);
+
+  // What the arguments left open, the context may name:
+  // `let m: HashMap<String, i32> = new HashMap();`, or through an
+  // interface the class implements, `let m: Map<String, i32> = new
+  // HashMap();`. inferTypeArg keeps the first answer, so the
+  // arguments win where both speak.
+  if (expectedType != null) {
+    let expectedCore = subtractNullFromType(expectedType);
+    inferTypeArg(selfTypeOfClass(ct), expectedCore, inferred);
+    for (let impl in ct.implementsList) {
+      inferTypeArg(impl as Type, expectedCore, inferred);
+    }
+    var sup = ct.superType;
+    while (sup != null) {
+      inferTypeArg(sup as Type, expectedCore, inferred);
+      sup = sup.superType;
+    }
+  }
 
   // Build typeArguments array from inferred map.
   let typeArgs = new GrowableArray<Type>();
@@ -9418,6 +9441,7 @@ case _: {
     }
     case InterfaceDeclaration as id: {
       checkInterfaceDeclaration(ctx, id);
+      checkInterfaceConstructorBodies(ctx, id);
     }
     case EnumDeclaration as ed: {
       checkEnumDeclaration(ctx, ed);
@@ -11569,7 +11593,7 @@ let checkExpressionInner = (ctx: CheckerContext, expr: Expression, expectedType:
     }
   }
   case NewExpression as newExpr: {
-    let constructed = checkNewExpression(ctx, newExpr, newExpr.callee, newExpr.typeArguments, newExpr.args, newExpr.loc);
+    let constructed = checkNewExpression(ctx, newExpr, newExpr.callee, newExpr.typeArguments, newExpr.args, newExpr.loc, expectedType);
     wrapResourceInOwn(ctx, constructed, newExpr.loc)
   }
   case AsExpression {expression, typeAnnotation, loc}: {
@@ -14402,7 +14426,7 @@ let checkClassBodies = (ctx: CheckerContext, cd: ClassDeclaration): void => {
  */
 let checkMethodSignature = (
     ctx: CheckerContext,
-    classType: ClassType,
+    classType: ClassType | null,
     md: MethodDefinition
   ): FunctionType => {
     // Check decorators
@@ -15219,8 +15243,14 @@ let checkInterfaceDeclaration = (ctx: CheckerContext, id: InterfaceDeclaration):
 
   // Process body members.
   ctx.enterInterface();
+  let ownConstructorNames = new HashSet<String>();
   for (let member in id.body) {
     match (member) {
+      case MethodDefinition as md: {
+        // The parser admits exactly one kind of MethodDefinition into an
+        // interface body: a constructor.
+        registerInterfaceConstructor(ctx, ifaceType, md, ownConstructorNames);
+      }
       case MethodSignature as ms: {
         ctx.enterScope();
         var typeParams: Array<TypeParameterType> | null = null;
@@ -15338,6 +15368,246 @@ let checkInterfaceDeclaration = (ctx: CheckerContext, id: InterfaceDeclaration):
     ctx.model.addDeclaredInterface(ifaceInfo.id, id);
   }
 
+  ctx.exitScope();
+};
+
+/**
+ * An interface at its own type parameters — `Map<K, V>` inside `Map` —
+ * so that a value of that type substitutes to `Map<String, i32>` at
+ * `new Map<String, i32>()`. A non-generic interface is its own self type.
+ */
+let selfTypeOfInterface = (ifaceType: InterfaceType): InterfaceType => {
+  let {typeParameters} = ifaceType;
+  if (typeParameters == null || typeParameters.length == 0) {
+    return ifaceType;
+  }
+  let args = new GrowableArray<Type>();
+  for (let tp in typeParameters) {
+    args.push(tp as Type);
+  }
+  return instantiateInterfaceType(ifaceType, args);
+};
+
+/**
+ * Register one constructor of an interface. An interface constructor is
+ * a factory: `new(...)` or `new name(...)` with a body that returns an
+ * instance of some class implementing the interface. Its signature is
+ * checked like a class constructor's, and its return type is the
+ * interface at its own type parameters. The body is checked later, by
+ * checkInterfaceConstructorBodies, once every declaration in the module
+ * has a signature, so the body may construct a class declared below the
+ * interface.
+ */
+let registerInterfaceConstructor = (
+  ctx: CheckerContext,
+  ifaceType: InterfaceType,
+  md: MethodDefinition,
+  ownConstructorNames: HashSet<String>
+): void => {
+  let ctorName = match (md.name) {
+    case Identifier {name}: name
+    case _: "<unknown>"
+  };
+  let shown = if (ctorName == "<constructor>") "new" else "new " + ctorName;
+  let where = "Constructor '" + shown + "' of interface '" + ifaceType.name + "'";
+  var thisParams = 0;
+  for (let param in md.params) {
+    if (param.isThisParam) {
+      thisParams += 1;
+      ctx.error(
+        where + " cannot take a 'this.' parameter: an interface has no fields.",
+        DiagnosticCode.IncompatibleTypes,
+        param.loc
+      );
+    }
+  }
+  // The parser synthesizes one initializer entry per `this.` parameter,
+  // reported above; anything beyond those was written.
+  let {initializerList} = md;
+  if (initializerList != null && initializerList.length > thisParams) {
+    ctx.error(
+      where + " cannot have an initializer list: an interface has no fields to initialize. Return the instance from the body instead.",
+      DiagnosticCode.IncompatibleTypes,
+      md.loc
+    );
+  }
+  if (md.superInitializer != null) {
+    ctx.error(
+      where + " cannot call 'super': an interface has no superclass.",
+      DiagnosticCode.IncompatibleTypes,
+      md.loc
+    );
+  }
+  // A body-less `new bare();` parses as an empty block, so the
+  // every-path-returns check on the body reports it.
+  if (ownConstructorNames.has(ctorName)) {
+    ctx.error(
+      "Duplicate constructor '" + shown + "' in interface '" + ifaceType.name + "'.",
+      DiagnosticCode.DuplicateMethod,
+      md.loc
+    );
+    return;
+  }
+  ownConstructorNames.add(ctorName);
+  let ctorType = checkMethodSignature(ctx, null, md);
+  // The result is the interface at its own type parameters unless the
+  // constructor declares a narrower type — `new(): GrowableArray<T>` on
+  // `Array<T>`, so that the caller gets the class's full API. A declared
+  // type must still be an instance of the interface.
+  // (That it is one is checked with the body, in the second phase: a
+  // class declared below the interface has no `implements` list yet.)
+  if (md.returnType == null) {
+    ctorType.returnType = selfTypeOfInterface(ifaceType);
+  }
+  // The interface's parameters are the constructor's own: codegen mints
+  // one copy per type-argument list, the way it does for a generic
+  // function, and finds the parameters those arguments bind here.
+  ctorType.typeParameters = ifaceType.typeParameters;
+  ifaceType.constructors[ctorName] = ctorType;
+  ctx.setNodeType(md, ctorType);
+};
+
+/**
+ * Check the bodies of an interface's constructors. Runs in the module's
+ * second phase, after every declaration has a signature.
+ */
+let checkInterfaceConstructorBodies = (ctx: CheckerContext, id: InterfaceDeclaration): void => {
+  let resolved = ctx.resolveTypeName(id.name.name);
+  if (!(resolved is InterfaceType)) {
+    return;
+  }
+  let ifaceType = resolved;
+  let seen = new HashSet<String>();
+  for (let member in id.body) {
+    if (member is MethodDefinition) {
+      let ctorName = match (member.name) {
+        case Identifier {name}: name
+        case _: "<unknown>"
+      };
+      // A duplicate registered no signature; its body is not checked.
+      if (seen.has(ctorName)) {
+        continue;
+      }
+      seen.add(ctorName);
+      if (member.body == null || !ifaceType.constructors.has(ctorName)) {
+        continue;
+      }
+      let ctorType = ifaceType.constructors[ctorName];
+      // A declared result type must be an instance of the interface.
+      // Checked here rather than at registration because the class it
+      // names may be declared below the interface, and only has its
+      // `implements` list once every declaration in the module is
+      // registered.
+      if (member.returnType != null) {
+        let selfType = selfTypeOfInterface(ifaceType) as Type;
+        if (!isAssignableTo(ctx, ctorType.returnType, selfType)) {
+          let shown = if (ctorName == "<constructor>") "new" else "new " + ctorName;
+          ctx.error(
+            "Constructor '" + shown + "' of interface '" + ifaceType.name +
+              "' must return a '" + typeToString(selfType) +
+              "', but declares '" + typeToString(ctorType.returnType) + "'.",
+            DiagnosticCode.TypeMismatch,
+            (member.returnType as Node).loc
+          );
+        }
+      }
+      ctx.enterNodeReferrer(member.id as i32);
+      checkInterfaceConstructorBody(ctx, ifaceType, ctorType, member);
+      ctx.exitNodeReferrer(member.id as i32);
+    }
+  }
+};
+
+/**
+ * Check one interface constructor's body: a function body whose
+ * parameters are the constructor's and whose return type is the
+ * interface at its own type parameters. There is no `this` (the
+ * interface context rejects it), and every path must return.
+ */
+let checkInterfaceConstructorBody = (
+  ctx: CheckerContext,
+  ifaceType: InterfaceType,
+  ctorType: FunctionType,
+  md: MethodDefinition
+): void => {
+  ctx.enterScope();
+  let {typeParameters} = ifaceType;
+  if (typeParameters != null) {
+    for (let tp in typeParameters) {
+      ctx.declareTypeName(tp.name, tp);
+    }
+  }
+  var i = 0;
+  while (i < md.params.length) {
+    let param = md.params[i];
+    let paramType = ctorType.parameters[i];
+    let paramInfo = ctx.model.resolveDeclaration(param);
+    if (paramInfo != null) {
+      ctx.declareBinding(paramInfo, paramType);
+    }
+    let {pattern} = param;
+    if (pattern != null) {
+      bindPattern(ctx, pattern, paramType);
+    }
+    i += 1;
+  }
+  let prevReturnType = ctx.returnType;
+  let prevYieldType = ctx.yieldType;
+  let prevAsyncValue = ctx.asyncValueType;
+  let prevAsyncFuture = ctx.asyncFutureType;
+  ctx.setReturnType(ctorType.returnType);
+  ctx.setYieldType(null);
+  ctx.setAsyncValueType(null);
+  ctx.setAsyncFutureType(null);
+  let prevUsingDepth = ctx.usingDepth;
+  ctx.setUsingDepth(0);
+  let prevInConstructor = ctx.inConstructor;
+  ctx.setInConstructor(false);
+  ctx.enterInterface();
+  let prevFlowState = ctx.enterBodyFlow(false);
+  match (md.body as Node) {
+    case BlockStatement as block: {
+      ctx.enterOwnScope();
+      registerOwnParamCandidates(ctx, md.params, ctorType.parameters);
+      prescanPendingFunctions(ctx, block.body);
+      for (let stmt in block.body) {
+        checkStatement(ctx, stmt);
+      }
+      ctx.exitOwnScope(block as Node);
+      if (!branchDefinitelyExits(block, ctx.model)) {
+        ctx.error(
+          "An interface constructor must return an instance on every path.",
+          DiagnosticCode.MissingReturnType,
+          md.loc
+        );
+      }
+    }
+    case Expression as bodyExpr: {
+      ctx.enterOwnScope();
+      registerOwnParamCandidates(ctx, md.params, ctorType.parameters);
+      let bodyType = checkExpression(ctx, bodyExpr, ctorType.returnType);
+      if (!isAssignableTo(ctx, bodyType, ctorType.returnType)) {
+        ctx.error(
+          "Type mismatch: constructor body returns '" + typeToString(bodyType) +
+          "' but expects '" + typeToString(ctorType.returnType) + "'.",
+          DiagnosticCode.TypeMismatch,
+          md.loc
+        );
+      } else {
+        checkAndRegisterInterfaceAdaptation(ctx, bodyExpr, bodyType, ctorType.returnType);
+      }
+      ctx.exitOwnScope(bodyExpr as Node);
+    }
+    case _: {}
+  }
+  ctx.exitInterface();
+  ctx.setReturnType(prevReturnType);
+  ctx.setYieldType(prevYieldType);
+  ctx.setAsyncValueType(prevAsyncValue);
+  ctx.setAsyncFutureType(prevAsyncFuture);
+  ctx.setUsingDepth(prevUsingDepth);
+  ctx.setInConstructor(prevInConstructor);
+  ctx.exitBodyFlow(prevFlowState);
   ctx.exitScope();
 };
 
@@ -16059,7 +16329,8 @@ let checkNewExpression = (
   callee: Identifier,
   typeArguments: GrowableArray<TypeAnnotation> | null,
   args: GrowableArray<Expression>,
-  loc: SourceLocation | null
+  loc: SourceLocation | null,
+  expectedType: Type | null = null
 ): Type => {
   let className = callee.name;
 
@@ -16123,7 +16394,7 @@ let checkNewExpression = (
       } else {
         null
       };
-      let instantiated = instantiateGenericClass(ctx, ct, typeArguments, inferArgs, loc, ctorName);
+      let instantiated = instantiateGenericClass(ctx, ct, typeArguments, inferArgs, loc, ctorName, expectedType);
 
       var ctorType: FunctionType | null = null;
       var ctorMethodRef = "<constructor>";
@@ -16185,7 +16456,169 @@ let checkNewExpression = (
         return instantiated;
       }
 
+      checkConstructorArguments(ctx, newExpr, args, callerArgCount, ctorType,
+          instantiated.typeParameters, instantiated.typeArguments, loc);
+      return instantiated;
+    }
+    case InterfaceType as it: {
+      // An interface constructor: a factory declared in the interface
+      // body (registerInterfaceConstructor). The expression's type is the
+      // interface at the instantiation's type arguments.
+      let previousOriginal = ctx.splicedArgCountOf(newExpr);
+      let callerArgCount = if (previousOriginal != -1 && previousOriginal < args.length) {
+        previousOriginal
+      } else {
+        args.length
+      };
+      let inferArgs = if (callerArgCount < args.length) {
+        let trimmed = new GrowableArray<Expression>();
+        var ti = 0;
+        while (ti < callerArgCount) { trimmed.push(args[ti]); ti += 1; }
+        trimmed
+      } else {
+        args
+      };
+      let ctorName: String | null = if (newExpr.constructorName != null) {
+        getMemberName(newExpr.constructorName as Node)
+      } else {
+        null
+      };
+      let ctorKey = if (ctorName != null) { ctorName as String } else { "<constructor>" };
+      if (!it.constructors.has(ctorKey)) {
+        if (ctorName != null) {
+          let missing = ctorName as String;
+          ctx.error(
+            "Constructor '" + missing + "' not found on interface '" + it.name + "'.",
+            DiagnosticCode.SymbolNotFound,
+            loc
+          );
+        } else if (it.constructors.size > 0) {
+          ctx.error(
+            "Interface '" + it.name + "' has no default constructor.",
+            DiagnosticCode.IncompatibleTypes,
+            loc
+          );
+        } else {
+          ctx.error(
+            "Cannot instantiate interface '" + it.name + "': it declares no constructor.",
+            DiagnosticCode.NotCallable,
+            loc
+          );
+        }
+        return new ErrorType();
+      }
+      let instantiated = instantiateGenericInterface(ctx, it, typeArguments, inferArgs, loc, ctorKey, expectedType);
+      let ctorType = instantiated.constructors[ctorKey];
+      let deps = ctx.currentDependencies();
+      if (deps != null) {
+        deps.referencedTypes.add(instantiated as Type);
+      }
+      checkConstructorArguments(ctx, newExpr, args, callerArgCount, ctorType,
+          instantiated.typeParameters, instantiated.typeArguments, loc);
+      // The expression's type is the constructor's declared result — the
+      // interface itself unless it narrows — at these type arguments.
+      // Codegen finds the constructor through the CALLEE, which is typed
+      // as the instantiated interface whatever the result narrows to.
+      ctx.setNodeType(callee, instantiated as Type);
+      return substituteTypeParams(
+          instantiated.typeParameters, instantiated.typeArguments, ctorType.returnType);
+    }
+    case _: {
+      ctx.error(
+        "'" + className + "' is not a class.",
+        DiagnosticCode.NotCallable,
+        loc
+      );
+      return new ErrorType();
+    }
+  }
+};
 
+/**
+ * Instantiate a generic interface for `new`: explicit type arguments
+ * win; otherwise each is inferred from the constructor's parameters
+ * against the written arguments, as instantiateGenericClass does for a
+ * class.
+ */
+let instantiateGenericInterface = (
+  ctx: CheckerContext,
+  it: InterfaceType,
+  explicitTypeArgs: GrowableArray<TypeAnnotation> | null,
+  args: GrowableArray<Expression>,
+  loc: SourceLocation | null,
+  ctorKey: String,
+  expectedType: Type | null = null
+): InterfaceType => {
+  let typeParams = it.typeParameters;
+  if (typeParams == null) { return it; }
+  if (typeParams.length == 0) { return it; }
+
+  if (explicitTypeArgs != null) {
+    let typeArgs = new GrowableArray<Type>();
+    var i = 0;
+    while (i < explicitTypeArgs.length) {
+      typeArgs.push(resolveExplicitTypeArgument(ctx, explicitTypeArgs[i]));
+      i += 1;
+    }
+    applyAndCheckTypeArguments(ctx, typeParams, typeArgs, loc);
+    rejectSecondClassTypeArguments(ctx, typeParams, typeArgs, loc);
+    return instantiateInterfaceType(it, typeArgs);
+  }
+
+  let ctor = it.constructors[ctorKey];
+  let preInferFlow = ctx.currentFlow;
+  let inferred = new HashMap<String, Type>();
+  var ai = 0;
+  while (ai < args.length && ai < ctor.parameters.length) {
+    let paramType = ctor.parameters[ai];
+    let argType = checkExpression(ctx, args[ai], null);
+    inferTypeArg(paramType, argType, inferred);
+    ai += 1;
+  }
+  ctx.setFlow(preInferFlow);
+
+  // The context's type arguments for what the arguments left open —
+  // `let m: Map<String, i32> = new Map();` — through the interface
+  // itself or one it extends. The arguments win where both speak.
+  if (expectedType != null) {
+    let expectedCore = subtractNullFromType(expectedType);
+    inferTypeArg(selfTypeOfInterface(it) as Type, expectedCore, inferred);
+    for (let ext in it.extendsList) {
+      inferTypeArg(ext as Type, expectedCore, inferred);
+    }
+  }
+
+  let typeArgs = new GrowableArray<Type>();
+  for (let param in typeParams) {
+    let paramName = param.name;
+    if (let (true, t) = inferred.get(paramName)) {
+      typeArgs.push(t);
+    } else {
+      typeArgs.push(new ErrorType());
+    }
+  }
+  applyAndCheckTypeArguments(ctx, typeParams, typeArgs, loc);
+  rejectSecondClassTypeArguments(ctx, typeParams, typeArgs, loc);
+  return instantiateInterfaceType(it, typeArgs);
+};
+
+/**
+ * The argument half of `new`, shared by class and interface
+ * constructors: splice the constructor's default values into the
+ * caller's argument list, check the count, then check each written
+ * argument against its parameter type at the instantiation's type
+ * arguments.
+ */
+let checkConstructorArguments = (
+  ctx: CheckerContext,
+  newExpr: NewExpression,
+  args: GrowableArray<Expression>,
+  callerArgCount: i32,
+  ctorType: FunctionType,
+  typeParameters: Array<TypeParameterType> | null,
+  typeArguments: Array<Type> | null,
+  loc: SourceLocation | null
+): void => {
       // Fill in missing arguments with default values
       let {parameterInitializers} = ctorType;
       if (parameterInitializers != null) {
@@ -16255,7 +16688,7 @@ let checkNewExpression = (
         let paramType = ctorType.parameters[ai];
         // Substitute type parameters with type arguments.
         let expectedParamType = substituteTypeParams(
-          instantiated.typeParameters, instantiated.typeArguments, paramType
+          typeParameters, typeArguments, paramType
         );
         // Args were already checked during inference; just validate here.
         let argType = checkExpression(ctx, args[ai], expectedParamType);
@@ -16277,18 +16710,6 @@ let checkNewExpression = (
         recordArgumentMove(ctx, args[ai], expectedParamType);
         ai = ai + 1;
       }
-
-      return instantiated;
-    }
-    case _: {
-      ctx.error(
-        "'" + className + "' is not a class.",
-        DiagnosticCode.NotCallable,
-        loc
-      );
-      return new ErrorType();
-    }
-  }
 };
 
 // ============================================================================

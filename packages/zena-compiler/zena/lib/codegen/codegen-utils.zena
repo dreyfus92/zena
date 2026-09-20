@@ -593,6 +593,20 @@ export let getInterfaceKey = (it: InterfaceType): InterfaceKey => {
 };
 
 /**
+ * The name an interface constructor's specializations are registered
+ * under in `specializedFunctions` (getSpecializedFunctionKey appends the
+ * type arguments): the declaring interface's key, then `.new` or
+ * `.new.<name>`. RTA mints under it and lowering looks it up.
+ */
+export let getInterfaceConstructorBaseName = (it: InterfaceType, ctorName: String): String => {
+  let key = getInterfaceKey(it.genericSource ?? it) as String;
+  if (ctorName == "<constructor>") {
+    return key + ".new";
+  }
+  return key + ".new." + ctorName;
+};
+
+/**
  * Resolves or constructs the MixinKey for the generic mixin declaration.
  * Note that this ignores any parameterized type arguments on the MixinType,
  * since the layout and reachability caches care only about the base mixin declaration.

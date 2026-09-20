@@ -1210,6 +1210,29 @@ export final class ScopeBuilder {
             this.#processExpression(value);
           }
         }
+        case MethodDefinition as md: {
+          // An interface constructor: a function body with parameters,
+          // scoped like a class method's. The interface's type
+          // parameters are in the enclosing scope.
+          this.#enterScope(ScopeKind.Function);
+          for (let param in md.params) {
+            this.#declareParameter(param);
+            if (param.typeAnnotation != null) {
+              this.#processTypeAnnotation(param.typeAnnotation);
+            }
+            let {defaultValue} = param;
+            if (defaultValue != null) {
+              this.#processExpression(defaultValue);
+            }
+          }
+          if (md.returnType != null) {
+            this.#processTypeAnnotation(md.returnType);
+          }
+          if (md.body != null) {
+            this.#processNode(md.body);
+          }
+          this.#exitScope();
+        }
         case _: {}
       }
     }

@@ -1,0 +1,29 @@
+// @mode: run
+// @result: 7
+
+// `new Box<T>()` inside a generic function: the constructor is
+// specialized at the function's type arguments, like the generic class
+// it constructs.
+interface Box<T> {
+  new(value: T) {
+    return new PlainBox<T>(value);
+  }
+
+  get(): T;
+}
+
+class PlainBox<T> implements Box<T> {
+  value: T;
+  new(this.value);
+  get(): T { return this.value; }
+}
+
+function wrap<T>(value: T): Box<T> {
+  return new Box<T>(value);
+}
+
+export let main = (): i32 => {
+  let a = wrap<i32>(3);
+  let b = wrap<i32>(4);
+  return a.get() + b.get();
+};

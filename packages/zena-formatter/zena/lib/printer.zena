@@ -630,7 +630,20 @@ let printMethodDefinition = (method: MethodDefinition): Doc => {
   if (method.isGenerator) { parts.push(text('gen ')); }
   if (method.isAsync) { parts.push(text('async ')); }
 
-  parts.push(printNodeName(method.name));
+  if (method.isConstructor) {
+    // `new(...)`, or a named constructor `new name(...)`.
+    parts.push(text('new'));
+    let isDefault = match (method.name) {
+      case Identifier {name}: name == '<constructor>'
+      case _: false
+    };
+    if (!isDefault) {
+      parts.push(text(' '));
+      parts.push(printNodeName(method.name));
+    }
+  } else {
+    parts.push(printNodeName(method.name));
+  }
 
   if (method.typeParameters != null) {
     parts.push(printTypeParams(method.typeParameters as GrowableArray<TypeParameter>));
@@ -778,6 +791,8 @@ let printInterfaceDeclaration = (decl: InterfaceDeclaration): Doc => {
 
 let printInterfaceMember = (member: Node): Doc => {
   let doc = match (member) {
+    // An interface constructor: the same node a class constructor is.
+    case MethodDefinition {}: printMethodDefinition(member)
     case MethodSignature {name, typeParameters, params, returnType}: {
       let parts = new GrowableArray<Doc>();
       parts.push(text((name as Identifier).name));

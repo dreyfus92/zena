@@ -861,7 +861,12 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
           "<constructor>"
         };
         let ctorMethodKey = if (ctorName == "<constructor>") "<constructor>" else "<constructor>." + ctorName;
-        if (neType is ClassType) {
+        // A `new` on an interface (callee typed as the interface, below)
+        // may be typed as the class its constructor declares; it
+        // constructs nothing itself — the factory's body does — so the
+        // class arm must not run for it.
+        let calleeNodeT = model.getNodeType(n.callee);
+        if (neType is ClassType && !(calleeNodeT is InterfaceType)) {
           var resolved = resolveType(neType) as ClassType;
           // A body constructs what its EMISSION constructs. The erasure
           // of a generic function is emitted and runs, so its
@@ -876,6 +881,23 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
           }
           specializer.instantiateClassType(resolved, model);
           this.queueExplicitCtor(resolved, ctorMethodKey);
+        }
+        // `new I<args>.name(...)` on an interface: the constructor is a
+        // factory function specialized per type-argument list. The
+        // checker types the CALLEE as the instantiated interface (the
+        // expression itself may be typed as the class the constructor
+        // declares); resolve it under the walk's arguments first, as the
+        // class arm does. A mention with open parameters is a
+        // template's — the specialization walk names the real
+        // arguments — and nothing is emitted at an erasure, so neither
+        // mints a copy.
+        if (calleeNodeT is InterfaceType) {
+          let resolvedI = resolveType(calleeNodeT);
+          if (resolvedI is InterfaceType) {
+            if (isConcrete(resolvedI) && !containsErasedType(resolvedI)) {
+              this.registerInterfaceConstructorUse(resolvedI, ctorMethodKey);
+            }
+          }
         }
         // A resource `new` TYPES as its wrapper — `Own<C>` is an
         // OPAQUE type, so the arm above skips entirely — but it
@@ -1006,6 +1028,36 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
         }
       }
     }
+  }
+
+  /**
+   * Mint the factory behind a `new` on an interface: the constructor's
+   * body, specialized at the instantiation's type arguments. Every
+   * interface declaration is indexed up front (analysis.zena), so a
+   * miss here is a compiler bug.
+   */
+  registerInterfaceConstructorUse(it: InterfaceType, ctorMethodKey: String): void {
+    let source = it.genericSource ?? it;
+    let declId = source.symbolId;
+    if (!this.pass.interfaceDecls.has(declId)) {
+      throw new Error("interface constructor: declaration of '" + it.name + "' is not indexed");
+    }
+    let decl = this.pass.interfaceDecls[declId];
+    let declModel = this.pass.interfaceModels[declId];
+    let targetName = if (ctorMethodKey == "<constructor>") {
+      "<constructor>"
+    } else {
+      ctorMethodKey.sliceBytes(14, ctorMethodKey.length)
+    };
+    for (let member in decl.body) {
+      if (member is MethodDefinition) {
+        if (member.isConstructor && ctorMethodName(member) == targetName) {
+          this.pass.specializer.instantiateInterfaceConstructor(it, targetName, member, declModel);
+          return;
+        }
+      }
+    }
+    throw new Error("interface constructor '" + targetName + "' not found on '" + it.name + "'");
   }
 
   /**
@@ -1729,7 +1781,12 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
           "<constructor>"
         };
         let ctorMethodKey = if (ctorName == "<constructor>") "<constructor>" else "<constructor>." + ctorName;
-        if (neType is ClassType) {
+        // A `new` on an interface (callee typed as the interface, below)
+        // may be typed as the class its constructor declares; it
+        // constructs nothing itself — the factory's body does — so the
+        // class arm must not run for it.
+        let calleeNodeT = model.getNodeType(n.callee);
+        if (neType is ClassType && !(calleeNodeT is InterfaceType)) {
           var resolved = resolveType(neType) as ClassType;
           // A body constructs what its EMISSION constructs. The erasure
           // of a generic function is emitted and runs, so its
@@ -1744,6 +1801,23 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
           }
           specializer.instantiateClassType(resolved, model);
           this.queueExplicitCtor(resolved, ctorMethodKey);
+        }
+        // `new I<args>.name(...)` on an interface: the constructor is a
+        // factory function specialized per type-argument list. The
+        // checker types the CALLEE as the instantiated interface (the
+        // expression itself may be typed as the class the constructor
+        // declares); resolve it under the walk's arguments first, as the
+        // class arm does. A mention with open parameters is a
+        // template's — the specialization walk names the real
+        // arguments — and nothing is emitted at an erasure, so neither
+        // mints a copy.
+        if (calleeNodeT is InterfaceType) {
+          let resolvedI = resolveType(calleeNodeT);
+          if (resolvedI is InterfaceType) {
+            if (isConcrete(resolvedI) && !containsErasedType(resolvedI)) {
+              this.registerInterfaceConstructorUse(resolvedI, ctorMethodKey);
+            }
+          }
         }
         // A resource `new` TYPES as its wrapper — `Own<C>` is an
         // OPAQUE type, so the arm above skips entirely — but it

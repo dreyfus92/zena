@@ -40,7 +40,7 @@ import {
 
 import { IrBody, IrOp, IrRefFunc, IrRefGlobal, IrRefType, IrRefField, IrRefTag } from './ir.zena';
 import {
-  getClassKey, getClassMethodKey, getClassPrivateFieldKey, getMemberRootClass, getInterfaceKey, getClosureSpecializationKey, getSignatureKey, ClassKey, getTypeKeyForSpecialization, getTypeUniqueKey, collectMixinFields, mixinScopeOfNode, MixinKey, getSpecializedFunctionKey, getSpecializedName, getFunctionValueWrapperKey, parseI32WithHex, parseI64OrU64Literal, isPresentWordName, presentWordCount, presentWordName,
+  getClassKey, getClassMethodKey, getClassPrivateFieldKey, getMemberRootClass, getInterfaceKey, getInterfaceConstructorBaseName, getClosureSpecializationKey, getSignatureKey, ClassKey, getTypeKeyForSpecialization, getTypeUniqueKey, collectMixinFields, mixinScopeOfNode, MixinKey, getSpecializedFunctionKey, getSpecializedName, getFunctionValueWrapperKey, parseI32WithHex, parseI64OrU64Literal, isPresentWordName, presentWordCount, presentWordName,
 } from '../codegen-utils.zena';
 import { IrBuilder } from './builder.zena';
 import { synthesizeScaffold } from './scaffold.zena';
@@ -1138,8 +1138,13 @@ export final class FunctionLowerer {
         methName = (node.name as Identifier).name;
       }
       if (node.isConstructor || methName == "<constructor>") {
-        if (this.func.classType != null &&
-            (this.func.classType as ClassType).isExtension) {
+        if (this.func.classType == null) {
+          // An interface constructor: a factory with no receiver and no
+          // allocation of its own — a plain function whose body returns
+          // the instance. It is specialized like a generic top-level
+          // function (Specializer.instantiateInterfaceConstructor).
+          paramOffset = 0;
+        } else if ((this.func.classType as ClassType).isExtension) {
           // Extension constructors take NO receiver (their signature
           // is the declared params, returning the underlying value).
           extCtorDef = node;
@@ -4522,6 +4527,16 @@ export final class FunctionLowerer {
     // class check, not after: constructing a resource is typed `Own<R>`, a
     // distinct-type alias that erases to `R`, so checking first would bail on
     // a type that does have a class behind it.
+    // A `new` on an interface: the checker types the callee as the
+    // instantiated interface (its result may narrow to a class, so the
+    // expression's own type does not say which kind of `new` this is).
+    let calleeT = this.#substitutedNodeType(expr.callee);
+    if (calleeT is InterfaceType) {
+      let calleeResolved = eraseTypeParameters(this.wasm, calleeT);
+      if (calleeResolved is InterfaceType) {
+        return this.#lowerInterfaceNew(expr, calleeResolved);
+      }
+    }
     let selfResolved = eraseTypeParameters(this.wasm, this.#resolveSelfType(nodeType));
     if (!(selfResolved is ClassType)) {
       this.#bail('new of non-class');
@@ -4583,6 +4598,48 @@ export final class FunctionLowerer {
     }
 
     return this.#constructInstance(classInfo, cKey, expr.args, ctorMethName);
+  }
+
+  /**
+   * `new I<args>.name(...)` on an interface: a call to the constructor's
+   * monomorphized factory, which RTA minted at this instantiation's
+   * type arguments (registerInterfaceConstructorUse). The factory's own
+   * return already packed the instance into an interface value.
+   */
+  #lowerInterfaceNew(expr: NewExpression, it: InterfaceType): i32 {
+    var ctorName = '<constructor>';
+    if (expr.constructorName != null) {
+      ctorName = getNodeMemberName(expr.constructorName as Node);
+    }
+    let targsOpt = it.typeArguments;
+    let typeArgs: Array<Type> = if (targsOpt != null) targsOpt else new GrowableArray<Type>();
+    let baseName = getInterfaceConstructorBaseName(it, ctorName);
+    let specKey = getSpecializedFunctionKey(baseName, typeArgs);
+    let target = if (let (true, f) = this.wasm.specializedFunctions.get(specKey)) f else null;
+    if (target == null) {
+      this.#bail('interface constructor not instantiated: ' + baseName);
+    }
+    let sig = target.signature;
+    if (sig.params.length != this.#liveArgCount(expr.args) ||
+        sig.returns.length != 1) {
+      this.#bail('interface constructor arity');
+    }
+    let args = new GrowableArray<i32>();
+    var sIdx = 0;
+    for (var i = 0; i < expr.args.length; i += 1) {
+      if (this.#dropZeroWidthArg(expr.args[i])) {
+        continue;
+      }
+      let pt = sig.params[sIdx];
+      sIdx += 1;
+      this.#requireSupported(pt, 'constructor param type');
+      var value = this.#lowerExpressionCtx(expr.args[i], pt);
+      value = this.#conformToSlot(value, pt, 'constructor argument type');
+      args.push(value);
+    }
+    this.#requireSupported(sig.returns[0], 'interface constructor result');
+    return this.b.callFunc(this.b.addRef(new IrRefFunc(target)), args,
+        sig.returns[0]);
   }
 
   /**

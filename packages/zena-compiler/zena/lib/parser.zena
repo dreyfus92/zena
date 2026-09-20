@@ -3682,7 +3682,7 @@ export final class Parser {
     return new AccessorDeclaration(name, typeAnnotation, getter, setter, isFinal, isStatic, decorators, this.#makeLocation(startToken));
   }
   
-  #parseMethodBody(name: Node, typeParameters: GrowableArray<TypeParameter> | null, isFinal: boolean, isAbstract: boolean, isDeclare: boolean, isStatic: boolean, isGenerator: boolean, isAsync: boolean, decorators: GrowableArray<Decorator>, startToken: Token, isConstructor: boolean): MethodDefinition {
+  #parseMethodBody(name: Node, typeParameters: GrowableArray<TypeParameter> | null, isFinal: boolean, isAbstract: boolean, isDeclare: boolean, isStatic: boolean, isGenerator: boolean, isAsync: boolean, decorators: GrowableArray<Decorator>, startToken: Token, isConstructor: boolean, inInterface: boolean = false): MethodDefinition {
     this.#consume(TokenType.LParen, "Expected '(' after method name");
 
     // An explicitly declared receiver: `dispose(this: Own<this>)`. It leads
@@ -3721,8 +3721,15 @@ export final class Parser {
     var returnType: TypeAnnotation | null = null;
     if (this.#match(TokenType.Colon)) {
       // Check for initializer list (: field = value, ...) vs return type
-      // If this is a constructor, the colon starts an initializer list
-      if (isConstructor) {
+      // If this is a constructor, the colon starts an initializer list.
+      // An INTERFACE constructor has no fields, so its colon is a return
+      // type — except when what follows is shaped like an initializer
+      // entry (`name =`, `#name =`, `super`), which is kept so the
+      // checker can say why an interface constructor cannot have one.
+      let looksLikeInitializer = this.#check(TokenType.Super) ||
+          this.#check(TokenType.Hash) ||
+          (this.#isIdentifier() && this.#peek2().kind == TokenType.Equals);
+      if (isConstructor && (!inInterface || looksLikeInitializer)) {
         // Parse initializer list
         let initList = new GrowableArray<Node>(4);
         var superInit: Node | null = null;
@@ -3975,7 +3982,26 @@ export final class Parser {
       this.#consume(TokenType.Semi, "Expected ';' after symbol declaration");
       return new SymbolDeclaration(symName, false, this.#makeLocation(startToken));
     }
-    
+
+    // Constructor: new(...) or new name(...). An interface constructor is
+    // a factory: its body returns an instance of some class that
+    // implements the interface. It parses like a class constructor
+    // (the same MethodDefinition node, `isConstructor` set); the checker
+    // rejects the parts that make no sense without a class — an
+    // initializer list, a `super` call, `this.` parameters, a body-less
+    // declaration.
+    if (this.#check(TokenType.New)) {
+      this.#advance();
+      let ctorName: Node = if (this.#check(TokenType.LParen)) {
+        new Identifier('<constructor>', this.#makeLocation(startToken))
+      } else if (this.#isIdentifier()) {
+        this.#parseIdentifier()
+      } else {
+        throw this.#error("Expected '(' or a constructor name after 'new' in an interface");
+      };
+      return this.#parseMethodBody(ctorName, null, false, false, false, false, false, false, new GrowableArray<Decorator>(0), startToken, true, true);
+    }
+
     // Check for `var` modifier on interface fields
     var mutableField = false;
     if (this.#check(TokenType.Var)) {

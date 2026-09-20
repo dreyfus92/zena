@@ -1,0 +1,36 @@
+// @mode: run
+// @result: 60
+
+// Type arguments a `new` leaves open come from the context: the binding's
+// declared type names them, whether it names the interface itself, an
+// interface the class implements, or the class.
+interface Stack<T> {
+  new() {
+    return new ListStack<T>();
+  }
+
+  push(value: T): void;
+  pop(): T;
+}
+
+class ListStack<T> implements Stack<T> {
+  #items: GrowableArray<T> = new GrowableArray<T>();
+  push(value: T): void { this.#items.push(value); }
+  pop(): T { return this.#items.pop(); }
+}
+
+let take = (s: Stack<i32>): i32 => s.pop();
+
+export let main = (): i32 => {
+  let a: Stack<i32> = new Stack();
+  a.push(10);
+  let b: Stack<i32> = new ListStack();
+  b.push(20);
+  let c: ListStack<i32> | null = new ListStack();
+  var total = a.pop() + b.pop();
+  if (c != null) {
+    c.push(30);
+    total += c.pop();
+  }
+  return total;
+};

@@ -1,0 +1,33 @@
+// @mode: run
+// @result: 42
+
+// An interface can declare constructors. Each is a factory: its body
+// returns an instance of some class that implements the interface, and
+// the expression `new Counter()` has the interface type.
+interface Counter {
+  new() {
+    return new SimpleCounter(0);
+  }
+
+  new startingAt(n: i32) {
+    return new SimpleCounter(n);
+  }
+
+  value(): i32;
+  bump(): void;
+}
+
+class SimpleCounter implements Counter {
+  var count: i32;
+  new(this.count);
+  value(): i32 { return this.count; }
+  bump(): void { this.count += 1; }
+}
+
+export let main = (): i32 => {
+  let a: Counter = new Counter();
+  a.bump();
+  let b = new Counter.startingAt(40);
+  b.bump();
+  return a.value() + b.value();
+};

@@ -1,0 +1,13 @@
+// @mode: run
+// @result: 9
+
+// The shape an interface constructor forces in a library: the module
+// declaring the interface imports the class its constructor builds, and
+// that class's module imports the interface it implements. Classes and
+// interfaces may cross an import cycle (docs/design/import-cycles.md).
+import { Shape } from './interface-constructor-cycle-shape.zena';
+
+export let main = (): i32 => {
+  let s = new Shape.square(3);
+  return s.area();
+};

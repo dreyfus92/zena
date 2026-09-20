@@ -1,5 +1,5 @@
 import { suite, test, TestContext } from 'zena:test';
-import { equal } from 'zena:assert';
+import { equal, isTrue } from 'zena:assert';
 import { format } from '../lib/printer.zena';
 
 let check = (name: String, actual: String, expected: String): void => {
@@ -246,6 +246,22 @@ let tests = suite('formatter', () => {
     let input = "interface Drawable {\n  draw(): void;\n}\n";
     let result = format(input);
     check('interface', result, input);
+  });
+
+  test('formats class constructors', (t: TestContext) => {
+    // Exact text is not compared: the printer leaves indentation on the
+    // blank line between members (see 'formats class with method').
+    let input = "class Point {\n  x: i32;\n  new(x: i32) : x = x;\n  new origin() : x = 0 {\n    return;\n  }\n}\n";
+    let result = format(input);
+    isTrue(result.contains("\n  new(x: i32) : x = x {}\n"));
+    isTrue(result.contains("\n  new origin() : x = 0 {\n    return;\n  }\n"));
+    check('class constructors idempotent', format(result), result);
+  });
+
+  test('formats interface constructors', (t: TestContext) => {
+    let input = "interface Shape {\n  new() {\n    return new Circle();\n  }\n  new unit(radius: i32): Circle {\n    return new Circle();\n  }\n  area(): i32;\n}\n";
+    let result = format(input);
+    check('interface constructors', result, input);
   });
 
   test('formats enum', (t: TestContext) => {

@@ -1,0 +1,24 @@
+// @mode: run
+// @result: 24
+
+// An interface constructor's parameters take defaults, spliced at the
+// call like a class constructor's.
+interface Buffer {
+  new(capacity: i32 = 16) {
+    return new FixedBuffer(capacity);
+  }
+
+  capacity(): i32;
+}
+
+class FixedBuffer implements Buffer {
+  size: i32;
+  new(this.size);
+  capacity(): i32 { return this.size; }
+}
+
+export let main = (): i32 => {
+  let a = new Buffer();
+  let b = new Buffer(8);
+  return a.capacity() + b.capacity();
+};

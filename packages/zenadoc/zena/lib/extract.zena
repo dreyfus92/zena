@@ -618,7 +618,10 @@ let methodMember = (
   if (name == null || !walk.visible(name)) {
     return null;
   }
-  let isConstructor = name == '<constructor>';
+  // `new(...)` is the default constructor; `new name(...)` a named one
+  // (on a class or an interface), shown under its name.
+  let isDefaultConstructor = name == '<constructor>';
+  let isConstructor = isDefaultConstructor || method.isConstructor;
   let kind = if (isConstructor) {
     MemberKind.Constructor
   } else if (isOperatorName(name)) {
@@ -637,13 +640,13 @@ let methodMember = (
   if (kind == MemberKind.Operator) {
     sb.append('operator ');
   }
-  sb.append(if (isConstructor) { 'new' } else { name });
+  sb.append(if (isDefaultConstructor) { 'new' } else if (isConstructor) { 'new ' + name } else { name });
   sb.append(typeParameterText(typeParams));
   sb.append(parameterText(params));
   sb.append(returnText(returns));
 
   let out = startMember(walk, owner, kind,
-      if (isConstructor) { 'new' } else { name }, sb.toString());
+      if (isDefaultConstructor) { 'new' } else { name }, sb.toString());
   out.isStatic = method.isStatic;
   out.isAbstract = method.isAbstract;
   out.typeParameters = typeParams;

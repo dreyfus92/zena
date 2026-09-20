@@ -2971,6 +2971,97 @@ let a = new OnlyNamed.fromInt(10); // OK
 let b = new OnlyNamed();            // Error: class 'OnlyNamed' has no default constructor
 ```
 
+### Interface Constructors
+
+An interface can declare constructors too. An interface has no fields and
+no instances of its own, so an interface constructor is a factory: its body
+returns an instance of some class that implements the interface. The
+expression `new Shape()` then has the interface type, and the caller never
+names the implementing class:
+
+```zena
+interface Shape {
+  new() {
+    return new Circle(1);
+  }
+
+  new square(side: i32) {
+    return new Square(side);
+  }
+
+  area(): i32;
+}
+
+class Circle implements Shape {
+  radius: i32;
+  new(this.radius);
+  area(): i32 { return 3 * this.radius * this.radius; }
+}
+
+class Square implements Shape {
+  side: i32;
+  new(this.side);
+  area(): i32 { return this.side * this.side; }
+}
+
+let a: Shape = new Shape();        // a Circle, typed as Shape
+let b = new Shape.square(3);       // a Square, typed as Shape
+```
+
+The standard library uses this for its collection interfaces: `new Map()`
+builds a `HashMap`, `new Map.ordered()` an `OrderedHashMap`, `new Set()` a
+`HashSet`, `new Array()` a `GrowableArray`, and `new Array.fixed(n, value)`
+a `FixedArray`.
+
+A generic interface's constructors see its type parameters. The type
+arguments are written at the call, or inferred from the constructor's own
+parameters, exactly as for a generic class:
+
+```zena
+interface Stack<T> {
+  new() {
+    return new ListStack<T>();
+  }
+
+  new withFirst(first: T) {
+    let s = new ListStack<T>();
+    s.push(first);
+    return s;
+  }
+
+  push(value: T): void;
+  pop(): T;
+}
+
+let s = new Stack<i32>();          // Stack<i32>
+let t = new Stack.withFirst(20);   // Stack<i32>, T inferred from the argument
+```
+
+The rules that follow from "a factory with no class behind it":
+
+- The body must return a value assignable to the interface, on every path.
+  A body-less `new bare();` is an empty body and is rejected for the same
+  reason.
+- The result type is the interface unless the constructor declares a
+  narrower one: `new(): GrowableArray<T>` on `Array<T>` gives the caller the
+  class's full API (`push`, and so on) while `Array<T>` itself is the
+  read-only view. A declared type must still be an instance of the
+  interface.
+- There is no initializer list, no `super(...)` call, no `this.` parameter,
+  and no `this` in the body.
+- Constructors are not inherited: `interface MutableArray<T> extends Array<T>`
+  does not get `new MutableArray()` from `Array`.
+- Default parameter values work as they do on class constructors.
+- The interface declaring the constructor imports the class it builds, and
+  that class's module usually imports the interface back. That import cycle
+  is fine: classes and interfaces may cross one (see
+  `docs/design/import-cycles.md`).
+
+Implementing classes owe nothing to an interface constructor. It is a
+convenience of the interface, the way a named constructor is a convenience
+of its class. (Static members that every implementing class must provide
+are a different, future feature; see `docs/design/classes.md` §11.)
+
 ### Sealed Classes
 
 A `sealed` class restricts which classes can extend it. All variants must be

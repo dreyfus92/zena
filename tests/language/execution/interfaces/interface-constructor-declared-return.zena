@@ -1,0 +1,36 @@
+// @mode: run
+// @result: 15
+
+// An interface constructor may declare a return type narrower than the
+// interface, so the caller gets that class's full API. `Array<T>` is the
+// read-only view; `new Array()` returning a `GrowableArray<T>` is the
+// standard library's use of this.
+interface Sink<T> {
+  new(): Bucket<T> {
+    return new Bucket<T>();
+  }
+
+  count(): i32;
+}
+
+class Bucket<T> implements Sink<T> {
+  #items: GrowableArray<T> = new GrowableArray<T>();
+  put(value: T): void { this.#items.push(value); }
+  count(): i32 { return this.#items.length; }
+  last(): T { return this.#items[this.#items.length - 1]; }
+}
+
+function fill<T>(value: T): Bucket<T> {
+  let b = new Sink<T>();
+  b.put(value);
+  b.put(value);
+  return b;
+}
+
+export let main = (): i32 => {
+  let b = new Sink<i32>();
+  b.put(5);
+  let c = fill<i32>(7);
+  // 5 + 2 + 7 + 1
+  return b.last() + c.count() + c.last() + b.count();
+};

@@ -60,6 +60,17 @@ export interface SpecializerInterface {
   instantiateClassType(classType: ClassType, model: SemanticModel): void;
   discoverStaticFields(classType: ClassType, cd: ClassDeclaration, model: SemanticModel): void;
   instantiateGenericFunction(targetSymId: SymbolId, args: Array<Type>): WasmFunction;
+  /**
+   * The function behind `new I<args>.name(...)` for an interface
+   * constructor: one monomorphized copy per type-argument list, minted
+   * on first demand, like a generic top-level function's.
+   */
+  instantiateInterfaceConstructor(
+    it: InterfaceType,
+    ctorName: String,
+    methodNode: Node,
+    model: SemanticModel
+  ): WasmFunction;
   instantiateGenericMethod(
     ct: ClassType,
     cd: Node | null,
