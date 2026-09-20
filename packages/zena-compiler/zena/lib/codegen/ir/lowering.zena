@@ -5819,14 +5819,16 @@ export final class FunctionLowerer {
     // Resolve against the class the receiver VALUE carries: checked
     // node types name the GENERIC class inside specialized-method
     // bodies, but specialized methods register under their own key.
-    let receiver = this.#lowerExpression(member.object);
-    var ct = eraseTypeParameters(this.wasm, selfResolved) as ClassType;
+    var receiver = this.#lowerExpression(member.object);
+    let checkedCt = eraseTypeParameters(this.wasm, selfResolved) as ClassType;
+    var ct = checkedCt;
     let fromValue = this.#classTypeOfValue(receiver);
     if (fromValue != null && !ct.isExtension) {
       ct = fromValue;
     }
+    var narrowedFromChecked = false;
     let cKey = getClassKey(ct);
-    let classInfo = if (let (true, info) = this.wasm.classInfos.get(cKey)) info else null;
+    var classInfo = if (let (true, info) = this.wasm.classInfos.get(cKey)) info else null;
     if (classInfo == null) {
       this.#bail('method receiver not discovered');
     }
@@ -5957,6 +5959,40 @@ export final class FunctionLowerer {
       }
       currClass = currClass.superType;
     }
+    if (method == null && checkedCt != ct) {
+      // Nothing from the value's class carries this slot. A `this`
+      // return is where that happens: `clone(): this` on a Dog is a
+      // Dog to the checker, but its wasm signature returns the Animal
+      // that declared it, so the value says Animal and a call to Dog's
+      // own `bark` finds nothing. The checker's class is the narrower
+      // one, and the `this` contract says the value really is of it,
+      // so resolve there and downcast the receiver below.
+      //
+      // Only as a fallback: while the value's class does carry the
+      // slot, it stays the right answer — it is the one an override
+      // dispatches from, and narrowing first would resolve a subclass
+      // body statically and lose the vtable.
+      var narrowWalk: ClassType | null = checkedCt;
+      while (narrowWalk != null && method == null) {
+        let nw = narrowWalk;
+        var ng: ClassType | null = nw;
+        while (ng != null && method == null) {
+          let key = getClassMethodKey(getClassKey(ng), slotName);
+          if (let (true, m) = this.wasm.classMethodMap.get(key)) {
+            method = m;
+            narrowedFromChecked = true;
+          }
+          ng = ng.genericSource;
+        }
+        narrowWalk = nw.superType;
+      }
+      if (narrowedFromChecked) {
+        ct = checkedCt;
+        if (let (true, info) = this.wasm.classInfos.get(getClassKey(ct))) {
+          classInfo = info;
+        }
+      }
+    }
     if (method == null) {
       this.#bail('method not found');
     }
@@ -6001,7 +6037,23 @@ export final class FunctionLowerer {
     }
 
     if (!isValSubtype(this.#valueType(receiver), sig.params[0])) {
-      this.#failConformance(receiver, sig.params[0], 'method receiver type');
+      if (narrowedFromChecked) {
+        // The value is the declaring class, the slot wants the
+        // subclass the `this` return named. conformToSlot emits the
+        // ref.cast, which traps if a body broke the contract by
+        // handing back something other than its own receiver.
+        // Receiver slots are nullable, so casting straight to the slot
+        // would compare a nullable target against a non-null value and
+        // read as no downcast at all. Cast to the non-null form, which
+        // the slot then accepts.
+        var want = sig.params[0];
+        if (want is ValTypeRefNull && this.#valueType(receiver) is ValTypeRef) {
+          want = new ValTypeRef(want.target) as ValType;
+        }
+        receiver = this.#conformToSlot(receiver, want, 'method receiver type');
+      } else {
+        this.#failConformance(receiver, sig.params[0], 'method receiver type');
+      }
     }
     let defaults = this.#defaultArgInfo(call);
     let args = new GrowableArray<i32>();

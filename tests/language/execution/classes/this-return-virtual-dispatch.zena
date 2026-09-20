@@ -1,0 +1,31 @@
+// @mode: run
+// @stdout: woof\nyip\nyip\nwoof
+
+// A `this` return whose result then calls an OVERRIDDEN method. The
+// value carries the class that declared the `this` return, and that
+// class is where the override dispatches from, so resolution has to
+// stay there — narrowing to the checked class first would pick a
+// subclass body statically and stop consulting the vtable.
+
+class Animal {
+  clone(): this { return this; }
+  speak(): String { return 'generic'; }
+}
+
+class Dog extends Animal {
+  speak(): String { return 'woof'; }
+}
+
+class Puppy extends Dog {
+  speak(): String { return 'yip'; }
+}
+
+// The receiver is a Dog statically, a Puppy sometimes at runtime.
+let viaDog = (d: Dog): String => d.clone().speak();
+
+export let main = () => {
+  console.log(new Dog().clone().speak());
+  console.log(new Puppy().clone().speak());
+  console.log(viaDog(new Puppy()));
+  console.log(viaDog(new Dog()));
+};

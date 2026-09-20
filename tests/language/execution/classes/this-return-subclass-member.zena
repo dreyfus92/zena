@@ -1,0 +1,38 @@
+// @mode: run
+// @stdout: woof\nanimal\nwoof\nrex
+
+// A `this` return on an ordinary class hierarchy. The checker knows
+// clone() on a Dog gives a Dog; the VALUE only carries the Animal that
+// declared clone(), since that is what the method's wasm signature
+// returns. Resolving the next call against the value lost Dog's own
+// members and failed to compile, so the receiver gets the downcast the
+// `this` return promises instead.
+
+class Animal {
+  name: String;
+  new(this.name);
+
+  clone(): this { return this; }
+  kind(): String { return 'animal'; }
+}
+
+class Dog extends Animal {
+  new(name: String) : super(name);
+  bark(): String { return 'woof'; }
+}
+
+export let main = () => {
+  let d = new Dog('rex');
+
+  // bark() is Dog's, and only resolves because clone() gave a Dog.
+  console.log(d.clone().bark());
+
+  // An inherited member off the same result still resolves.
+  console.log(d.clone().kind());
+
+  // Chained: each clone() keeps the Dog.
+  console.log(d.clone().clone().bark());
+
+  // And the value really is the receiver, not a fresh Animal.
+  console.log(d.clone().name);
+};
