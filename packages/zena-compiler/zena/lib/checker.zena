@@ -6422,16 +6422,7 @@ let instantiateGenericClass = (
   // HashMap();`. inferTypeArg keeps the first answer, so the
   // arguments win where both speak.
   if (expectedType != null) {
-    let expectedCore = subtractNullFromType(expectedType);
-    inferTypeArg(selfTypeOfClass(ct), expectedCore, inferred);
-    for (let impl in ct.implementsList) {
-      inferTypeArg(impl as Type, expectedCore, inferred);
-    }
-    var sup = ct.superType;
-    while (sup != null) {
-      inferTypeArg(sup as Type, expectedCore, inferred);
-      sup = sup.superType;
-    }
+    inferTypeArgsFromContext(selfTypeOfClass(ct), subtractNullFromType(expectedType), inferred);
   }
 
   // Build typeArguments array from inferred map.
@@ -6452,6 +6443,86 @@ let instantiateGenericClass = (
 
   // Create instantiated class type using factory function.
   return instantiateClassType(ct, typeArgs);
+};
+
+/**
+ * Infer the type arguments a `new` leaves open from the type the context
+ * expects. `self` is the constructed class or interface at its own type
+ * parameters; the expected type is matched against `self` itself, the
+ * interfaces the class implements (its own and its superclasses'), a
+ * superclass, or an interface the constructed interface extends, and the
+ * matching type's arguments are paired with the expected type's.
+ *
+ *   let m: Map<String, i32> = new OrderedHashMap();   // K, V through HashMap
+ *   let a: Array<i32> = new GrowableArray();          // T through MutableArray
+ *   let s: Set<String> = new Set.ordered();           // T from Set itself
+ *
+ * Only what the arguments left open is filled in: inferTypeArg keeps
+ * the first answer for a parameter.
+ */
+let inferTypeArgsFromContext = (self: Type, expected: Type, inferred: HashMap<String, Type>): void => {
+  match (expected) {
+    case InterfaceType as ei: {
+      let name = (ei.genericSource ?? ei).name;
+      var matched: InterfaceType | null = null;
+      if (self is ClassType) {
+        matched = findImplementedInterfaceTransitiveInChecker(self, name);
+      } else if (self is InterfaceType) {
+        matched = findExtendedInterfaceTransitive(self, name);
+      }
+      if (matched != null) {
+        inferTypeArgsPairwise(matched.typeArguments, ei.typeArguments, inferred);
+      }
+    }
+    case ClassType as ec: {
+      var c: ClassType | null = if (self is ClassType) self else null;
+      while (c != null) {
+        let cur = c;
+        if (cur.canonical() == ec.canonical()) {
+          inferTypeArgsPairwise(cur.typeArguments, ec.typeArguments, inferred);
+          return;
+        }
+        c = cur.superType;
+      }
+    }
+    case _: {}
+  }
+};
+
+let inferTypeArgsPairwise = (
+  fromArgs: Array<Type> | null,
+  toArgs: Array<Type> | null,
+  inferred: HashMap<String, Type>
+): void => {
+  if (fromArgs == null || toArgs == null) {
+    return;
+  }
+  var i = 0;
+  while (i < fromArgs.length && i < toArgs.length) {
+    inferTypeArg(fromArgs[i], toArgs[i], inferred);
+    i += 1;
+  }
+};
+
+/**
+ * The interface named `name` among those `it` extends, transitively, at
+ * `it`'s type arguments; `it` itself when it is that interface.
+ */
+let findExtendedInterfaceTransitive = (it: InterfaceType, name: String): InterfaceType | null => {
+  let itName = (it.genericSource ?? it).name;
+  if (itName == name) {
+    return it;
+  }
+  for (let ext in it.extendsList) {
+    let resolved = substituteTypeParams(it.typeParameters, it.typeArguments, ext as Type);
+    if (resolved is InterfaceType) {
+      let found = findExtendedInterfaceTransitive(resolved, name);
+      if (found != null) {
+        return found;
+      }
+    }
+  }
+  return null;
 };
 
 /**
@@ -16651,11 +16722,7 @@ let instantiateGenericInterface = (
   // `let m: Map<String, i32> = new Map();` — through the interface
   // itself or one it extends. The arguments win where both speak.
   if (expectedType != null) {
-    let expectedCore = subtractNullFromType(expectedType);
-    inferTypeArg(selfTypeOfInterface(it) as Type, expectedCore, inferred);
-    for (let ext in it.extendsList) {
-      inferTypeArg(ext as Type, expectedCore, inferred);
-    }
+    inferTypeArgsFromContext(selfTypeOfInterface(it) as Type, subtractNullFromType(expectedType), inferred);
   }
 
   let typeArgs = new GrowableArray<Type>();

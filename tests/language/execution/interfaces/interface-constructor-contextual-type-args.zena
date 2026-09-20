@@ -1,10 +1,15 @@
 // @mode: run
-// @result: 60
+// @result: 150
 
 // Type arguments a `new` leaves open come from the context: the binding's
 // declared type names them, whether it names the interface itself, an
-// interface the class implements, or the class.
-interface Stack<T> {
+// interface the class implements (directly or through a superclass), a
+// superclass, or an interface the constructed interface extends.
+interface Sized {
+  size(): i32;
+}
+
+interface Stack<T> extends Sized {
   new() {
     return new ListStack<T>();
   }
@@ -17,6 +22,15 @@ class ListStack<T> implements Stack<T> {
   #items: GrowableArray<T> = new GrowableArray<T>();
   push(value: T): void { this.#items.push(value); }
   pop(): T { return this.#items.pop(); }
+  size(): i32 { return this.#items.length; }
+}
+
+class CountingStack<T> extends ListStack<T> {
+  var pushes: i32 = 0;
+  push(value: T): void {
+    this.pushes += 1;
+    super.push(value);
+  }
 }
 
 let take = (s: Stack<i32>): i32 => s.pop();
@@ -32,5 +46,13 @@ export let main = (): i32 => {
     c.push(30);
     total += c.pop();
   }
+  // Through the superclass: CountingStack implements Stack via ListStack.
+  let d: Stack<i32> = new CountingStack();
+  d.push(40);
+  total += d.pop();
+  // The superclass itself as the context.
+  let e: ListStack<i32> = new CountingStack();
+  e.push(50);
+  total += e.pop();
   return total;
 };
