@@ -283,7 +283,7 @@ To add a page: add it to the sidebar with an `outline`, then run
   - Operator precedence and associativity
 - ✅ [Comments](src/reference/comments.md) — `/reference/comments/`
   - Line comments (//)
-  - Block comments (/\* \*/)
+  - Block comments (/* */)
   - Doc comments
 - **Data Types**
   - ✅ [Numbers](src/reference/numbers.md) — `/reference/numbers/`
@@ -342,11 +342,17 @@ To add a page: add it to the sidebar with an `outline`, then run
     - Slicing with ranges
     - Range iteration
 - **Types**
-  - 📝 [Type System Overview](src/reference/types.md) — `/reference/types/`
-    - The type hierarchy
-    - Assignability and subtyping
-    - Nominal versus structural
-    - anyref, void, and never
+  - ✅ [Type System Overview](src/reference/types.md) — `/reference/types/`
+    - Key features
+    - Soundness
+    - Primitives, references, and the WebAssembly GC hierarchy
+    - Nominal versus structural typing
+    - Assignability, subtyping, and variance
+    - Special types
+    - Built-in type operators
+    - Ownership and resource types
+    - Comparison with other languages
+    - Future type system directions
   - 📝 [Inference](src/reference/inference.md) — `/reference/inference/`
     - Local variable inference
     - Contextual typing
@@ -604,4 +610,4 @@ To add a page: add it to the sidebar with an `outline`, then run
 
 ---
 
-48 of 95 pages written; 47 still placeholders.
+49 of 95 pages written; 46 still placeholders.
