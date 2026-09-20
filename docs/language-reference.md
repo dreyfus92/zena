@@ -4653,8 +4653,27 @@ at one exit. A `using` on a resource is therefore redundant rather than
 wrong: disposal is idempotent, so the second release does nothing.
 
 An `Own<R> | null` binding releases the same way, skipping the dispose
-when the value is null — except one initialized to literal `null`, which
-can never hold anything to release.
+when the value is null — except a `let` initialized to literal `null`,
+which can never hold anything to release.
+
+A `var` owner binding releases too, and a store into it releases the
+value it holds before the new one lands. A store into a binding a move
+has emptied releases nothing and makes the binding live again:
+
+```zena
+var a = open('a');
+a = open('b');          // releases 'a', then stores 'b'
+consume(a);             // moves 'b' out: a is dead
+a = open('c');          // releases nothing; a holds 'c' again
+                        // 'c' is released here
+```
+
+That is how a method that replaces an owner field is used: it takes
+`this: Own<this>` and returns `Own<this>`, and the caller writes
+`h = h.replace(x)`. A `var f: Own<File> | null = null` qualifies as
+well, filled by a later store. On unwind, the binding releases what it
+holds at that point; while a value is moved out and not yet replaced,
+whoever took it releases it.
 
 An owned **parameter** releases at function exit under the same rule:
 the function received ownership, so the function releases unless its

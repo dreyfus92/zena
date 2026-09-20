@@ -247,13 +247,39 @@ export let lowerValueNode = (cx: LoweringContext, node: Node, isVoid: boolean, c
  */
 let lowerBlockValueFrom = (cx: LoweringContext, body: Array<Statement>,
     start: i32, isVoid: boolean, ctxVt: ValType | null): i32 => {
-  for (var i = start; i < body.length - 1; i += 1) {
+  if (isVoid) {
+    // A void block (a try body, a statement arm) is a statement list
+    // like any other, tail included.
+    lowerStatementRange(cx, body, start, body.length);
+    return -1;
+  }
+  let plans = varDropPlans(cx, body);
+  var i = start;
+  while (i < body.length - 1) {
+    if (!cx.reachable) {
+      return -1;
+    }
+    // A `var` owner binding's interval: one ending before the tail is
+    // a void region the block continues after; one reaching the tail
+    // carries the tail's value out like the regions below.
+    var openedEnd = -1;
+    for (let plan in plans) {
+      if (cx.openVarDrops.has(plan.symId as i32)) { continue; }
+      let raw = varDropIntervalEnd(plan, i, body.length);
+      if (raw == -2) { continue; }
+      if (raw < 0) {
+        return lowerValueRegionRestVar(cx, plan, body, i, ctxVt);
+      }
+      lowerVarDropRegion(cx, plan, body, i, raw, false);
+      openedEnd = raw;
+      break;
+    }
+    if (openedEnd >= 0) {
+      i = openedEnd;
+      continue;
+    }
     if (body[i] is UsingStatement) {
       let us = body[i] as UsingStatement;
-      if (isVoid) {
-        lowerUsingRegion(cx, us, body, i + 1, body.length);
-        return -1;
-      }
       // Acquire exactly as lowerUsingRegion does, then wrap the rest
       // of the block in the result-carrying region.
       let declType = cx.substitutedNodeType(us.init);
@@ -279,12 +305,6 @@ let lowerBlockValueFrom = (cx: LoweringContext, body: Array<Statement>,
     if (body[i] is VariableDeclaration &&
         declScopeDrop(cx, body[i] as VariableDeclaration)) {
       let vd = body[i] as VariableDeclaration;
-      if (isVoid) {
-        // A void block (a try body, a statement arm) takes the region
-        // like any statement list.
-        lowerScopeDropRegion(cx, vd, body, i + 1, body.length);
-        return -1;
-      }
       let declType = cx.substitutedNodeType(vd.init);
       if (declType == null) {
         bail(cx, 'untyped implicit-drop binding');
@@ -301,9 +321,10 @@ let lowerBlockValueFrom = (cx: LoweringContext, body: Array<Statement>,
       return lowerValueRegionRest(cx, value, owners, body, i + 1, ctxVt);
     }
     lowerStmt(cx, body[i]);
-    if (!cx.reachable) {
-      return -1;
-    }
+    i += 1;
+  }
+  if (!cx.reachable) {
+    return -1;
   }
   let last = body[body.length - 1];
   if (last is ExpressionStatement) {
@@ -360,6 +381,31 @@ let lowerValueRegionRest = (cx: LoweringContext, value: i32,
         finishProtectedArm(cx, scope, resultVar, v);
       },
       (fscope) => { emitMaybeDispose(cx, value, owners); });
+};
+
+/**
+ * The same, for a `var` owner binding whose release interval reaches
+ * the block's tail: the finalizer releases what the binding holds at
+ * the exit (see lowerVarDropRegion).
+ */
+let lowerValueRegionRestVar = (cx: LoweringContext, plan: VarDropPlan,
+    body: Array<Statement>, start: i32, ctxVt: ValType | null): i32 => {
+  if (ctxVt == null) {
+    bail(cx, 'value region result type');
+  }
+  let mirrored = new GrowableArray<SymbolId>();
+  for (var k = start; k < body.length; k += 1) {
+    cx.appendAssignedEnvSyms(body[k] as Node, mirrored);
+  }
+  cx.openVarDrops.add(plan.symId as i32);
+  let result = lowerFinallyRegion(cx, mirrored, false, ctxVt,
+      (scope, resultVar, saved) => {
+        let v = lowerBlockValueFrom(cx, body, start, false, ctxVt);
+        finishProtectedArm(cx, scope, resultVar, v);
+      },
+      (fscope) => { emitVarDropRelease(cx, plan); });
+  cx.openVarDrops.delete(plan.symId as i32);
+  return result;
 };
 
 /**
@@ -916,7 +962,8 @@ let lowerFinallyRegion = (cx: LoweringContext, mirrored: GrowableArray<SymbolId>
     isVoid: boolean, resultVt: ValType | null,
     lowerProtected: (scope: FinallyScope, resultVar: i32,
         saved: HashMap<SymbolId, i32>) => void,
-    lowerFinalizer: (scope: FinallyScope) => void): i32 => {
+    lowerFinalizer: (scope: FinallyScope) => void,
+    finalizeOnNormal: boolean = true): i32 => {
   if (cx.wasm.exceptionTag == null || cx.wasm.exceptionPayload == null) {
     bail(cx, 'exception infra missing');
   }
@@ -987,6 +1034,19 @@ let lowerFinallyRegion = (cx: LoweringContext, mirrored: GrowableArray<SymbolId>
   for (let symId in mirrored) {
     cx.env[symId] = cx.b.varGet(cx.tryVars[symId]);
   }
+  // A region whose finalizer serves only the exits that leave early —
+  // a `var` owner's release region closed before a statement that
+  // moves the binding, whose value is still the binding's when the
+  // region completes — lets normal completion past the finalizer.
+  var normalB = -1;
+  if (!finalizeOnNormal && scope.exitsNormally) {
+    normalB = cx.b.newBlock();
+    let finB = cx.b.newBlock();
+    cx.b.brIf(cx.b.binary(IrOp.i32_eq, i32vt, cx.b.varGet(codeVar),
+            cx.b.constI32(finallyExitNormal, i32vt)),
+        normalB, noValues(), finB, noValues());
+    cx.b.switchTo(finB);
+  }
   lowerFinalizer(scope);
   // The mirrors this try owns go out of scope here: an exit replayed
   // below belongs to whatever encloses this try. An enclosing try's
@@ -997,7 +1057,13 @@ let lowerFinallyRegion = (cx: LoweringContext, mirrored: GrowableArray<SymbolId>
   if (!cx.reachable) {
     // The finalizer left on its own — returned, broke, or threw. What
     // was pending is discarded, which is what the language says.
-    return -1;
+    if (normalB < 0) {
+      return -1;
+    }
+    // Except normal completion, which bypassed it.
+    cx.b.switchTo(normalB);
+    cx.reachable = true;
+    return if (resultVar >= 0) cx.b.varGet(resultVar) else -1;
   }
 
   // ---- replay -------------------------------------------------------
@@ -1007,9 +1073,11 @@ let lowerFinallyRegion = (cx: LoweringContext, mirrored: GrowableArray<SymbolId>
   // No continuation when nothing completed the protected part
   // normally: every path through it threw or left, so the try is the
   // end of its own control flow and the caller stops lowering here.
-  let contB = if (scope.exitsNormally) cx.b.newBlock() else -1;
+  let contB = if (normalB >= 0) normalB
+    else if (scope.exitsNormally) cx.b.newBlock()
+    else -1;
   var elseB = cx.b.newBlock();
-  if (contB >= 0) {
+  if (contB >= 0 && normalB < 0) {
     cx.b.brIf(cx.b.binary(IrOp.i32_eq, i32vt, code,
             cx.b.constI32(finallyExitNormal, i32vt)),
         contB, noValues(), elseB, noValues());
@@ -1657,6 +1725,142 @@ export let emitMaybeDispose = (cx: LoweringContext, value: i32, owners: Array<Cl
  * The value is acquired BEFORE the region opens: a release is owed only
  * once acquisition has succeeded.
  */
+/**
+ * A `var` owner binding of a statement list with the release intervals
+ * the checker recorded for it: [start, end) pairs of statement indices,
+ * end -1 standing for the list's end (ownership.md §Implicit drop).
+ */
+final class VarDropPlan {
+  symId: SymbolId;
+  owners: Array<ClassType>;
+  intervals: GrowableArray<i32>;
+  new(this.symId, this.owners, this.intervals);
+}
+
+let varDropPlans = (cx: LoweringContext, body: Array<Statement>): GrowableArray<VarDropPlan> => {
+  let plans = new GrowableArray<VarDropPlan>();
+  for (let s in body) {
+    if (!(s is VariableDeclaration)) { continue; }
+    let pat = (s as VariableDeclaration).pattern as Node;
+    let intervals = cx.func.model.ownDropIntervalsOf(pat);
+    if (intervals == null || intervals.length == 0) { continue; }
+    let symOpt = cx.func.model.resolveDeclaration(pat);
+    if (symOpt == null) {
+      bail(cx, 'var owner binding symbol');
+    }
+    let bt = cx.func.model.getBindingTypeById(symOpt.id);
+    if (bt == null) {
+      bail(cx, 'untyped var owner binding');
+    }
+    plans.push(new VarDropPlan(symOpt.id, disposeOwnerClasses(cx, bt), intervals));
+  }
+  return plans;
+};
+
+/**
+ * The recorded end of the plan's interval covering statement `i`: an
+ * exclusive index, or -1 for the block's end; -2 when none covers it.
+ */
+let varDropIntervalEnd = (plan: VarDropPlan, i: i32, len: i32): i32 => {
+  var k = 0;
+  while (k + 1 < plan.intervals.length) {
+    let a = plan.intervals[k];
+    let raw = plan.intervals[k + 1];
+    let b = if (raw < 0) len else raw;
+    if (a <= i && i < b) { return raw; }
+    k += 2;
+  }
+  return -2;
+};
+
+/**
+ * Releases what a `var` owner binding holds at a region's exit. A store
+ * inside the region mirrored the binding into the region's variable,
+ * which the dispatch block read back into the environment before the
+ * finalizer runs; a binding no statement in the region assigned still
+ * holds its entry value.
+ */
+let emitVarDropRelease = (cx: LoweringContext, plan: VarDropPlan): void => {
+  let syms = new GrowableArray<SymbolId>();
+  syms.push(plan.symId);
+  emitMaybeDispose(cx, cx.envValues(syms)[0], plan.owners);
+};
+
+/**
+ * One release region of a `var` owner binding, over statements
+ * [start, end). A region reaching the block's end releases on every
+ * exit, normal completion included; one closed earlier — before a
+ * statement that moves the binding, or where an enclosing region ends
+ * — releases only on the exits that leave early, since on normal
+ * completion the value is still the binding's.
+ */
+let lowerVarDropRegion = (cx: LoweringContext, plan: VarDropPlan,
+    body: Array<Statement>, start: i32, end: i32, toBlockEnd: boolean): void => {
+  let mirrored = new GrowableArray<SymbolId>();
+  for (var k = start; k < end; k += 1) {
+    cx.appendAssignedEnvSyms(body[k] as Node, mirrored);
+  }
+  cx.openVarDrops.add(plan.symId as i32);
+  lowerFinallyRegion(cx, mirrored, true, null,
+      (scope, resultVar, saved) => {
+        lowerStatementRange(cx, body, start, end);
+        finishProtectedArm(cx, scope, resultVar, -1);
+      },
+      (fscope) => { emitVarDropRelease(cx, plan); },
+      toBlockEnd);
+  cx.openVarDrops.delete(plan.symId as i32);
+};
+
+/**
+ * Statements [start, end) of a statement list, with the release regions
+ * the checker recorded. A `using` or an implicit-drop `let` scopes the
+ * rest of the range. A `var` owner binding's intervals each open a
+ * region over the statements they cover — closed before a statement
+ * that moves the binding, since between the move and a store that
+ * revives it the binding holds a value whoever took it will release,
+ * and reopened after one that revives it — whose finalizer releases
+ * what the binding holds at the exit. An interval ending inside the
+ * range closes there and lowering continues after it. The bindings
+ * whose region is open are on the context, so a nested list (a
+ * `using` region's rest) opens no second region for one.
+ */
+export let lowerStatementRange = (cx: LoweringContext, body: Array<Statement>,
+    start: i32, end: i32): void => {
+  let plans = varDropPlans(cx, body);
+  var i = start;
+  while (i < end) {
+    if (!cx.reachable) { return; }
+    var openedEnd = -1;
+    for (let plan in plans) {
+      if (cx.openVarDrops.has(plan.symId as i32)) { continue; }
+      let raw = varDropIntervalEnd(plan, i, body.length);
+      if (raw == -2) { continue; }
+      let b = if (raw < 0) body.length else raw;
+      let regionEnd = if (b < end) b else end;
+      lowerVarDropRegion(cx, plan, body, i, regionEnd, raw < 0 && regionEnd == b);
+      openedEnd = regionEnd;
+      break;
+    }
+    if (openedEnd >= 0) {
+      i = openedEnd;
+      continue;
+    }
+    let s = body[i];
+    if (s is UsingStatement) {
+      lowerUsingRegion(cx, s as UsingStatement, body, i + 1, end);
+      return;
+    }
+    if (s is VariableDeclaration && declScopeDrop(cx, s as VariableDeclaration)) {
+      // An implicit-drop binding scopes the rest of its block the way
+      // `using` does (ownership.md §Implicit drop).
+      lowerScopeDropRegion(cx, s as VariableDeclaration, body, i + 1, end);
+      return;
+    }
+    lowerStmt(cx, s);
+    i += 1;
+  }
+};
+
 export let lowerUsingRegion = (cx: LoweringContext, stmt: UsingStatement,
     rest: Array<Statement>, restStart: i32, restEnd: i32): void => {
   let declType = cx.substitutedNodeType(stmt.init);
@@ -1686,20 +1890,7 @@ export let lowerUsingRegion = (cx: LoweringContext, stmt: UsingStatement,
 
   lowerFinallyRegion(cx, mirrored, true, null,
       (scope, resultVar, saved) => {
-        for (var i = restStart; i < restEnd; i += 1) {
-          if (!cx.reachable) { break; }
-          if (rest[i] is UsingStatement) {
-            lowerUsingRegion(cx, rest[i] as UsingStatement, rest, i + 1, restEnd);
-            break;
-          }
-          if (rest[i] is VariableDeclaration &&
-              declScopeDrop(cx, rest[i] as VariableDeclaration)) {
-            lowerScopeDropRegion(cx, rest[i] as VariableDeclaration,
-                rest, i + 1, restEnd);
-            break;
-          }
-          lowerStmt(cx, rest[i]);
-        }
+        lowerStatementRange(cx, rest, restStart, restEnd);
         finishProtectedArm(cx, scope, resultVar, -1);
       },
       (fscope) => { emitMaybeDispose(cx, value, ownerClasses); });
@@ -1897,20 +2088,7 @@ export let lowerParamDropRegions = (cx: LoweringContext,
     dropSyms: Array<Symbol>, idx: i32,
     body: Array<Statement>, start: i32, end: i32): void => {
   if (idx >= dropSyms.length) {
-    for (var i = start; i < end; i += 1) {
-      if (!cx.reachable) { break; }
-      if (body[i] is UsingStatement) {
-        lowerUsingRegion(cx, body[i] as UsingStatement, body, i + 1, end);
-        break;
-      }
-      if (body[i] is VariableDeclaration &&
-          declScopeDrop(cx, body[i] as VariableDeclaration)) {
-        lowerScopeDropRegion(cx, body[i] as VariableDeclaration,
-            body, i + 1, end);
-        break;
-      }
-      lowerStmt(cx, body[i]);
-    }
+    lowerStatementRange(cx, body, start, end);
     return;
   }
   let declType = cx.func.model.getBindingTypeById(dropSyms[idx].id);
@@ -1969,20 +2147,7 @@ export let lowerScopeDropRegion = (cx: LoweringContext, vd: VariableDeclaration,
 
   lowerFinallyRegion(cx, mirrored, true, null,
       (scope, resultVar, saved) => {
-        for (var i = restStart; i < restEnd; i += 1) {
-          if (!cx.reachable) { break; }
-          if (rest[i] is UsingStatement) {
-            lowerUsingRegion(cx, rest[i] as UsingStatement, rest, i + 1, restEnd);
-            break;
-          }
-          if (rest[i] is VariableDeclaration &&
-              declScopeDrop(cx, rest[i] as VariableDeclaration)) {
-            lowerScopeDropRegion(cx, rest[i] as VariableDeclaration,
-                rest, i + 1, restEnd);
-            break;
-          }
-          lowerStmt(cx, rest[i]);
-        }
+        lowerStatementRange(cx, rest, restStart, restEnd);
         finishProtectedArm(cx, scope, resultVar, -1);
       },
       (fscope) => { emitMaybeDispose(cx, value, ownerClasses); });

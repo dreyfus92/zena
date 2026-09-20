@@ -1395,8 +1395,8 @@ Inserting `dispose()` when an owned value leaves scope unmoved is what turns
 affine (_at most_ once) into leak-free. Four parts:
 
 **Landed: the scope-exit half, and the branch-join rule for `if`.** A
-simple-`let` `Own<resource>` binding that nothing moves, reassigns,
-captures or escapes is released at its block's exit — normal completion,
+simple-`let` `Own<resource>` binding that nothing moves, captures or
+escapes is released at its block's exit — normal completion,
 `return`, `break`/`continue`, and unwind — through the same shared finally
 region `using` compiles to, in reverse declaration order via the regions'
 nesting. `Own<resource> | null` qualifies too, with the same null-skipping
@@ -1406,6 +1406,52 @@ position must be affirmatively classified as a borrow, so anything
 unrecognized leaves the binding alone and leaks as before) and records the
 verdict in `SemanticModel.scopeExitDrops`; lowering routes a flagged
 declaration into `lowerScopeDropRegion`, `using`'s twin.
+
+**`var` owner bindings.** A `var` holding an `Own<resource>` is released
+too, and its stores release what they replace, so `h = h.replace(x)`
+neither leaks nor releases twice:
+
+```zena
+var a = new File('a');
+a = new File('b');        // releases 'a', then stores 'b'
+consume(a);               // moves 'b' out: the binding is dead
+a = new File('c');        // releases nothing; the binding is live again
+                          // scope exit releases 'c'
+```
+
+A store into a live binding disposes the old value after the right-hand
+side has run and before the store. A store into a dead binding — one a
+move emptied — releases nothing and revives it; the flow graph already
+says which of the two a store is, since a use after the move is the
+error it reports. A `var` initialized to `null` (`var f: Own<File> |
+null = null`) qualifies as well, filled by a later store.
+
+What a `var` cannot have is one release region to the block's end,
+because between a move and the store that revives the binding it holds
+a value whoever took it will release: in `a = consume(a)`, an unwind
+out of `consume` would find the old value still in the binding. So the
+region is split at the statements. The checker records, per top-level
+statement of the declaring block, whether the statement moved the
+binding and whether the binding is live after it, and turns those into
+intervals of statements over which the binding holds a value nothing
+has moved. Each interval is its own release region, and the region's
+finalizer releases whatever the binding holds at the exit — a store
+inside the region only changes which value that is. A statement that
+moves the binding sits outside every region; an interval closed before
+one releases only on the exits that leave early (unwind, `return`,
+`break`, `continue`), since on normal completion the value is still the
+binding's, and the interval that reaches the block's end releases on
+normal completion too. Lowering opens the regions in statement order,
+splitting an interval where an enclosing region ends, and keeps the set
+of bindings whose region is open so a nested statement list (a `using`
+region's rest) opens no second one.
+
+Two things stay as they are for `let`. A move inside a nested statement
+— an `if` arm, a loop body — takes the whole statement out of the
+regions, so an unwind from the other arm leaks the value (the same
+paths §"Where the join rule does not reach" lists). And a binding
+declared in a block that opens no scope of its own, a `match` arm's
+body, is left alone.
 
 The branch-join rule is implemented for `if`/`else` and for `match`: a
 candidate moved on some arms and kept on others gets a compensating drop
@@ -1581,14 +1627,14 @@ argument of the same call. Through a borrow of the holder nothing rules
 that out, so `h.current = next` needs `h: Own<Holder>`, and inside a
 method it needs `this: Own<this>` — a method that stores consumes the
 receiver and, if the caller keeps using the holder, hands it back
-(`replace(this: Own<this>, next: Own<R>): Own<Holder>`). An owner
+(`replace(this: Own<this>, next: Own<R>): Own<this>`). An owner
 receiver is exclusive: a caller that moved the holder in holds no
 borrow of it, and the borrows of a local owner are in the checker's
-view, which is what §"Borrow provenance" builds on. The cost is that a
-long-lived holder whose field turns over is rebound at each store
-(`let h2 = h.replace(x)`; a `var` owner is not implicitly dropped, so
-`h = h.replace(x)` leaks). Relaxing to borrowed receivers is a decision
-recorded under §"Borrow provenance".
+view, which is what §"Borrow provenance" builds on. The caller keeps
+the holder in a `var` and writes `h = h.replace(x)`: the move into the
+call empties the binding and the store refills it, and §"Implicit drop"
+says why that neither leaks nor releases twice. Relaxing to borrowed
+receivers is a decision recorded under §"Borrow provenance".
 
 **Release is glue after `[Disposable.dispose]`, and the dispose itself may
 be implicit.** A class whose only release action is its fields writes no

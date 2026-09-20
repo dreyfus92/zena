@@ -1,0 +1,66 @@
+// @mode: run
+// @result: 172486953
+// A `var` owner binding under implicit drop (ownership.md §Implicit
+// drop): a store releases the value the binding holds, a store after a
+// move releases nothing and revives the binding, and scope exit
+// releases whatever each binding holds then. Events are decimal digits:
+// 1 (a's first value, replaced by a store), 7, 2 (consumed by the
+// callee), 4 (the holder's field, replaced inside replace), 8, then
+// scope exit in reverse declaration order: 6 (n), 9 and 5 (the holder
+// and its field), 3 (a's revived value).
+import {Own, Disposable} from 'zena:core';
+
+class Log {
+  var seq: i32 = 0;
+  add(d: i32): void {
+    this.seq = this.seq * 10 + d;
+  }
+}
+
+resource class Res {
+  #log: Log;
+  id: i32;
+  new(log: Log, this.id) : #log = log;
+  [Disposable.dispose](this: Own<this>): void {
+    this.#log.add(this.id);
+  }
+}
+
+resource class Holder {
+  #log: Log;
+  var current: Own<Res>;
+  new(log: Log, this.current) : #log = log;
+  // Consumes the receiver and hands it back, typed at the receiver.
+  replace(this: Own<this>, next: Own<Res>): Own<this> {
+    this.current = next;
+    return this;
+  }
+  [Disposable.dispose](this: Own<this>): void {
+    this.#log.add(9);
+  }
+}
+
+let consume = (r: Own<Res>): i32 => 0;
+
+export let main = (): i32 => {
+  let log = new Log();
+  if (true) {
+    // A store into a live binding releases the old value first.
+    var a = new Res(log, 1);
+    a = new Res(log, 2);
+    log.add(7);
+    // Moved into the callee, which releases it; the store after the
+    // move releases nothing and revives the binding.
+    let k = consume(a);
+    a = new Res(log, 3);
+    // The holder pattern: the consuming method's store releases the
+    // old field value, and the binding takes the holder back.
+    var h = new Holder(log, new Res(log, 4));
+    h = h.replace(new Res(log, 5));
+    log.add(8);
+    // A nullable owner starts empty; the store releases nothing.
+    var n: Own<Res> | null = null;
+    n = new Res(log, 6);
+  }
+  return log.seq;
+};

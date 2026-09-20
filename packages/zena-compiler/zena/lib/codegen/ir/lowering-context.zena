@@ -1070,6 +1070,15 @@ export final class LoweringContext {
   finallyScopes = new GrowableArray<FinallyScope>();
 
   /**
+   * `var` owner bindings whose release region is open around the
+   * statements being lowered, so a nested statement list — a `using`
+   * region's rest, a value block — opens no second region for one and
+   * releases its value twice on unwind (control-flow.zena
+   * `lowerStatementRange`).
+   */
+  openVarDrops = new HashSet<i32>();
+
+  /**
    * Mirrors a newly stored value into the symbol's try variable, when
    * it has one. Every site that stores an SSA value for a symbol into
    * `env` must call this — a missed one leaves the handler reading a

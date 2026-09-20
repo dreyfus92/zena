@@ -1,0 +1,46 @@
+// @mode: check
+// `var` owner bindings (ownership.md §Implicit drop): a store into one
+// moves the right-hand side in, so a borrow cannot be stored; a moved
+// binding is dead until a store revives it; and a consuming method
+// returning `Own<this>` hands the receiver back at the receiver's type.
+import {Own, Borrow, Disposable} from 'zena:core';
+
+resource class Res {
+  new();
+  [Disposable.dispose](this: Own<this>): void {}
+}
+
+resource class Holder {
+  var current: Own<Res>;
+  new(this.current);
+  replace(this: Own<this>, next: Own<Res>): Own<this> {
+    this.current = next;
+    return this;
+  }
+  [Disposable.dispose](this: Own<this>): void {}
+}
+
+let consume = (r: Own<Res>): i32 => 0;
+
+let revive = (): i32 => {
+  var a = new Res();
+  let k = consume(a);
+  let dead = a; // @error: may have been moved
+  a = new Res();
+  let alive = a;
+  return k;
+};
+
+let holder = (): i32 => {
+  var h = new Holder(new Res());
+  h = h.replace(new Res());
+  let again = h.replace(new Res());
+  let stale = h; // @error: may have been moved
+  return 0;
+};
+
+let borrowed = (b: Borrow<Res>): i32 => {
+  var a = new Res();
+  a = b; // @error: not assignable
+  return 0;
+};

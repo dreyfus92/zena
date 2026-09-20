@@ -1,0 +1,57 @@
+// @mode: run
+// @result: 51728
+// A `var` owner binding on the unwind path (ownership.md §Implicit
+// drop). A throw while the binding holds a value releases it once, on
+// the way out. A throw between a move out of the binding and the store
+// that would revive it releases nothing here: the callee that took the
+// value releases it, and the binding's release region was closed
+// before the statement that moves it. Digits: 5, 1 (released by the
+// unwind), 7 (caught), 2 (released by the callee's parameter drop),
+// 8 (caught).
+import {Own, Disposable} from 'zena:core';
+
+class Log {
+  var seq: i32 = 0;
+  add(d: i32): void {
+    this.seq = this.seq * 10 + d;
+  }
+}
+
+resource class Res {
+  #log: Log;
+  id: i32;
+  new(log: Log, this.id) : #log = log;
+  [Disposable.dispose](this: Own<this>): void {
+    this.#log.add(this.id);
+  }
+}
+
+let thrower = (log: Log): void => {
+  var a = new Res(log, 1);
+  log.add(5);
+  throw new Error('out');
+};
+
+let consumeThrow = (r: Own<Res>): Own<Res> => {
+  throw new Error('out');
+};
+
+let window = (log: Log): void => {
+  var a = new Res(log, 2);
+  try {
+    a = consumeThrow(a);
+  } catch (e) {
+    log.add(8);
+  }
+};
+
+export let main = (): i32 => {
+  let log = new Log();
+  try {
+    thrower(log);
+  } catch (e) {
+    log.add(7);
+  }
+  window(log);
+  return log.seq;
+};

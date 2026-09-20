@@ -364,6 +364,14 @@ final class CheckerContext {
    */
   #everMovedSymbols = new HashSet<i32>();
 
+  /** Moves recorded per binding, so a statement's moves can be counted. */
+  #moveCounts = new HashMap<i32, i32>();
+
+  #moveCount(id: SymbolId): i32 {
+    if (let (true, c) = this.#moveCounts.get(id as i32)) { return c; }
+    return 0;
+  }
+
   /**
    * Bindings implicit drop must leave alone even though no move was
    * recorded: captured by a closure, or used in a position the
@@ -2538,6 +2546,7 @@ final class CheckerContext {
    */
   recordFlowMove(id: SymbolId, name: String, loc: SourceLocation | null): void {
     this.#everMovedSymbols.add(id as i32);
+    this.#moveCounts[id as i32] = this.#moveCount(id) + 1;
     let node = new FlowMove(this.#currentFlow, id, name, loc);
     node.id = this.newFlowId();
     if (this.#flowExceptionTargets.length > 0) {
@@ -2662,10 +2671,69 @@ final class CheckerContext {
   }
 
   /** A simple-`let` `Own<resource>` declaration in the current block. */
-  registerOwnCandidate(sym: Symbol, patternNode: Node, resources: Array<ClassType>): void {
+  registerOwnCandidate(sym: Symbol, patternNode: Node, resources: Array<ClassType>,
+      isVar: boolean = false, declNode: Node | null = null): void {
     if (this.#ownScopeStack.length == 0) { return; }
-    this.#ownScopeStack[this.#ownScopeStack.length - 1]
-      .push(new OwnDropCandidate(sym, patternNode, resources));
+    let c = new OwnDropCandidate(sym, patternNode, resources, isVar, declNode,
+        this.#currentFlow.id);
+    c.moveMark = this.#moveCount(sym.id);
+    this.#ownScopeStack[this.#ownScopeStack.length - 1].push(c);
+  }
+
+  /**
+   * Bracket one top-level statement of the innermost own scope's block,
+   * `index` in its statement list. The `var` owner candidates record,
+   * per statement, whether it moved the binding and whether the binding
+   * is live after it; exitOwnScope turns those into release intervals.
+   */
+  beginOwnStatement(): void {
+    if (this.#ownScopeStack.length == 0) { return; }
+    let frame = this.#ownScopeStack[this.#ownScopeStack.length - 1];
+    for (let c in frame) {
+      if (c.isVar) { c.moveMark = this.#moveCount(c.sym.id); }
+    }
+  }
+
+  endOwnStatement(index: i32, stmt: Node): void {
+    if (this.#ownScopeStack.length == 0) { return; }
+    let frame = this.#ownScopeStack[this.#ownScopeStack.length - 1];
+    for (let c in frame) {
+      if (!c.isVar || c.misplaced) { continue; }
+      if (!c.placed) {
+        let dn = c.declNode;
+        if (dn == null || dn.id != stmt.id) {
+          c.misplaced = true;
+          continue;
+        }
+        c.placed = true;
+      }
+      let movedIn = this.#moveCount(c.sym.id) != c.moveMark;
+      let liveAfter = !(this.#currentFlow is FlowUnreachable) &&
+        this.findLiveMove(c.sym.id, this.#currentFlow, c.declFlowId) == null;
+      c.events.push(index);
+      c.events.push(if (movedIn) 1 else 0);
+      c.events.push(if (liveAfter) 1 else 0);
+    }
+  }
+
+  /**
+   * A plain store into a `var` owner binding, noted before the store
+   * revives it: whether the binding held a live value decides whether
+   * the store releases one (exitOwnScope commits it with the verdict).
+   */
+  noteOwnerStore(id: SymbolId, assignNode: Node): void {
+    var k = this.#ownScopeStack.length - 1;
+    while (k >= 0) {
+      for (let c in this.#ownScopeStack[k]) {
+        if ((c.sym.id as i32) == (id as i32) && c.isVar) {
+          c.storeNodes.push(assignNode);
+          c.storeLive.push(
+              this.findLiveMove(id, this.#currentFlow, c.declFlowId) == null);
+          return;
+        }
+      }
+      k -= 1;
+    }
   }
 
   /**
@@ -2694,7 +2762,7 @@ final class CheckerContext {
       // end of the arm that kept it, making it uniformly dead at the
       // merge. Decided here, where captures and escapes are complete.
       if (this.#everMovedSymbols.has(id) &&
-          !this.#everAssignedSymbols.has(id) &&
+          (c.isVar || !this.#everAssignedSymbols.has(id)) &&
           !this.#undroppableSymbols.has(id)) {
         for (let p in this.#pendingEdgeIfs) {
           let movedTrue = p.trueReachable &&
@@ -2732,10 +2800,29 @@ final class CheckerContext {
           }
         }
       }
-      let drop = !this.#everMovedSymbols.has(id) &&
-        !this.#everAssignedSymbols.has(id) &&
-        !this.#undroppableSymbols.has(id);
-      this.model.setScopeExitDrop(c.node, drop);
+      // A `let` is released by one region to the block's end, so any
+      // move anywhere (or a reassignment, which a let cannot have)
+      // withdraws it. A `var` is released over the intervals its
+      // statement events describe, and its stores release what they
+      // replace — both only when nothing captured or escaped it.
+      let drop = if (c.isVar) {
+        !c.misplaced && !this.#undroppableSymbols.has(id)
+      } else {
+        !this.#everMovedSymbols.has(id) &&
+          !this.#everAssignedSymbols.has(id) &&
+          !this.#undroppableSymbols.has(id)
+      };
+      this.model.setScopeExitDrop(c.node, drop && !c.isVar);
+      if (c.isVar) {
+        let intervals = new GrowableArray<i32>();
+        if (drop) { computeOwnIntervals(c, intervals); }
+        this.model.setOwnDropIntervals(c.node, intervals);
+        for (var si = 0; si < c.storeNodes.length; si += 1) {
+          if (drop && c.storeLive[si]) {
+            this.model.setAssignmentRelease(c.storeNodes[si]);
+          }
+        }
+      }
       if (drop) {
         // The release call is synthesized by lowering, so nothing in
         // the AST names `:dispose` — root it the way `using` does. The
@@ -4707,8 +4794,85 @@ final class OwnDropCandidate {
   sym: Symbol;
   node: Node;
   resources: Array<ClassType>;
-  new(this.sym, this.node, this.resources);
+  /**
+   * A `var` binding: released over intervals of its block's statements
+   * rather than a region to the block's end, since a store may revive
+   * it after a move (ownership.md §Implicit drop).
+   */
+  isVar: boolean;
+  /** The declaration statement, to place the binding in its block. */
+  declNode: Node | null;
+  /** The flow node of the declaration; move searches stop there. */
+  declFlowId: i32;
+  /** The binding's move count when its block's current statement began. */
+  var moveMark: i32 = 0;
+  /**
+   * One triple per top-level statement of the declaring block from the
+   * declaration on: the statement's index, whether it moved the
+   * binding, whether the binding is live after it.
+   */
+  events: GrowableArray<i32> = new GrowableArray<i32>();
+  /** Set once the declaration's own statement event was recorded. */
+  var placed: boolean = false;
+  /**
+   * The first statement event was not the declaration: registered from
+   * a nested list that opens no scope of its own (a match arm's block),
+   * so the indices would name the wrong statements. No regions then.
+   */
+  var misplaced: boolean = false;
+  /** Plain stores into the binding, and whether it was live before each. */
+  storeNodes: GrowableArray<Node> = new GrowableArray<Node>();
+  storeLive: GrowableArray<boolean> = new GrowableArray<boolean>();
+  new(this.sym, this.node, this.resources, this.isVar, this.declNode,
+      this.declFlowId);
 }
+
+/**
+ * A `var` owner binding's release intervals from its statement events,
+ * as [start, end) pairs of statement indices (end -1: the block's end).
+ * The declaration's own event opens the first interval after it. A
+ * statement that moves the binding sits outside every interval — until
+ * a store revives the binding, it holds a value whoever took it will
+ * release — so it closes the open one, and the binding's liveness after
+ * it says whether a new one opens. A statement after which the binding
+ * is dead without a move ended the path (a return, a throw), so the
+ * interval closes after it, the region covering that exit.
+ */
+let computeOwnIntervals = (c: OwnDropCandidate, out: GrowableArray<i32>): void => {
+  var open = -1;
+  var n = 0;
+  var first = true;
+  let close = (end: i32): void => {
+    if (open >= 0 && end > open) {
+      out.push(open);
+      out.push(end);
+    }
+    open = -1;
+  };
+  while (n + 2 < c.events.length) {
+    let index = c.events[n];
+    let movedIn = c.events[n + 1] == 1;
+    let liveAfter = c.events[n + 2] == 1;
+    n += 3;
+    if (first) {
+      first = false;
+      if (liveAfter) { open = index + 1; }
+      continue;
+    }
+    if (movedIn) {
+      close(index);
+      if (liveAfter) { open = index + 1; }
+    } else if (open < 0 && liveAfter) {
+      open = index + 1;
+    } else if (open >= 0 && !liveAfter) {
+      close(index + 1);
+    }
+  }
+  if (open >= 0) {
+    out.push(open);
+    out.push(-1);
+  }
+};
 
 /**
  * A `Scoped` binding declared by a simple `let`, pending the
@@ -5854,6 +6018,29 @@ let substituteThisType = (receiverType: Type, t: Type): Type => {
         substituted.push(substituteThisType(receiverType, type));
       }
       return createUnionType(substituted);
+    }
+    case TypeAliasType as alias: {
+      // `Own<this>` and its siblings: an alias instantiated at `this`
+      // re-instantiates at the receiver. Only the arguments carry it.
+      let args = alias.typeArguments;
+      if (args == null) { return t; }
+      let targs = args as Array<Type>;
+      let newArgs = new GrowableArray<Type>();
+      var changed = false;
+      for (let arg in targs) {
+        let sub = substituteThisType(receiverType, arg);
+        if (sub !== arg) { changed = true; }
+        newArgs.push(sub);
+      }
+      if (!changed) { return t; }
+      let inst = new TypeAliasType(alias.name, alias.typeParameters,
+          alias.target, alias.isDistinct, newArgs, alias.isOpaque,
+          alias.declaringModule);
+      inst.intrinsicName = alias.intrinsicName;
+      if (inst.intrinsicName != null) {
+        return applyTypeIntrinsic(inst);
+      }
+      return inst;
     }
     case ArrayType {elementType, elementsMutable}: {
       return new ArrayType(substituteThisType(receiverType, elementType), elementsMutable);
@@ -8601,7 +8788,9 @@ let checkStatement = (ctx: CheckerContext, stmt: Statement): void => {
       var i = 0;
       while (i < body.length) {
         let stmtNode = body[i];
+        ctx.beginOwnStatement();
         checkStatement(ctx, stmtNode);
+        ctx.endOwnStatement(i, stmtNode);
         if (branchDefinitelyExits(stmtNode, ctx.model) && i < body.length - 1) {
           ctx.error(
             "Unreachable code detected.",
@@ -9416,9 +9605,13 @@ let checkVariableDeclaration = (
     }
   }
 
+  // A `var` owner qualifies too, literal-null initializer included:
+  // a store may fill it later, and its releases are decided per
+  // statement rather than once for the block.
   let dropHandleType = soleNonNullMember(declType) ?? declType;
-  if (kind == "let" && pattern is IdentifierPattern &&
-      !(initType is NullType) &&
+  let isVarOwner = kind == "var";
+  if ((kind == "let" || isVarOwner) && pattern is IdentifierPattern &&
+      (isVarOwner || !(initType is NullType)) &&
       ownershipHandleName(dropHandleType) == "Own") {
     let innerOpt = ownershipHandleInner(dropHandleType);
     if (innerOpt != null) {
@@ -9426,7 +9619,8 @@ let checkVariableDeclaration = (
       if (resources != null) {
         let symOpt = ctx.model.resolveDeclaration(pattern);
         if (symOpt != null) {
-          ctx.registerOwnCandidate(symOpt, pattern as Node, resources);
+          ctx.registerOwnCandidate(symOpt, pattern as Node, resources,
+              isVarOwner, ctx.model.getParent(pattern as Node));
         }
       }
     }
@@ -11143,6 +11337,11 @@ let checkExpressionInner = (ctx: CheckerContext, expr: Expression, expectedType:
           } else {
             leftType
           };
+          // A plain store into a `var` owner binding releases the value
+          // it held, when it held one: noted before the store revives it.
+          if (operator == null) {
+            ctx.noteOwnerStore(info.id, expr);
+          }
           ctx.recordFlowAssignment(info.id, stored);
         }
       }
@@ -14889,7 +15088,9 @@ let checkMethodBody = (
       prescanPendingFunctions(ctx, block.body);
       var j = 0;
       while (j < block.body.length) {
+        ctx.beginOwnStatement();
         checkStatement(ctx, block.body[j]);
+        ctx.endOwnStatement(j, block.body[j]);
         j = j + 1;
       }
       ctx.exitOwnScope(block as Node);
@@ -19214,6 +19415,7 @@ let checkFunctionExpression = (
       var j = 0;
       while (j < block.body.length) {
         let stmtNode = block.body[j];
+        ctx.beginOwnStatement();
         if (j == tailIndex && !branchDefinitelyExits(stmtNode)) {
           let tailT = checkExpression(ctx,
               (stmtNode as ExpressionStatement).expression, retType);
@@ -19221,6 +19423,7 @@ let checkFunctionExpression = (
         } else {
           checkStatement(ctx, stmtNode);
         }
+        ctx.endOwnStatement(j, stmtNode);
         if (branchDefinitelyExits(stmtNode) && j < block.body.length - 1) {
           ctx.error(
             "Unreachable code detected.",

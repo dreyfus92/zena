@@ -155,6 +155,12 @@ export final class ModelIndex {
     let edKeys = model.edgeDrops.map.keys();
     while (let (true, k) = edKeys.next()) { this.nodeToModel[k] = model; }
 
+    let odKeys = model.ownDropIntervals.map.keys();
+    while (let (true, k) = odKeys.next()) { this.nodeToModel[k] = model; }
+
+    let arKeys = model.assignmentReleases.map.keys();
+    while (let (true, k) = arKeys.next()) { this.nodeToModel[k] = model; }
+
     let mfKeys = model.movedOutFields.map.keys();
     while (let (true, k) = mfKeys.next()) { this.nodeToModel[k] = model; }
 
@@ -503,6 +509,75 @@ export final class SemanticModel {
    * survive a pass that reached a different conclusion.
    */
   #scopeExitDrops = new NodeMap<boolean>();
+
+  /**
+   * The release regions of a `var` owner binding, keyed by its
+   * declaration's pattern node: pairs of statement indices [start, end)
+   * in the declaring block, end -1 standing for the block's end, over
+   * which the binding holds a value nothing has moved. A region's
+   * finalizer releases whatever the binding holds at its exit. Empty
+   * when the binding is not released at all (ownership.md §Implicit
+   * drop, "`var` owner bindings").
+   */
+  #ownDropIntervals = new NodeMap<GrowableArray<i32>>();
+
+  setOwnDropIntervals(node: Node, intervals: GrowableArray<i32>): void {
+    this.#ownDropIntervals[node] = intervals;
+  }
+
+  ownDropIntervalsOfDirect(node: Node): GrowableArray<i32> | null {
+    if (let (true, d) = this.#ownDropIntervals.get(node)) {
+      return d;
+    }
+    return null;
+  }
+
+  ownDropIntervalsOf(node: Node): GrowableArray<i32> | null {
+    let direct = this.ownDropIntervalsOfDirect(node);
+    if (direct != null) return direct;
+    let {index} = this;
+    if (index != null) {
+      let owner = index.ownerOfNode(node.id);
+      if (owner != null && owner != this) {
+        return owner.ownDropIntervalsOfDirect(node);
+      }
+    }
+    return null;
+  }
+
+  ownDropIntervals: NodeMap<GrowableArray<i32>> { get { return this.#ownDropIntervals; } }
+
+  /**
+   * Plain stores into a `var` owner binding that release the value the
+   * binding held before them: the checker found the binding live there.
+   * Keyed by the assignment node.
+   */
+  #assignmentReleases = new NodeMap<boolean>();
+
+  setAssignmentRelease(node: Node): void {
+    this.#assignmentReleases[node] = true;
+  }
+
+  hasAssignmentReleaseDirect(node: Node): boolean {
+    if (let (true, d) = this.#assignmentReleases.get(node)) {
+      return d;
+    }
+    return false;
+  }
+
+  hasAssignmentRelease(node: Node): boolean {
+    if (this.hasAssignmentReleaseDirect(node)) return true;
+    let {index} = this;
+    if (index != null) {
+      let owner = index.ownerOfNode(node.id);
+      if (owner != null && owner != this) {
+        return owner.hasAssignmentReleaseDirect(node);
+      }
+    }
+    return false;
+  }
+
+  assignmentReleases: NodeMap<boolean> { get { return this.#assignmentReleases; } }
 
   setScopeExitDrop(node: Node, drop: boolean): void {
     this.#scopeExitDrops[node] = drop;
