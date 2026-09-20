@@ -426,9 +426,10 @@ The fix is **elision**:
   extent is the caller's existing borrow scope.
 - With **zero** borrow parameters, returning a borrow is illegal — there is
   nothing for it to derive from.
-- With **two or more**, the derivation is ambiguous. Either reject, or name the
-  source parameter positionally at the signature, e.g. `-> Borrow<T> from xs`.
-  **Open.**
+- With **two or more**, the signature does not say which one. Rejected
+  today; §"Borrow provenance" proposes admitting it, with the callee checked
+  against its body and the caller bounding the result by every borrow
+  argument.
 
 Projections through fields and indices follow the same rule: a borrow of a place
 reachable from a borrowed value derives from that value.
@@ -439,6 +440,132 @@ borrow may travel out one frame, to the caller that supplied its source". That
 is far less than full lifetimes — no lifetime variables, no variance, no
 `outlives` constraints, no annotations in the common case — but it is not
 nothing.
+
+#### Borrow provenance
+
+_Status: proposed. Nothing in this section is implemented; the holes it
+describes are open today._
+
+The derivation rule above says which borrow a returned borrow is understood
+to come from. It does not check that the body agrees, and the caller does
+not record what the result came from either. Three programs show the gap.
+Each compiles without a diagnostic, and the comments say what happens when
+they run (a log of dispose calls, read with a probe):
+
+```zena
+let same = (f: Borrow<File>): Borrow<File> => f;
+
+// The signature has one borrow parameter, so the rule is satisfied. The
+// body returns a borrow of a local owner instead. `f` is released at the
+// callee's exit, and the caller reads a released file.
+let local = (p: Borrow<File>): Borrow<File> => {
+  let f = new File('x');
+  return same(f);
+};
+
+// Returned directly, the local is not released at all: `return f` counts
+// as an unclassified escape, and implicit drop leaves it alone. A leak.
+let localDirect = (p: Borrow<File>): Borrow<File> => {
+  let f = new File('x');
+  return f;
+};
+
+// In the caller, moving the source ends the resource. The borrow derived
+// from it a line earlier is still usable, and reads the released file.
+let f = new File('a');
+let n = same(f);
+consume(f);
+n.name;
+```
+
+A fourth shape is the block value: `let n = if (c) { let f = new File('a');
+same(f) } else { … }` binds a borrow of an owner the block just released.
+And a fifth arrives with `var` owner fields (§"Affine fields"): a store
+into `h.current` releases the value a `let n = h.current` still borrows.
+
+What all five have in common is that the checker knows a borrow is
+second-class without knowing what it is a borrow _of_. The fix is to
+record that: every second-class value (a `Borrow<R>`, and a `Scoped<T>`,
+which is bounded the same way) carries a set of **roots**, the owners
+whose extent bounds it. That set is computed from the expression:
+
+| expression                      | roots                                                    |
+| ------------------------------- | -------------------------------------------------------- |
+| a borrow or scoped parameter    | the parameter itself                                     |
+| `this`                          | the receiver                                             |
+| an `Own` binding, read as a borrow | that binding                                          |
+| a local borrow or scoped binding | the roots recorded when it was bound (a `var`: the union over its assignments) |
+| `e.field`, `e[i]`, `e?.field`   | the roots of `e`, with the path appended                 |
+| a call                          | the union of the roots of every borrow or scoped argument, and of the receiver when the callee is a resource's method |
+| `if`, `match`, `??`, a value block | the union over the arms                               |
+| `await e`                       | the roots of `e`                                         |
+| `new R(…)`, a call returning `Own<R>` | a temporary: an owner whose extent is the enclosing statement |
+
+Each root has an extent: the whole body for a parameter or the receiver,
+the declaring block for a local owner (ending early on a path where it
+is moved), the statement for a temporary. A second-class value is valid
+inside the intersection of its roots' extents. Three rules enforce that:
+
+1. **A second-class value does not leave the block a root is declared
+   in.** Leaving means being the block's value, being assigned to a
+   `var` declared outside that block, being returned or yielded. A
+   binding in the same block as the expression is always fine, so
+   `let n = same(f)` costs nothing; the arm of the `if` above is the
+   error, reported where the value crosses the block. A value rooted at
+   a temporary may not be bound at all: `same(new File('x'))` may be
+   used in its statement and no further.
+2. **Moving a root kills what derives from it.** The flow-graph move
+   tracking already knows where `f` was moved on each path; a use of `n`
+   past that point reports that `n` borrows from `f`, which was moved.
+   A store into an owner field is a move of the old value, so it kills
+   every value rooted at that path (`h.current` and anything below it)
+   and nothing else. Since stores need an owner receiver
+   (§"Affine fields"), a store through a method call is a move of the
+   holder itself, which rule 2 already covers.
+3. **A returned second-class value is rooted at parameters and the
+   receiver only.** This is the derivation rule made real: the checker
+   reads what the result derives from off the callee's body, and a
+   local owner among the roots is the error. It also settles the
+   two-borrow case without syntax. The callee is checked by its body,
+   and the caller takes the result to derive from every borrow argument
+   it passed, which is sound because the result is then bounded by the
+   shortest of them.
+   `pick(a, b)` yields a borrow that dies with whichever of `a` and `b`
+   dies first. That is less precise than the truth when the body only
+   ever returns `a`, and a `from` clause on the return type could say so
+   later; nothing so far has needed it.
+
+The rules are all local to one body and one flow graph, and the root
+sets are small (nearly always one element). Generic bodies are checked
+against a bare `Borrow<T>` the same way. A closure cannot capture a
+borrow already, so roots never cross a closure boundary.
+
+**The `var` owner field decision.** Rule 2 makes a direct store safe.
+What it cannot see is a store performed by a callee through an alias:
+in `use(h.current, h)`, if `use` may store into `h.current` through its
+second parameter, its first parameter dangles inside `use`. That is the
+aliasing problem exclusivity exists for, and Zena has no exclusivity.
+The options are:
+
+- **Stores need an owner receiver** (chosen for now, and what
+  §"Affine fields" specifies). A callee holding a borrow cannot store,
+  so the only writer is the one owner, and its stores are in view. The
+  cost is that a method which turns a field over consumes `this` and
+  hands it back, and the caller rebinds.
+- **Stores through borrows, reads unbindable.** A read of a `var` owner
+  field would be a temporary (statement extent), so it cannot be bound;
+  a call receiving both it and a borrow of the holder is still the
+  aliasing hole, so this needs either an argument rule or acceptance of
+  the hole.
+- **Stores through borrows, dynamic check.** Every method of a resource
+  checks the lifecycle flag on entry and throws on `dropped`. Memory
+  safety is already the runtime's; this turns a stale borrow into a
+  thrown error rather than a silent use of a closed handle. The check
+  is one field load per call, and the static rules become best effort.
+
+The first keeps the language's promise that a released resource is not
+reachable, at the price of some ceremony; the third is the cheapest to
+live with. Which one to take is open question 1.
 
 #### Borrows and suspension
 
@@ -1457,10 +1584,11 @@ receiver and, if the caller keeps using the holder, hands it back
 (`replace(this: Own<this>, next: Own<R>): Own<Holder>`). An owner
 receiver is exclusive: a caller that moved the holder in holds no
 borrow of it, and the borrows of a local owner are in the checker's
-view. The cost is that a long-lived holder whose field turns over is
-rebound at each store (`let h2 = h.replace(x)`; a `var` owner is not
-implicitly dropped, so `h = h.replace(x)` leaks). Relaxing to borrowed
-receivers is open.
+view, which is what §"Borrow provenance" builds on. The cost is that a
+long-lived holder whose field turns over is rebound at each store
+(`let h2 = h.replace(x)`; a `var` owner is not implicitly dropped, so
+`h = h.replace(x)` leaks). Relaxing to borrowed receivers is a decision
+recorded under §"Borrow provenance".
 
 **Release is glue after `[Disposable.dispose]`, and the dispose itself may
 be implicit.** A class whose only release action is its fields writes no
@@ -1892,8 +2020,9 @@ value tail takes the other spelling, lowering where a `return` would go.
 closure, may not be a field's type, a container's element type, a record
 field or a tuple element, and may not be returned unless it derives from
 exactly one borrow the function was handed. The two-or-more case in
-§"Derived borrows" is rejected rather than resolved; naming the source
-positionally is still open.
+§"Derived borrows" is rejected rather than resolved; §"Borrow provenance"
+is the proposal that resolves it, and that closes the gaps the
+signature-only rule leaves open.
 
 **`this` inside a resource's methods is a `Borrow<R>` unless the method says
 otherwise**, which is what points those rules at the receiver. It has to be
@@ -2223,7 +2352,14 @@ case into the general rule and re-declare the handles as
 
 ## Open questions
 
-1. Multi-borrow returns: reject, or name the source parameter?
+1. ~~Multi-borrow returns: reject, or name the source parameter?~~ —
+   superseded by §"Borrow provenance": the checker reads what the result
+   derives from off the callee's body, and the caller bounds it by every
+   borrow argument.
+   What is open in its place is how `var` owner fields interact with
+   borrows of the field: stores need an owner receiver (the current rule),
+   or stores through borrows with a runtime lifecycle check on every
+   resource method.
 2. `try`/`catch` and the branch-join rule: a runtime drop flag inside `try`
    bodies, or split the try region at each acquisition?
 3. Child-before-parent drop ordering: recorded on the wrapper, or inferred?
