@@ -84,7 +84,7 @@
 
           src = ./.;
 
-          npmDepsHash = "sha256-WKO3hTnkYm8Fv+hSyNjbNNcq/rwJieKqzCpUuINWA2o=";
+          npmDepsHash = "sha256-KDMnVv/edeiyhzrpmLjrwo9fOdz3/ohDhUya8Yr7pMs=";
 
           # Don't compile native addons. buildNpmPackage runs `npm rebuild`
           # after the install, which tries to build keytar's native binding
@@ -96,9 +96,10 @@
           # ever succeeded by substituting a cached output.
           npmRebuildFlags = [ "--ignore-scripts" ];
 
-          # `npm run build` compiles the Rust self-hosted CLI
-          # (packages/zena-cli, `cargo build --release`). Vendor its crates
-          # from Cargo.lock so cargo runs offline in the sandbox; cargoSetupHook
+          # `npm run build` compiles the Rust crates (packages/zena-cli,
+          # packages/zena-run and the packages/zena-runtime library they
+          # share, `cargo build --release`). Vendor their crates from
+          # Cargo.lock so cargo runs offline in the sandbox; cargoSetupHook
           # wires up CARGO_HOME + the vendored registry. (No git sources in the
           # lockfile, so no per-crate outputHashes are needed.)
           cargoDeps = pkgs.rustPlatform.importCargoLock {
@@ -126,12 +127,16 @@
             cp package.json $out/lib/zena/
             cp target/release/zena-cli $out/lib/zena/zena-cli
 
+            # zena-run only runs compiled modules and needs no repository
+            # tree, so it is installed as-is.
+            mkdir -p $out/bin
+            cp target/release/zena-run $out/bin/zena-run
+
             # The zena command is zena-cli (Rust/wasmtime host) running the
             # compiler the build produced. ZENA_REPO_ROOT locates the stdlib
             # and source files, ZENA_COMPILER_WASM the compiler; both default
             # to the installed tree and can be overridden to point at a
             # checkout (zena-cli only compiles files under ZENA_REPO_ROOT).
-            mkdir -p $out/bin
             cat > $out/bin/zena << EOF
             #!${pkgs.bash}/bin/bash
             export ZENA_REPO_ROOT="\''${ZENA_REPO_ROOT:-$out/lib/zena}"

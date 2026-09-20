@@ -37,7 +37,8 @@
         "./packages/website:build",
         "./packages/website-client:build",
         "./packages/zena-cli:build",
-        "./packages/zena-compiler:build"
+        "./packages/zena-compiler:build",
+        "./packages/zena-run:build"
       ]
     },
     "test": {
@@ -50,8 +51,10 @@
         "./packages/website:test",
         "./packages/workflow:test",
         "./packages/zb:test",
+        "./packages/zena-cli:test",
         "./packages/zena-compiler:test",
         "./packages/zena-formatter:test",
+        "./packages/zena-run:test",
         "./packages/zenadoc:test"
       ]
     }

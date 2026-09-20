@@ -2709,6 +2709,27 @@ dependencies = [
  "walkdir",
  "wasmtime",
  "wasmtime-wasi",
+ "zena-runtime",
+]
+
+[[package]]
+name = "zena-run"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "wasmtime",
+ "wasmtime-wasi",
+ "zena-runtime",
+]
+
+[[package]]
+name = "zena-runtime"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "wasmtime",
+ "wasmtime-wasi",
 ]
 
 [[package]]

@@ -1,5 +1,13 @@
 [workspace]
 members = [
-    "packages/zena-cli"
+    "packages/zena-runtime",
+    "packages/zena-run",
+    "packages/zena-cli",
 ]
 resolver = "2"
+
+[workspace.dependencies]
+wasmtime = { version = "46.0.0", features = ["cache"] }
+wasmtime-wasi = "46.0.0"
+anyhow = "1.0"
+clap = { version = "4.5", features = ["derive"] }

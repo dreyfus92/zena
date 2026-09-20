@@ -17,6 +17,7 @@
 //!   wall time as a called-out fallback that includes startup.
 
 use super::*;
+use wasmtime::Module;
 
 pub(crate) fn run_bench(
     config_path: &str,
@@ -47,19 +48,12 @@ pub(crate) fn run_bench(
 /// take one sample — fresh store + instance, timed region is the call
 /// only — printing each sample's milliseconds on its own line.
 pub(crate) fn run_sample(file: &str, invoke: &str, n: u32, verbose: bool, debug: bool) -> Result<()> {
-    let engine = Engine::new(&base_config(debug))?;
-    let module = if file.ends_with(".wat") {
+    let engine = Engine::new(&zena_runtime::engine::config(debug))?;
+    let module = if file.ends_with(".wat") || file.ends_with(".wasm") {
         // .wat goes through the same cwasm cache as .wasm (wasmtime's
         // precompile auto-detects text format) so all module variants
-        // enter a sample process equally warm. `foo.wat` caches next to
-        // itself as `foo.wat.cwasm` to avoid colliding with a sibling
-        // `foo.wasm`'s cache.
-        let ext = if debug { "wat.debug.cwasm" } else { "wat.cwasm" };
-        let cwasm = Path::new(file).with_extension(ext);
-        load_or_compile_module(&engine, Path::new(file), &cwasm)?
-    } else if file.ends_with(".wasm") {
-        let cwasm = cwasm_path_for(Path::new(file), debug);
-        load_or_compile_module(&engine, Path::new(file), &cwasm)?
+        // enter a sample process equally warm.
+        zena_runtime::cache::load_module(&engine, Path::new(file), debug)?
     } else {
         let cached = compile_to_cache(file, verbose, false, false, true, false, debug, None, false, None, None)?;
         let cwasm = cwasm_path_for(&cached, debug);
@@ -74,11 +68,9 @@ pub(crate) fn run_sample(file: &str, invoke: &str, n: u32, verbose: bool, debug:
 
 /// One sample: fresh store + instance, timed region is the call only.
 fn sample_wasm(engine: &Engine, module: &Module, invoke: &str, _debug: bool) -> Result<f64> {
-    let mut linker: Linker<MyState> = Linker::new(engine);
-    p1::add_to_linker_sync(&mut linker, |state| &mut state.wasi)?;
-    add_stack_trace_helpers(&mut linker, engine, module)?;
+    let mut linker: Linker<HostState> = Linker::new(engine);
     // Measured variants are workloads, not orchestrators: no spawning.
-    process::add_process_imports(&mut linker, module, false, Vec::new())?;
+    zena_runtime::add_to_linker(&mut linker, engine, module, Spawn::Deny)?;
 
     let stdout_pipe = MemoryOutputPipe::new(64 * 1024);
     let stderr_pipe = MemoryOutputPipe::new(64 * 1024);
@@ -87,7 +79,7 @@ fn sample_wasm(engine: &Engine, module: &Module, invoke: &str, _debug: bool) -> 
         .stderr(stderr_pipe)
         .args(&["bench-variant".to_string()])
         .build_p1();
-    let mut store = Store::new(engine, MyState { wasi });
+    let mut store = Store::new(engine, HostState { wasi });
     reserve_gc_heap(engine, &mut store)?;
 
     let instance = linker.instantiate(&mut store, module)?;

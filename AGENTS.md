@@ -156,7 +156,9 @@ This project is an **npm monorepo** managed with **Wireit**.
 
 - **`packages/zena-compiler`**: The self-hosted compiler (`@zena-lang/zena-compiler`). (See [CONTEXT.md](packages/zena-compiler/CONTEXT.md); the ZIR backend and the reachability pass each have their own CONTEXT.md under `zena/lib/codegen/`. The checked-in bootstrap lives in `bootstrap/`.)
 - **`packages/stdlib`**: Standard library (`@zena-lang/stdlib`).
-- **`packages/zena-cli`**: Native Rust CLI for executing Zena via Wasmtime. (See [CONTEXT.md](packages/zena-cli/CONTEXT.md)).
+- **`packages/zena-cli`**: Native Rust CLI for executing Zena via Wasmtime: compiler driver, test, bench and doc runners. (See [CONTEXT.md](packages/zena-cli/CONTEXT.md)).
+- **`packages/zena-runtime`**: Rust library shared by `zena-cli` and `zena-run`: the wasmtime engine configuration, the `.cwasm` cache, and the host imports a `zena-cli`-target module needs (`env` stack traces, `zena_process`). The Rust counterpart of `packages/runtime`.
+- **`packages/zena-run`**: Minimal Rust binary that runs one compiled Zena module on wasmtime with those imports, without the compiler.
 - **`packages/runtime`**: JS runtime helpers.
 - **`packages/language-service`**: `lsp.zena` and the `lsp.wasm` it builds, plus the JS API around it (`@zena-lang/language-service`). Published.
 - **`packages/zenadoc`**: API documentation extraction — reads a package's source and emits JSON describing its public API (`@zena-lang/zenadoc`). See [zenadoc.md](docs/design/zenadoc.md).

@@ -5,14 +5,15 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
 use walkdir::WalkDir;
-use wasmtime_wasi::p2::pipe::MemoryOutputPipe;
-use wasmtime::*;
+use wasmtime::{Engine, Linker, Store, Val};
 use wasmtime_wasi::WasiCtxBuilder;
-use wasmtime_wasi::p1::{self, WasiP1Ctx};
+use wasmtime_wasi::p2::pipe::MemoryOutputPipe;
 use wasmtime_wasi::{DirPerms, FilePerms};
+use zena_runtime::cache::{cwasm_path_for, load_or_compile_module};
+use zena_runtime::engine::reserve_gc_heap;
+use zena_runtime::{DirMapping, HostState, Spawn};
 
 mod bench;
-mod process;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -181,10 +182,6 @@ enum Commands {
     },
 }
 
-struct MyState {
-    wasi: WasiP1Ctx,
-}
-
 /// The -O flag's value, readable from the cache-key and guest-env sites
 /// without threading another parameter through every compile signature.
 /// Set once in main; the ZENA_OPT_LEVEL env var is the fallback.
@@ -207,7 +204,7 @@ fn main() -> Result<()> {
             build_file(&file, &output, cli.verbose, time, no_cache, cli.debug, target.as_deref(), wit.as_deref(), world.as_deref())
         }
         Commands::Run { file, invoke, dirs, time, no_cache, allow_spawn, args } => {
-            let allow_spawn = process::spawn_allowed(allow_spawn);
+            let allow_spawn = zena_runtime::spawn_allowed(allow_spawn);
             if file.ends_with(".wasm") {
                 run_wasm(&file, &invoke, cli.verbose, &dirs, &args, cli.debug, allow_spawn)
             } else {
@@ -233,51 +230,9 @@ fn main() -> Result<()> {
     }
 }
 
-/// Builds the wasmtime Config shared by every zena-cli engine. All engines
-/// that touch the same cwasm artifacts must agree on these settings: wasmtime
-/// refuses to deserialize a cwasm whose compile-affecting flags differ, and
-/// the fallback is a silent multi-second in-process recompile.
-fn base_config(debug: bool) -> Config {
-    let mut config = Config::new();
-    config.cranelift_opt_level(wasmtime::OptLevel::Speed);
-    config.compiler_inlining(if debug { Inlining::No } else { Inlining::Yes });
-    config.wasm_gc(true);
-    config.wasm_function_references(true);
-    config.wasm_exceptions(true);
-    // `return_call`/`return_call_ref`, emitted for `tail return`
-    // (docs/design/tail-calls.md).
-    config.wasm_tail_call(true);
-    // The wide-arithmetic proposal (i64.mul_wide_u and friends). The
-    // compiler only emits these under ZENA_WIDE_ARITHMETIC=1 and
-    // otherwise emits the sequences they replace, but accepting them
-    // here is what makes that flag runnable rather than emit-only.
-    config.wasm_wide_arithmetic(true);
-    config.wasm_backtrace_details(wasmtime::WasmBacktraceDetails::Enable);
-    if std::env::var("ZENA_PROFILE").is_ok() {
-        config.profiler(wasmtime::ProfilingStrategy::PerfMap);
-    } else {
-        config.native_unwind_info(false);
-    }
-    apply_gc_config(&mut config);
-    config
-}
-
-/// The cwasm cache path for a wasm file under the given config variant.
-/// Debug (no-inlining) engines cannot reuse release cwasm and vice versa, so
-/// each variant gets its own file instead of the two thrashing one path.
-fn cwasm_path_for(wasm_path: &Path, debug: bool) -> std::path::PathBuf {
-    if debug {
-        wasm_path.with_extension("debug.cwasm")
-    } else {
-        wasm_path.with_extension("cwasm")
-    }
-}
-
 fn precompile_file(file: &str, debug: bool) -> Result<()> {
-    let engine = Engine::new(&base_config(debug))?;
-    let wasm_path = Path::new(file);
-    let cwasm_path = cwasm_path_for(wasm_path, debug);
-    let _ = load_or_compile_module(&engine, wasm_path, &cwasm_path)?;
+    let engine = Engine::new(&zena_runtime::engine::config(debug))?;
+    let cwasm_path = zena_runtime::cache::precompile(&engine, Path::new(file), debug)?;
     println!("Precompiled {}", cwasm_path.display());
     Ok(())
 }
@@ -308,91 +263,6 @@ fn compile_and_run(file: &str, invoke: &str, verbose: bool, time: bool, no_cache
     // it live instead.
     let cached_wasm_path = compile_to_cache(file, verbose, time, false, !verbose, no_cache, debug, None, false, None, None)?;
     run_wasm(cached_wasm_path.to_str().unwrap(), invoke, verbose, dirs, args, debug, allow_spawn)
-}
-
-/// True when the cached cwasm is missing or older than its source wasm.
-fn cwasm_is_stale(wasm_path: &Path, cwasm_path: &Path) -> bool {
-    if !cwasm_path.exists() {
-        return true;
-    }
-    let wasm_meta = std::fs::metadata(wasm_path);
-    let cwasm_meta = std::fs::metadata(cwasm_path);
-    match (wasm_meta, cwasm_meta) {
-        (Ok(w), Ok(c)) => match (w.modified(), c.modified()) {
-            (Ok(w_time), Ok(c_time)) => w_time > c_time,
-            _ => true,
-        },
-        _ => true,
-    }
-}
-
-/// Compiles wasm_path to cwasm_path atomically, holding a file lock.
-///
-/// The lock serializes concurrent compiles of the same module. Script runners
-/// can launch many zena-cli processes at once against a stale cache (e.g. a
-/// test fan-out right after the compiler was rebuilt), and each Cranelift
-/// compile of the compiler module costs on the order of a GiB of RSS. Let one
-/// process compile while the rest block on the lock and then reuse its
-/// output. `should_compile` is re-checked under the lock: another process may
-/// have refreshed the cache while we waited.
-fn write_cwasm(
-    engine: &Engine,
-    wasm_path: &Path,
-    cwasm_path: &Path,
-    should_compile: impl Fn() -> bool,
-) -> Result<()> {
-    let lock_path = cwasm_path.with_extension("lock");
-    let lock_file = std::fs::OpenOptions::new()
-        .create(true)
-        .write(true)
-        .open(&lock_path)?;
-    lock_file.lock()?;
-    if should_compile() {
-        let wasm_bytes = std::fs::read(wasm_path)?;
-        let serialized = engine.precompile_module(&wasm_bytes)?;
-        let temp_path = cwasm_path.with_extension(format!("tmp-{}", std::process::id()));
-        std::fs::write(&temp_path, serialized)?;
-        if let Err(e) = std::fs::rename(&temp_path, cwasm_path) {
-            let _ = std::fs::remove_file(&temp_path);
-            return Err(e.into());
-        }
-    }
-    // The lock is released when lock_file drops.
-    Ok(())
-}
-
-fn load_or_compile_module(engine: &Engine, wasm_path: &Path, cwasm_path: &Path) -> Result<Module> {
-    if cwasm_is_stale(wasm_path, cwasm_path) {
-        write_cwasm(engine, wasm_path, cwasm_path, || {
-            cwasm_is_stale(wasm_path, cwasm_path)
-        })?;
-    }
-
-    match unsafe { Module::deserialize_file(engine, cwasm_path) } {
-        Ok(m) => Ok(m),
-        Err(first_err) => {
-            // A fresh-looking cwasm that will not deserialize was produced by
-            // an incompatible engine (different wasmtime version or config).
-            // Recompile it in place; without this, every invocation would
-            // silently repeat the multi-second in-process compile.
-            eprintln!(
-                "WARNING: recompiling {}: deserialization failed: {:?}",
-                cwasm_path.display(),
-                first_err
-            );
-            write_cwasm(engine, wasm_path, cwasm_path, || true)?;
-            match unsafe { Module::deserialize_file(engine, cwasm_path) } {
-                Ok(m) => Ok(m),
-                Err(e) => {
-                    eprintln!("WARNING: deserialization of cwasm failed again: {:?}", e);
-                    let wasm_bytes = std::fs::read(wasm_path)?;
-                    Module::new(engine, &wasm_bytes)
-                        .map_err(anyhow::Error::from)
-                        .context("Failed to compile module from WASM bytes")
-                }
-            }
-        }
-    }
 }
 
 /// The repository root that compiler wasm, stdlib, and cache paths hang off.
@@ -628,13 +498,12 @@ fn compile_to_cache(
         return Ok(cached_wasm_path);
     }
 
-    let engine = Engine::new(&base_config(debug))?;
+    let engine = Engine::new(&zena_runtime::engine::config(debug))?;
     let cwasm_path = cwasm_path_for(&compiler_wasm, debug);
     let compiler_module = load_or_compile_module(&engine, &compiler_wasm, &cwasm_path)?;
 
-    let mut linker: Linker<MyState> = Linker::new(&engine);
-    p1::add_to_linker_sync(&mut linker, |state| &mut state.wasi)?;
-    add_stack_trace_helpers(&mut linker, &engine, &compiler_module)?;
+    let mut linker: Linker<HostState> = Linker::new(&engine);
+    zena_runtime::add_to_linker(&mut linker, &engine, &compiler_module, Spawn::Deny)?;
 
     let stdlib_dir = repo_root.join("packages/stdlib/zena");
 
@@ -727,7 +596,7 @@ fn compile_to_cache(
             )?
             .build_p1();
 
-        let mut store = Store::new(&engine, MyState { wasi });
+        let mut store = Store::new(&engine, HostState { wasi });
         reserve_gc_heap(&engine, &mut store)?;
 
         let compiler_instance = linker.instantiate(&mut store, &compiler_module)?;
@@ -776,83 +645,9 @@ fn compile_to_cache(
     Ok(cached_wasm_path)
 }
 
-/// How many MiB of GC heap headroom to reserve up front (see
-/// `reserve_gc_heap`). Overridable via the ZENA_GC_RESERVE_MB env var;
-/// 0 disables the reservation.
-const DEFAULT_GC_RESERVE_MB: u64 = 0;
-
-/// Pre-grows the store's GC heap by allocating, and immediately
-/// dropping, one large dummy array.
-///
-/// Wasmtime's copying collector only grows the GC heap when an
-/// allocation still does not fit after a full collection, so the heap
-/// hovers just above the size of the live set and allocation-heavy
-/// programs (like the self-hosted compiler) spend most of their time
-/// collecting: roughly one full live-set copy per live-set's worth of
-/// allocation. The GC heap never shrinks, so one oversized allocation
-/// up front leaves every later collection with ample headroom. The
-/// balloon array is dead as soon as the helper returns; only the
-/// grown heap capacity remains.
-///
-/// The allocation is done by a tiny auxiliary wasm module using
-/// `array.new_default` because the host-side `ArrayRef::new`
-/// initializes elements one `Val` at a time (~2.4s/GiB, versus
-/// memset speed here).
-fn reserve_gc_heap(engine: &Engine, store: &mut Store<MyState>) -> Result<()> {
-    let mb: u64 = match std::env::var("ZENA_GC_RESERVE_MB") {
-        Ok(v) => v
-            .trim()
-            .parse()
-            .map_err(|_| anyhow::anyhow!("ZENA_GC_RESERVE_MB must be an integer, got {v:?}"))?,
-        Err(_) => DEFAULT_GC_RESERVE_MB,
-    };
-    // The GC heap is an i32-indexed memory capped at 4 GiB and split
-    // into two equal semi-spaces, and the balloon must fit in one
-    // semi-space. Above this cap the growth request would exceed the
-    // 4 GiB maximum and wasmtime would skip growing entirely.
-    let mb = mb.min(1900);
-    if mb == 0 {
-        return Ok(());
-    }
-    let wat = r#"(module
-      (type $balloon (array (mut i64)))
-      (func (export "balloon") (param $len i32)
-        (drop (array.new_default $balloon (local.get $len)))))"#;
-    let module = Module::new(engine, wat)?;
-    let instance = Linker::<MyState>::new(engine).instantiate(&mut *store, &module)?;
-    let balloon = instance.get_typed_func::<i32, ()>(&mut *store, "balloon")?;
-    let len = i32::try_from(mb * (1 << 20) / 8).unwrap();
-    // A failure here only means less headroom, not incorrectness.
-    let _ = balloon.call(&mut *store, len);
-    Ok(())
-}
-
-/// Selects the wasmtime GC collector via the ZENA_GC env var
-/// (null | drc | copying). Defaults to wasmtime's Auto.
-fn apply_gc_config(config: &mut Config) {
-    match std::env::var("ZENA_GC").as_deref() {
-        Ok("null") => {
-            config.collector(Collector::Null);
-        }
-        Ok("drc") => {
-            config.collector(Collector::DeferredReferenceCounting);
-        }
-        Ok("copying") => {
-            config.collector(Collector::Copying);
-        }
-        _ => {}
-    }
-}
-
 fn run_wasm(file: &str, invoke: &str, _verbose: bool, dirs: &[String], args: &[String], debug: bool, allow_spawn: bool) -> Result<()> {
-    let engine = Engine::new(&base_config(debug))?;
-    let wasm_path = Path::new(file);
-    let cwasm_path = cwasm_path_for(wasm_path, debug);
-    let module = load_or_compile_module(&engine, wasm_path, &cwasm_path)?;
-
-    let mut linker: Linker<MyState> = Linker::new(&engine);
-    p1::add_to_linker_sync(&mut linker, |state| &mut state.wasi)?;
-    add_stack_trace_helpers(&mut linker, &engine, &module)?;
+    let engine = Engine::new(&zena_runtime::engine::config(debug))?;
+    let module = zena_runtime::cache::load_module(&engine, Path::new(file), debug)?;
 
     let mut wasi_builder = WasiCtxBuilder::new();
     wasi_builder.inherit_stdio().inherit_env();
@@ -864,17 +659,10 @@ fn run_wasm(file: &str, invoke: &str, _verbose: bool, dirs: &[String], args: &[S
 
     let repo_root = repo_root()?;
 
-    let mut path_map: process::PathMap = Vec::new();
+    let mut path_map: zena_runtime::PathMap = Vec::new();
     for dir in dirs {
-        // Handle format `HOST_DIR::GUEST_DIR` standard in wasmtime CLI
-        let parts: Vec<&str> = dir.split("::").collect();
-        let (host_dir, guest_dir) = if parts.len() == 2 {
-            (parts[0], parts[1])
-        } else {
-            (dir.as_str(), dir.as_str())
-        };
-
-        let host_path = Path::new(host_dir);
+        let DirMapping { host: host_dir, guest: guest_dir } = DirMapping::parse(dir);
+        let host_path = Path::new(&host_dir);
         let host_dir_adjusted = if (std::env::var("ZENA_PROJECT_CACHE").is_ok()
             || std::env::var("ZENA_LOCAL_CACHE").is_ok())
             && host_path.starts_with("/tmp")
@@ -884,184 +672,44 @@ fn run_wasm(file: &str, invoke: &str, _verbose: bool, dirs: &[String], args: &[S
             std::fs::create_dir_all(&new_host_path)?;
             new_host_path
         } else {
-            std::path::PathBuf::from(host_dir)
+            std::path::PathBuf::from(&host_dir)
         };
         let host_dir_adjusted = std::fs::canonicalize(host_dir_adjusted)?;
 
-        wasi_builder.preopened_dir(&host_dir_adjusted, guest_dir, DirPerms::all(), FilePerms::all())?;
-        path_map.push((guest_dir.to_string(), host_dir_adjusted));
+        wasi_builder.preopened_dir(&host_dir_adjusted, &guest_dir, DirPerms::all(), FilePerms::all())?;
+        path_map.push((guest_dir, host_dir_adjusted));
     }
-    process::add_process_imports(&mut linker, &module, allow_spawn, path_map)?;
+    let spawn = if allow_spawn { Spawn::Allow(path_map) } else { Spawn::Deny };
+    let mut linker: Linker<HostState> = Linker::new(&engine);
+    zena_runtime::add_to_linker(&mut linker, &engine, &module, spawn)?;
 
     let wasi = wasi_builder.build_p1();
 
-    let mut store = Store::new(&engine, MyState { wasi });
+    let mut store = Store::new(&engine, HostState { wasi });
     reserve_gc_heap(&engine, &mut store)?;
 
-    let instance = match linker.instantiate(&mut store, &module) {
-        Ok(inst) => inst,
+    let instance = linker.instantiate(&mut store, &module).inspect_err(|e| {
+        eprintln!("Instantiation failed!");
+        zena_runtime::report_trap(e);
+    })?;
+
+    match zena_runtime::call_export(&mut store, &instance, invoke) {
+        Ok(results) => {
+            if let Some(res) = results.first() {
+                println!("{}", zena_runtime::format_result(res));
+            }
+            Ok(())
+        }
         Err(e) => {
-            eprintln!("Instantiation failed!");
-            if let Some(bt) = e.downcast_ref::<wasmtime::WasmBacktrace>() {
-                eprintln!("Wasm Backtrace:\n{}", bt);
+            // The guest ended itself with `exit(n)`; end with the same
+            // status.
+            if let Some(code) = zena_runtime::exit_code(&e) {
+                std::process::exit(code);
             }
-            return Err(e.into());
-        }
-    };
-
-    let main_export = instance
-        .get_func(&mut store, invoke)
-        .with_context(|| format!("failed to find `{}` export", invoke))?;
-    let results_count = main_export.ty(&store).results().len();
-    let mut results = vec![Val::I32(0); results_count];
-
-    if let Err(e) = main_export.call(&mut store, &[], &mut results) {
-        if let Some(bt) = e.downcast_ref::<wasmtime::WasmBacktrace>() {
-            eprintln!("Wasm Backtrace:\n{}", bt);
-        }
-        return Err(e.into());
-    }
-
-    if let Some(res) = results.first() {
-        match res {
-            Val::I32(i) => println!("{}", i),
-            Val::I64(i) => println!("{}", i),
-            Val::F32(f) => println!("{}", f32::from_bits(*f)),
-            Val::F64(f) => println!("{}", f64::from_bits(*f)),
-            _ => println!("{:?}", res),
+            zena_runtime::report_trap(&e);
+            Err(e.into())
         }
     }
-
-    Ok(())
-}
-
-fn add_stack_trace_helpers(
-    linker: &mut Linker<MyState>,
-    engine: &Engine,
-    module: &Module,
-) -> Result<()> {
-    // 1. getStackTrace
-    let get_stack_trace_ty = module
-        .imports()
-        .find(|i| i.module() == "env" && i.name() == "getStackTrace")
-        .and_then(|i| i.ty().func().cloned())
-        .unwrap_or_else(|| wasmtime::FuncType::new(engine, [], [wasmtime::ValType::EXTERNREF]));
-    linker.func_new("env", "getStackTrace", get_stack_trace_ty,
-        |mut caller: wasmtime::Caller<'_, MyState>, _params, results| {
-            let bt = wasmtime::WasmBacktrace::capture(&caller);
-            let str_bt = format!("{}", bt);
-            if str_bt.is_empty() {
-                results[0] = wasmtime::Val::ExternRef(None);
-                return Ok(());
-            }
-
-            let create = caller.get_export("$stringCreate").and_then(|e| e.into_func());
-            let set_byte = caller.get_export("$stringSetByte").and_then(|e| e.into_func());
-
-            if let (Some(create), Some(set_byte)) = (create, set_byte) {
-                let bytes = str_bt.as_bytes();
-                let mut cr_res = vec![wasmtime::Val::I32(0)];
-                create.call(&mut caller, &[wasmtime::Val::I32(bytes.len() as i32)], &mut cr_res)?;
-
-                let str_ref = cr_res[0].clone();
-                for (i, &byte) in bytes.iter().enumerate() {
-                    set_byte.call(
-                        &mut caller,
-                        &[
-                            str_ref.clone(),
-                            wasmtime::Val::I32(i as i32),
-                            wasmtime::Val::I32(byte as i32),
-                        ],
-                        &mut [],
-                    )?;
-                }
-
-                results[0] = str_ref;
-            } else {
-                results[0] = wasmtime::Val::ExternRef(None);
-            }
-            Ok(())
-        },
-    )?;
-
-    // 2. captureStackTrace
-    let capture_stack_trace_ty = module
-        .imports()
-        .find(|i| i.module() == "env" && i.name() == "captureStackTrace")
-        .and_then(|i| i.ty().func().cloned())
-        .unwrap_or_else(|| wasmtime::FuncType::new(engine, [], [wasmtime::ValType::EXTERNREF]));
-    linker.func_new("env", "captureStackTrace", capture_stack_trace_ty,
-        |mut caller: wasmtime::Caller<'_, MyState>, _params, results| {
-            let bt = wasmtime::WasmBacktrace::capture(&caller);
-            let ext_ref = wasmtime::ExternRef::new(&mut caller, bt)?;
-            results[0] = wasmtime::Val::ExternRef(Some(ext_ref));
-            Ok(())
-        },
-    )?;
-
-    // 3. formatStackTrace
-    let format_stack_trace_ty = module
-        .imports()
-        .find(|i| i.module() == "env" && i.name() == "formatStackTrace")
-        .and_then(|i| i.ty().func().cloned())
-        .unwrap_or_else(|| wasmtime::FuncType::new(engine, [wasmtime::ValType::EXTERNREF], [wasmtime::ValType::EXTERNREF]));
-    linker.func_new("env", "formatStackTrace", format_stack_trace_ty,
-        |mut caller: wasmtime::Caller<'_, MyState>, params, results| {
-            let bt_ref = match &params[0] {
-                wasmtime::Val::ExternRef(Some(r)) => r.clone(),
-                wasmtime::Val::AnyRef(Some(anyref)) => {
-                    wasmtime::ExternRef::convert_any(&mut caller, anyref.clone())?
-                }
-                wasmtime::Val::ExternRef(None) | wasmtime::Val::AnyRef(None) => {
-                    results[0] = wasmtime::Val::ExternRef(None);
-                    return Ok(());
-                }
-                _ => {
-                    return Err(wasmtime::Error::msg(format!("formatStackTrace: Expected ExternRef or AnyRef, got {:?}", params[0])));
-                }
-            };
-            let bt = match bt_ref.data(&caller)?.and_then(|any| any.downcast_ref::<wasmtime::WasmBacktrace>()) {
-                Some(bt) => bt,
-                None => {
-                    return Err(wasmtime::Error::msg("formatStackTrace: Failed to downcast ExternRef data to WasmBacktrace"));
-                }
-            };
-            let str_bt = format!("{}", bt);
-            if str_bt.is_empty() {
-                results[0] = wasmtime::Val::ExternRef(None);
-                return Ok(());
-            }
-
-            let create = caller.get_export("$stringCreate").and_then(|e| e.into_func());
-            let set_byte = caller.get_export("$stringSetByte").and_then(|e| e.into_func());
-
-            if let (Some(create), Some(set_byte)) = (create, set_byte) {
-                let bytes = str_bt.as_bytes();
-                let mut cr_res = vec![wasmtime::Val::I32(0)];
-                create.call(&mut caller, &[wasmtime::Val::I32(bytes.len() as i32)], &mut cr_res)?;
-
-                let str_ref = cr_res[0].clone();
-                for (i, &byte) in bytes.iter().enumerate() {
-                    set_byte.call(
-                        &mut caller,
-                        &[
-                            str_ref.clone(),
-                            wasmtime::Val::I32(i as i32),
-                            wasmtime::Val::I32(byte as i32),
-                        ],
-                        &mut [],
-                    )?;
-                }
-
-                results[0] = str_ref;
-            } else {
-                results[0] = wasmtime::Val::ExternRef(None);
-            }
-            Ok(())
-        },
-    )?;
-
-    Ok(())
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -1182,7 +830,7 @@ fn run_all_tests(
 /// both streams via zena:process and decides what to display.
 fn run_single_test_worker(paths: &[String], verbose: bool, debug: bool) -> Result<()> {
     anyhow::ensure!(paths.len() == 1, "test --single takes exactly one file");
-    let engine = Engine::new(&base_config(debug))?;
+    let engine = Engine::new(&zena_runtime::engine::config(debug))?;
     match run_single_test(&engine, Path::new(&paths[0]), verbose, debug) {
         Ok((TestStatus::Pass, stdout, _stderr, _msg)) => {
             print!("{stdout}");
@@ -1269,17 +917,15 @@ fn run_internal_tool(
 ) -> Result<i32> {
     let src = repo_root()?.join(src_repo_rel);
     let cached = compile_to_cache(&src.to_string_lossy(), verbose, false, false, true, false, debug, None, false, None, None)?;
-    let engine = Engine::new(&base_config(debug))?;
+    let engine = Engine::new(&zena_runtime::engine::config(debug))?;
     let cwasm = cwasm_path_for(&cached, debug);
     let module = load_or_compile_module(&engine, &cached, &cwasm)?;
 
-    let mut linker: Linker<MyState> = Linker::new(&engine);
-    p1::add_to_linker_sync(&mut linker, |state| &mut state.wasi)?;
-    add_stack_trace_helpers(&mut linker, &engine, &module)?;
-    process::add_process_imports(&mut linker, &module, true, vec![
+    let mut linker: Linker<HostState> = Linker::new(&engine);
+    zena_runtime::add_to_linker(&mut linker, &engine, &module, Spawn::Allow(vec![
         (".".to_string(), repo_root()?),
         ("/".to_string(), std::path::PathBuf::from("/")),
-    ])?;
+    ]))?;
 
     let mut args = vec![src_repo_rel.to_string()];
     args.extend_from_slice(guest_args);
@@ -1291,7 +937,7 @@ fn run_internal_tool(
         .preopened_dir(&repo_root, ".", DirPerms::all(), FilePerms::all())?
         .preopened_dir("/", "/", DirPerms::all(), FilePerms::all())?
         .build_p1();
-    let mut store = Store::new(&engine, MyState { wasi });
+    let mut store = Store::new(&engine, HostState { wasi });
     reserve_gc_heap(&engine, &mut store)?;
 
     let instance = linker.instantiate(&mut store, &module)?;
@@ -1322,15 +968,10 @@ fn run_single_test(
     let t_load_start = std::time::Instant::now();
     // Run using wasmtime
     let wasm_path = Path::new(&cached_wasm_path);
-    let cwasm_path = wasm_path.with_extension("cwasm");
-    let module = load_or_compile_module(engine, wasm_path, &cwasm_path)?;
+    let module = zena_runtime::cache::load_module(engine, wasm_path, debug)?;
     let t_load = t_load_start.elapsed();
 
     let t_inst_start = std::time::Instant::now();
-    let mut linker: Linker<MyState> = Linker::new(engine);
-    p1::add_to_linker_sync(&mut linker, |state| &mut state.wasi)?;
-    add_stack_trace_helpers(&mut linker, engine, &module)?;
-
     let repo_root = repo_root()?;
     let stdlib_dir = std::fs::canonicalize(repo_root.join("packages/stdlib/zena"))?;
 
@@ -1353,11 +994,12 @@ fn run_single_test(
     // The path map mirrors the preopens below so spawn cwds translate
     // to host paths — the guest's /tmp is not the host's /tmp when the
     // cache env vars redirect it (and never is on macOS).
-    process::add_process_imports(&mut linker, &module, true, vec![
+    let mut linker: Linker<HostState> = Linker::new(engine);
+    zena_runtime::add_to_linker(&mut linker, engine, &module, Spawn::Allow(vec![
         (".".to_string(), repo_root.clone()),
         ("/stdlib".to_string(), stdlib_dir.clone()),
         ("/tmp".to_string(), tmp_host_dir.clone()),
-    ])?;
+    ]))?;
 
     let wasi = WasiCtxBuilder::new()
         .stdout(stdout_pipe.clone())
@@ -1369,7 +1011,7 @@ fn run_single_test(
         .preopened_dir(&tmp_host_dir, "/tmp", DirPerms::all(), FilePerms::all())?
         .build_p1();
 
-    let mut store = Store::new(engine, MyState { wasi });
+    let mut store = Store::new(engine, HostState { wasi });
 
     let instance = match linker.instantiate(&mut store, &module) {
         Ok(inst) => inst,
@@ -1454,89 +1096,6 @@ fn run_single_test(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Mutex;
-
-    struct MockString {
-        data: Vec<u8>,
-    }
-
-    #[test]
-    fn test_stack_trace_capture_and_format() -> Result<()> {
-        let mut config = Config::new();
-        config.wasm_backtrace_details(wasmtime::WasmBacktraceDetails::Enable);
-        config.wasm_gc(true);
-        apply_gc_config(&mut config);
-        let engine = Engine::new(&config)?;
-
-        let wat = r#"
-            (module
-                (import "env" "captureStackTrace" (func $capture (result externref)))
-                (import "env" "formatStackTrace" (func $format (param externref) (result externref)))
-                (import "env" "mockStringCreate" (func $create (param i32) (result externref)))
-                (import "env" "mockStringSetByte" (func $set_byte (param externref i32 i32)))
-                
-                (func (export "$stringCreate") (param i32) (result externref)
-                    local.get 0
-                    call $create
-                )
-                
-                (func (export "$stringSetByte") (param externref i32 i32)
-                    local.get 0
-                    local.get 1
-                    local.get 2
-                    call $set_byte
-                )
-                
-                (func $test_stack_trace (export "test_stack_trace") (export "main") (result externref)
-                    call $capture
-                    call $format
-                )
-            )
-        "#;
-
-        let module = Module::new(&engine, wat)?;
-        let mut linker = Linker::<MyState>::new(&engine);
-
-        // Register stack trace helpers
-        add_stack_trace_helpers(&mut linker, &engine, &module)?;
-
-        // Register string mocks
-        linker.func_wrap("env", "mockStringCreate", |mut caller: Caller<'_, MyState>, len: i32| {
-            let mock = MockString { data: vec![0; len as usize] };
-            let ext = ExternRef::new(&mut caller, Mutex::new(mock))?;
-            Ok(Some(ext))
-        })?;
-
-        linker.func_wrap("env", "mockStringSetByte", |caller: Caller<'_, MyState>, ext_ref: Option<Rooted<ExternRef>>, index: i32, val: i32| {
-            let ext = ext_ref.ok_or_else(|| wasmtime::Error::msg("mockStringSetByte: expected non-null ExternRef"))?;
-            let cell = ext.data(&caller)?.ok_or_else(|| wasmtime::Error::msg("mockStringSetByte: missing data"))?
-                .downcast_ref::<Mutex<MockString>>().ok_or_else(|| wasmtime::Error::msg("mockStringSetByte: expected Mutex<MockString>"))?;
-            cell.lock().unwrap().data[index as usize] = val as u8;
-            Ok(())
-        })?;
-
-        // Instantiate
-        let wasi_ctx = WasiCtxBuilder::new().build_p1();
-        let mut store = Store::new(&engine, MyState { wasi: wasi_ctx });
-        let instance = linker.instantiate(&mut store, &module)?;
-
-        // Call "test_stack_trace"
-        let func = instance.get_typed_func::<(), Option<Rooted<ExternRef>>>(&mut store, "test_stack_trace")?;
-        let result_ref = func.call(&mut store, ())?;
-
-        let ext = result_ref.ok_or_else(|| wasmtime::Error::msg("test_stack_trace returned null"))?;
-        let cell = ext.data(&store)?.ok_or_else(|| wasmtime::Error::msg("expected string data in returned ExternRef"))?
-            .downcast_ref::<Mutex<MockString>>().ok_or_else(|| wasmtime::Error::msg("expected Mutex<MockString>"))?;
-        let bytes = &cell.lock().unwrap().data;
-        let stack_trace = String::from_utf8(bytes.clone())?;
-
-        println!("Captured stack trace:\n{}", stack_trace);
-
-        // Verify the backtrace has frames pointing to Wasm execution
-        assert!(stack_trace.contains("test_stack_trace"));
-
-        Ok(())
-    }
 
     #[test]
     fn test_cache_is_stale() -> Result<()> {

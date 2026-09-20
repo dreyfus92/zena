@@ -24,20 +24,25 @@ custom Rust CLI exists for **convenience and enhanced capabilities**:
 While standard Zena programs work anywhere, `zena-cli` acts as the optimized,
 fully-featured native host for the Zena ecosystem.
 
+The host-side pieces (engine configuration, the `.cwasm` cache, the
+stack-trace and `zena:process` imports) live in the
+[`zena-runtime`](../zena-runtime) crate. [`zena-run`](../zena-run) embeds
+the same crate to run a compiled module without the compiler.
+
 ## Building
 
 ```bash
-cargo build --manifest-path packages/zena-cli/Cargo.toml
+cargo build --release -p zena-cli    # from the repository root
 ```
 
 ## Usage
 
 ```bash
 # Run a Zena file directly (silently outputs only the program's output)
-cargo run --manifest-path packages/zena-cli/Cargo.toml -- run examples/hello-world.zena
+./target/release/zena-cli run examples/hello-world.zena
 
 # Run with verbose engine diagnostic logs
-cargo run --manifest-path packages/zena-cli/Cargo.toml -- --verbose run examples/hello-world.zena
+./target/release/zena-cli --verbose run examples/hello-world.zena
 ```
 
 ## Development and Architecture

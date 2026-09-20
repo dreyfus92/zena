@@ -1,8 +1,8 @@
 [package]
-name = "zena-cli"
+name = "zena-run"
 version = "0.1.0"
 edition = "2024"
-description = "CLI for the Zena self-hosted compiler"
+description = "Runs a compiled Zena module (zena-cli target) on wasmtime"
 
 [dependencies]
 zena-runtime = { path = "../zena-runtime" }
@@ -10,7 +10,3 @@ wasmtime = { workspace = true }
 wasmtime-wasi = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true }
-directories = "6.0.0"
-walkdir = "2.5"
-glob = "0.3"
-serde_json = "1.0"

@@ -32,7 +32,7 @@ prebuilt, checked-in build of the self-hosted compiler and the only
 prebuilt artifact in the repository.
 
 ```
-cargo build          → zena-cli            (Rust/wasmtime host, from source)
+cargo build          → zena-cli, zena-run  (Rust/wasmtime hosts, from source)
 zena-cli + bootstrap → zena/out/cli.wasm   (the working compiler)
 zena/out/cli.wasm    → everything else     (stdlib tests, LSP, formatter, …)
 ```
@@ -63,8 +63,14 @@ a standing proof that a clean checkout bootstraps.
 
 - `packages/zena-compiler` — the compiler (Zena). `zena/lib/codegen/`
   has its own CONTEXT.md files.
+- `packages/zena-runtime` — Rust library: what a compiled Zena module
+  needs from its wasmtime host (engine flags, `.cwasm` cache, the
+  stack-trace and `zena:process` imports). The Rust counterpart of
+  `packages/runtime`.
 - `packages/zena-cli` — Rust host that executes the compiler and Zena
-  programs under wasmtime.
+  programs under wasmtime; also the test, bench and doc runners.
+- `packages/zena-run` — Rust host that runs one compiled module and
+  nothing else.
 - `packages/stdlib` — the standard library.
 - `tests/language/` — portable language tests (syntax / semantics /
   execution) shared by all compiler implementations.
