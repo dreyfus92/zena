@@ -26,7 +26,7 @@ let compileToBinary = (source: String): ByteBuffer => {
   let checkRes = checkCompilation(compResult, null, false);
   
   let entryAst = compResult.entry.ast;
-  let units = new GrowableArray<CompilationUnit>();
+  let units = new Array<CompilationUnit>();
   var entryUnit: CompilationUnit | null = null;
   
   for (let file in compResult.files) {

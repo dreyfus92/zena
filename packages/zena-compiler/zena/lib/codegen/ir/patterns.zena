@@ -287,7 +287,7 @@ export let arraySliceRead = (cx: LoweringContext, value: i32, startIndex: i32): 
 
               cx.b.switchTo(mutB);
               let castMut = cx.b.emit(IrOp.ref_cast, mutRefVt, inst, cx.b.internType(mutRefVt));
-              let mutTuple = new GrowableArray<i32>();
+              let mutTuple = new Array<i32>();
               mutTuple.push(dest);
               mutTuple.push(zero);
               mutTuple.push(castMut);
@@ -298,7 +298,7 @@ export let arraySliceRead = (cx: LoweringContext, value: i32, startIndex: i32): 
 
               cx.b.switchTo(immB);
               let castImm = cx.b.emit(IrOp.ref_cast, immRefVt, inst, cx.b.internType(immRefVt));
-              let immTuple = new GrowableArray<i32>();
+              let immTuple = new Array<i32>();
               immTuple.push(dest);
               immTuple.push(zero);
               immTuple.push(castImm);
@@ -323,7 +323,7 @@ export let arraySliceRead = (cx: LoweringContext, value: i32, startIndex: i32): 
     let arrType = cx.wasm.getArray((arrOpt as WasmArray).elementType, true);
     let destPair = cx.b.pushExtra(twoValues(sliceLen, -1));
     let dest = cx.b.emit(IrOp.array_new, new ValTypeRef(arrType) as ValType, destPair, cx.b.addRef(new IrRefType(arrType)));
-    let copyTuple = new GrowableArray<i32>();
+    let copyTuple = new Array<i32>();
     copyTuple.push(dest);
     copyTuple.push(zero);
     copyTuple.push(buf);
@@ -594,7 +594,7 @@ export let lowerPatternTest = (cx: LoweringContext, pattern: Node,
         if (patternBinds(cx, lp.left) || patternBinds(cx, lp.right)) {
           // Both sides bind the same symbols (checker-enforced); each
           // side's values merge into the arm through block params.
-          let syms = new GrowableArray<SymbolId>();
+          let syms = new Array<SymbolId>();
           collectPatternBindSyms(cx, lp.left, syms);
           let tryRight = cx.b.newBlock();
           lowerPatternTest(cx, lp.left, value, tryRight);

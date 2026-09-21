@@ -152,7 +152,7 @@ export class DocumentSymbol {
   end: i32;
   selStart: i32;
   selEnd: i32;
-  var children: GrowableArray<DocumentSymbol> = new GrowableArray<DocumentSymbol>();
+  var children: GrowableArray<DocumentSymbol> = new Array<DocumentSymbol>();
 
   new(this.name, this.kind, this.start, this.end, this.selStart, this.selEnd);
 }
@@ -205,7 +205,7 @@ let extractClassMembers = (body: Array<Node>, sym: DocumentSymbol): void => {
  * produce nested symbols that appear in the outline.
  */
 let extractSymbols = (ast: Module): GrowableArray<DocumentSymbol> => {
-  let symbols = new GrowableArray<DocumentSymbol>();
+  let symbols = new Array<DocumentSymbol>();
   let isTestFile = hasTestImport(ast);
 
   var i = 0;
@@ -903,7 +903,7 @@ export class LanguageService {
       // Recovering from a parse error does not excuse it. The file was
       // analyzed anyway, so report what the parser had to work around
       // ahead of what the checker went on to find.
-      let diagnostics = new GrowableArray<Diagnostic>(checkResult.diagnostics.length);
+      let diagnostics = new Array<Diagnostic>(checkResult.diagnostics.length);
       for (let sf in result.files) {
         for (let parseError in sf.parseErrors) {
           diagnostics.push(parseError);
@@ -937,7 +937,7 @@ export class LanguageService {
         }
       }
 
-      let arr = new GrowableArray<Diagnostic>();
+      let arr = new Array<Diagnostic>();
       arr.push(new Diagnostic(DiagnosticCode.UnexpectedToken, cleanMsg, DiagnosticSeverity.Error, diagLocation));
       arr
     };
@@ -981,7 +981,7 @@ export class LanguageService {
         return null;
       }
 
-      let units = new GrowableArray<CompilationUnit>();
+      let units = new Array<CompilationUnit>();
       var entryUnit: CompilationUnit | null = null;
       var fi = 0;
       while (fi < compResult.files.length) {
@@ -1297,7 +1297,7 @@ export class LanguageService {
           if (me != null) {
             let objType = resolveObjectType(me.object, model, scopeResult, me.loc, ast, checkResult.sharedState);
             if (objType != null) {
-              let memberItems = new GrowableArray<CompletionItem>();
+              let memberItems = new Array<CompletionItem>();
               let addedMembers = new HashMap<String, boolean>();
 
               if (objType is ClassType) {
@@ -1359,7 +1359,7 @@ export class LanguageService {
                 case _: ""
               };
               if (prefix != "") {
-                let filtered = new GrowableArray<CompletionItem>();
+                let filtered = new Array<CompletionItem>();
                 var fi = 0;
                 while (fi < memberItems.length) {
                   let item = memberItems[fi];
@@ -1377,7 +1377,7 @@ export class LanguageService {
       }
     }
 
-    let items = new GrowableArray<CompletionItem>();
+    let items = new Array<CompletionItem>();
 
     let keywords = [
       "let", "var", "class", "sealed", "enum", "type", "import", "export",
@@ -1491,7 +1491,7 @@ export class LanguageService {
       let ast = parseSource(source, path);
       extractSymbols(ast)
     } catch (e) {
-      new GrowableArray<DocumentSymbol>()
+      new Array<DocumentSymbol>()
     };
     return symbols;
   }

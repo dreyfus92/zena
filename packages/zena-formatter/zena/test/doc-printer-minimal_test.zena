@@ -18,7 +18,7 @@ let tests = suite('doc-printer-minimal', () => {
   });
 
   test('concat test', (t: TestContext) => {
-    let arr = new GrowableArray<Doc>();
+    let arr = new Array<Doc>();
     arr.push(text('hello'));
     arr.push(text('world'));
     let doc = concat(arr);

@@ -27,7 +27,7 @@ export let tests = suite('Future combinators', (): void => {
     let a = new Completer<i32>();
     let b = new Completer<i32>();
     let c = new Completer<i32>();
-    let inputs = new GrowableArray<Future<i32>>();
+    let inputs = new Array<Future<i32>>();
     inputs.push(a.future);
     inputs.push(b.future);
     inputs.push(c.future);
@@ -40,14 +40,14 @@ export let tests = suite('Future combinators', (): void => {
   });
 
   test('allSettled of nothing is an empty array', (ctx: TestContext): void => {
-    let all = Future.allSettled<Future<i32>>(new GrowableArray<Future<i32>>());
+    let all = Future.allSettled<Future<i32>>(new Array<Future<i32>>());
     equal(runFuture(all).length, 0);
   });
 
   test('allSettled waits for every input past a failure', (ctx: TestContext): void => {
     let a = new Completer<i32>();
     let b = new Completer<i32>();
-    let inputs = new GrowableArray<Future<i32>>();
+    let inputs = new Array<Future<i32>>();
     inputs.push(a.future);
     inputs.push(b.future);
     let all = Future.allSettled<Future<i32>>(inputs);
@@ -61,7 +61,7 @@ export let tests = suite('Future combinators', (): void => {
   test('allSettled works at void', (ctx: TestContext): void => {
     let a = new Completer<void>();
     let b = new Completer<void>();
-    let inputs = new GrowableArray<Future<void>>();
+    let inputs = new Array<Future<void>>();
     inputs.push(a.future);
     inputs.push(b.future);
     let all = Future.allSettled<Future<void>>(inputs);
@@ -76,7 +76,7 @@ export let tests = suite('Future combinators', (): void => {
   test('any settles with the first value, not the first settle', (ctx: TestContext): void => {
     let a = new Completer<i32>();
     let b = new Completer<i32>();
-    let inputs = new GrowableArray<Future<i32>>();
+    let inputs = new Array<Future<i32>>();
     inputs.push(a.future);
     inputs.push(b.future);
     let first = Future.any<i32>(inputs);
@@ -90,7 +90,7 @@ export let tests = suite('Future combinators', (): void => {
   test('any aggregates when every input fails, in input order', (ctx: TestContext): void => {
     let a = new Completer<i32>();
     let b = new Completer<i32>();
-    let inputs = new GrowableArray<Future<i32>>();
+    let inputs = new Array<Future<i32>>();
     inputs.push(a.future);
     inputs.push(b.future);
     let first = Future.any<i32>(inputs);
@@ -116,7 +116,7 @@ export let tests = suite('Future combinators', (): void => {
     try {
       // Bound so both try arms are void — a discarded reference value
       // in the body arm joins badly with the void catch arm.
-      let unused = Future.any<i32>(new GrowableArray<Future<i32>>());
+      let unused = Future.any<i32>(new Array<Future<i32>>());
       threw = false;
     } catch (e) {
       threw = true;

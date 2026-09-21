@@ -113,7 +113,7 @@ export final class FlowNarrowings extends FlowNode {
  * headers gain their back edge after the body is walked.
  */
 export final class FlowJoin extends FlowNode {
-  antecedents = new GrowableArray<FlowNode>();
+  antecedents = new Array<FlowNode>();
   new() : super();
 
   /** Unreachable antecedents carry no paths, so they are not recorded. */
@@ -194,10 +194,10 @@ export final class FlowBodyState {
   loopMoves: GrowableArray<GrowableArray<FlowMove>>;
   loopDeclared: GrowableArray<HashSet<i32>>;
   pendingEdgeIfs: GrowableArray<PendingEdgeIf>;
-  var borrowUses = new GrowableArray<BorrowUseRec>();
-  var pendingEdgeMatches = new GrowableArray<PendingEdgeMatch>();
-  var bodyExits = new GrowableArray<FlowNode>();
-  var bodyPathMoves = new GrowableArray<FlowMove>();
+  var borrowUses = new Array<BorrowUseRec>();
+  var pendingEdgeMatches = new Array<PendingEdgeMatch>();
+  var bodyExits = new Array<FlowNode>();
+  var bodyPathMoves = new Array<FlowMove>();
   var scopedBodyFloor: i32 = 0;
   var scopedLoopFloorCount: i32 = 0;
   new(this.current, this.start, this.loopHeads, this.loopExits,

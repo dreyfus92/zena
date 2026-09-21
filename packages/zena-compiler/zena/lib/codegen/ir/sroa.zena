@@ -43,11 +43,11 @@ export let runSroa = (body: IrBody): i32 => {
   }
 
   // Users of every value, for the escape test.
-  let users = new GrowableArray<GrowableArray<i32>>();
+  let users = new Array<GrowableArray<i32>>();
   for (var i = 0; i < count; i += 1) {
-    users.push(new GrowableArray<i32>());
+    users.push(new Array<i32>());
   }
-  let operands = new GrowableArray<i32>();
+  let operands = new Array<i32>();
   for (var i = 0; i < count; i += 1) {
     if (body.op(i) == IrOp.nop) {
       continue;
@@ -66,7 +66,7 @@ export let runSroa = (body: IrBody): i32 => {
   // Candidates: a struct_new whose every use is a field read or a
   // field write with it as the receiver (a write storing it somewhere
   // is a use as a value, and disqualifies).
-  let candidates = new GrowableArray<i32>();
+  let candidates = new Array<i32>();
   for (var i = 0; i < count; i += 1) {
     if (body.op(i) != IrOp.struct_new) {
       continue;
@@ -101,7 +101,7 @@ export let runSroa = (body: IrBody): i32 => {
   }
 
   let cfg = new IrCfg(body);
-  let repl = new GrowableArray<i32>();
+  let repl = new Array<i32>();
   for (var i = 0; i < count; i += 1) {
     repl.push(i);
   }
@@ -120,15 +120,15 @@ export let runSroa = (body: IrBody): i32 => {
 
     // The blocks strictly dominated by the allocation's block, and one
     // parameter per field on each.
-    let dominated = new GrowableArray<boolean>();
+    let dominated = new Array<boolean>();
     for (var b = 0; b < nb; b += 1) {
       dominated.push(false);
     }
-    let stack = new GrowableArray<i32>();
+    let stack = new Array<i32>();
     for (let c in cfg.domChildren[home]) {
       stack.push(c);
     }
-    let order = new GrowableArray<i32>();
+    let order = new Array<i32>();
     while (stack.length > 0) {
       let b = stack.pop();
       dominated[b] = true;
@@ -137,7 +137,7 @@ export let runSroa = (body: IrBody): i32 => {
         stack.push(c);
       }
     }
-    let paramOf = new GrowableArray<i32>();
+    let paramOf = new Array<i32>();
     for (var k = 0; k < nb * nf; k += 1) {
       paramOf.push(-1);
     }
@@ -158,11 +158,11 @@ export let runSroa = (body: IrBody): i32 => {
     // Forward walk: the allocation's block starts undefined (nothing
     // reads before the allocation), every dominated block starts at
     // its parameters.
-    let cur = new GrowableArray<i32>();
+    let cur = new Array<i32>();
     for (var f = 0; f < nf; f += 1) {
       cur.push(-1);
     }
-    let walk = new GrowableArray<i32>();
+    let walk = new Array<i32>();
     walk.push(home);
     for (let b in order) {
       walk.push(b);

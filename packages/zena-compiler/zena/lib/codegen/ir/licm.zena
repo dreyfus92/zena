@@ -83,7 +83,7 @@ let hoistOnce = (body: IrBody): i32 => {
   // Headers in reverse postorder; each header's loop is the union of
   // its back edges' natural loops.
   for (let h in cfg.rpo) {
-    let inLoop = new GrowableArray<boolean>();
+    let inLoop = new Array<boolean>();
     for (var i = 0; i < nb; i += 1) {
       inLoop.push(false);
     }
@@ -96,7 +96,7 @@ let hoistOnce = (body: IrBody): i32 => {
       // Everything that reaches the back edge's source without
       // passing the header is in the loop.
       inLoop[h] = true;
-      let work = new GrowableArray<i32>();
+      let work = new Array<i32>();
       if (!inLoop[p]) {
         inLoop[p] = true;
         work.push(p);
@@ -138,7 +138,7 @@ let hoistOnce = (body: IrBody): i32 => {
       let b = body.instBlock[v];
       return b < 0 || !inLoop[b];
     };
-    let operands = new GrowableArray<i32>();
+    let operands = new Array<i32>();
     // Two sweeps over the loop's blocks, so a chain of invariant
     // instructions moves together even when a later block defines
     // what an earlier one (in reverse postorder) uses.
@@ -149,7 +149,7 @@ let hoistOnce = (body: IrBody): i32 => {
           continue;
         }
         let blk = body.blocks[b];
-        let kept = new GrowableArray<i32>();
+        let kept = new Array<i32>();
         // In the header, a trap-capable candidate may move while every
         // instruction kept ahead of it is pure.
         var headerPure = b == h && straightIn;

@@ -114,7 +114,7 @@ export final class ClassHierarchyAnalysis {
       }
     }
 
-    let methods = new GrowableArray<MethodDefinition>();
+    let methods = new Array<MethodDefinition>();
     let seenSigs = new HashSet<String>();
     var curr: ClassType | null = cType;
     while (curr != null) {
@@ -348,7 +348,7 @@ export final class ClassHierarchyAnalysis {
     this.collectAllBaseClassIds(ct, baseIds);
     for (let baseId in baseIds) {
       if (!this.subclassesByBaseId.has(baseId)) {
-        this.subclassesByBaseId[baseId] = new GrowableArray<ClassType>();
+        this.subclassesByBaseId[baseId] = new Array<ClassType>();
       }
       this.subclassesByBaseId[baseId].push(ct);
     }
@@ -359,11 +359,11 @@ export final class ClassHierarchyAnalysis {
     if (let (true, list) = this.subclassesByBaseId.get(baseSymId)) {
       return list;
     }
-    return new GrowableArray<ClassType>();
+    return new Array<ClassType>();
   }
 
   collectAllImplementedInterfaces(ct: ClassType): Array<InterfaceType> {
-    let list = new GrowableArray<InterfaceType>();
+    let list = new Array<InterfaceType>();
     let seen = new HashMap<InterfaceKey, boolean>();
     
     let ctParams = getClassTypeParameters(ct);

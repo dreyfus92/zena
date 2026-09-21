@@ -599,7 +599,7 @@ export final class WasmFunction implements Hashable {
   var isClosure: boolean = false;
   var isReferenceTaken: boolean = false;
   var contextStruct: WasmStruct | null = null;
-  var captures = new GrowableArray<SymbolId>();
+  var captures = new Array<SymbolId>();
   var mutableCaptures = new HashSet<SymbolId>();
   var capturesThis: boolean = false;
   var isFunctionAdaptation: boolean = false;
@@ -768,7 +768,7 @@ export final class ClassCodegenInfo {
   var vtableStructType: WasmStruct | null = null;
   var vtableGlobal: WasmGlobal | null = null;
   var singletonGlobal: WasmGlobal | null = null;
-  subclasses = new GrowableArray<ClassCodegenInfo>();
+  subclasses = new Array<ClassCodegenInfo>();
   new(this.structType);
 
   getTransitiveSubclasses(result: GrowableArray<ClassCodegenInfo>): void {
@@ -877,8 +877,8 @@ export final class WasmModule {
    */
   var wideArithmetic: boolean = false;
 
-  var types = new GrowableArray<WasmType>();
-  tags = new GrowableArray<WasmTag>();
+  var types = new Array<WasmType>();
+  tags = new Array<WasmTag>();
   exportTagMap = new HashMap<String, WasmTag>();
   var exceptionTag: WasmTag | null = null;
   var exceptionPayload: WasmGlobal | null = null;
@@ -911,16 +911,16 @@ export final class WasmModule {
   /** 
    * A complete list of all imported functions.
    */
-  functionImports = new GrowableArray<WasmFunction>();
+  functionImports = new Array<WasmFunction>();
 
   /** 
    * A complete list of all functions in the module, including anonymous
    * functions that do not have a corresponding symbol. Array order dictates
    * the final WebAssembly function index.
    */
-  var functions = new GrowableArray<WasmFunction>();
+  var functions = new Array<WasmFunction>();
   
-  globals = new GrowableArray<WasmGlobal>();
+  globals = new Array<WasmGlobal>();
 
 
 
@@ -956,7 +956,7 @@ export final class WasmModule {
   interfaceVTableStructs = new HashMap<InterfaceKey, WasmStruct>();
   /** One entry per emitted rec group, in emission order; a size of 1
    * emits the bare (header-free) form. Set by layout(). */
-  var typeRecGroupSizes = new GrowableArray<i32>();
+  var typeRecGroupSizes = new Array<i32>();
   classInterfaceVTables = new HashMap<ClassInterfaceKey, WasmGlobal>();
   #signatureCache = new HashMap<SignatureKey, WasmSignature>();
   #structCache = new HashMap<StructKey, WasmStruct>();
@@ -966,7 +966,7 @@ export final class WasmModule {
    * a signature roots them; RTA roots this list wholesale, like
    * closure structs.
    */
-  anonymousStructs = new GrowableArray<WasmStruct>();
+  anonymousStructs = new Array<WasmStruct>();
   #arrayCache = new HashMap<ArrayKey, WasmArray>();
   usedInterfaceAdaptations = new HashMap<ClassInterfaceKey, boolean>();
   usedInterfaceMembers = new HashMap<InterfaceMemberKey, boolean>();
@@ -975,7 +975,7 @@ export final class WasmModule {
   var wasiWriteStringHelper: WasmFunction | null = null;
   var stringHashHelper: WasmFunction | null = null;
   functionAdaptations = new HashMap<FunctionAdaptationKey, WasmFunction>();
-  var arrayMethods = new GrowableArray<WasmFunction>();
+  var arrayMethods = new Array<WasmFunction>();
   
   /**
    * The vtable global registered for exactly this (class, interface) pair,
@@ -1091,8 +1091,8 @@ export final class WasmModule {
 
   mutableCapturedSymbols = new HashSet<SymbolId>();
   
-  datas = new GrowableArray<ByteBuffer>();
-  rawDatas = new GrowableArray<ByteBuffer>();
+  datas = new Array<ByteBuffer>();
+  rawDatas = new Array<ByteBuffer>();
   stringLiterals = new HashMap<String, i32>();
   stringLiteralIds = new HashMap<String, i32>();
   stringLiteralLocations = new HashMap<String, StringLiteralLocation>();
@@ -1169,10 +1169,10 @@ export final class WasmModule {
    * component lifts with the callback (component-adapters.zena), in
    * the order the entry wrapper declares them.
    */
-  componentAsyncExports = new GrowableArray<ComponentAsyncExport>();
+  componentAsyncExports = new Array<ComponentAsyncExport>();
   /** The declared world's wrapped synchronous exports, on the
    * component target. */
-  componentSyncExports = new GrowableArray<ComponentSyncExport>();
+  componentSyncExports = new Array<ComponentSyncExport>();
   /**
    * The `$componentExport` wrapper for each export whose signature
    * carries a `string`, keyed by the export's own name. An export with
@@ -1189,8 +1189,8 @@ export final class WasmModule {
   var componentPostReturnFunc: WasmFunction | null = null;
   var stringGetLengthFunc: WasmFunction | null = null;
   
-  recordDispatchInfos = new GrowableArray<RecordDispatchInfo>();
-  adaptedDispatchInfos = new GrowableArray<RecordDispatchInfo>();
+  recordDispatchInfos = new Array<RecordDispatchInfo>();
+  adaptedDispatchInfos = new Array<RecordDispatchInfo>();
   
   cellStructs = new HashMap<CellKey, WasmStruct>();
   closureStructs = new HashMap<ClosureKey, WasmStruct>();
@@ -1360,7 +1360,7 @@ export final class WasmModule {
       throw new Error("Struct allocated after layout:" + fieldNames);
     }
     let stFields = if (fields is GrowableArray<WasmField>) fields else {
-      let copy = new GrowableArray<WasmField>();
+      let copy = new Array<WasmField>();
       for (let f in fields) {
         copy.push(f);
       }
@@ -1376,14 +1376,14 @@ export final class WasmModule {
   }
 
   getClosureStruct(params: GrowableArray<ValType>, returns: GrowableArray<ValType>): WasmStruct {
-    let implParams = new GrowableArray<ValType>();
+    let implParams = new Array<ValType>();
     implParams.push(new ValTypeStructRef());
     for (let p in params) {
       implParams.push(p);
     }
     let implSig = this.getSignature(implParams, returns);
     
-    let fields = new GrowableArray<WasmField>();
+    let fields = new Array<WasmField>();
     fields.push(new WasmField("func", new ValTypeRef(implSig), false));
     fields.push(new WasmField("ctx", new ValTypeStructRef(), false));
     
@@ -1402,17 +1402,17 @@ export final class WasmModule {
     }
     
     let concreteType = this.getStruct(null, fields);
-    let vtableFields = new GrowableArray<WasmField>();
-    let getterTypes = new GrowableArray<WasmSignature>();
-    let getters = new GrowableArray<WasmFunction>();
+    let vtableFields = new Array<WasmField>();
+    let getterTypes = new Array<WasmSignature>();
+    let getters = new Array<WasmFunction>();
     
     for (var i = 0; i < fields.length; i += 1) {
       let getterValType = fields[i].type;
       
-      let params = new GrowableArray<ValType>();
+      let params = new Array<ValType>();
       params.push(new ValTypeStructRef());
       
-      let returns = new GrowableArray<ValType>();
+      let returns = new Array<ValType>();
       if (getterValType != new ValTypeVoid()) {
         returns.push(getterValType);
       }
@@ -1435,7 +1435,7 @@ export final class WasmModule {
     
     let vtableType = this.getStruct(null, vtableFields);
     
-    let fatPtrFields = new GrowableArray<WasmField>();
+    let fatPtrFields = new Array<WasmField>();
     fatPtrFields.push(new WasmField(null, new ValTypeStructRef(), false));
     fatPtrFields.push(new WasmField(null, new ValTypeRef(vtableType), false));
     
@@ -1464,17 +1464,17 @@ export final class WasmModule {
     }
       
     let inStructType = this.getStruct(null, inFields);
-    let vtableFields = new GrowableArray<WasmField>();
-    let getterTypes = new GrowableArray<WasmSignature>();
-    let getters = new GrowableArray<WasmFunction>();
+    let vtableFields = new Array<WasmField>();
+    let getterTypes = new Array<WasmSignature>();
+    let getters = new Array<WasmFunction>();
     
     for (var i = 0; i < outFields.length; i += 1) {
       let fieldValType = outFields[i].type;
       
-      let params = new GrowableArray<ValType>();
+      let params = new Array<ValType>();
       params.push(new ValTypeStructRef());
       
-      let returns = new GrowableArray<ValType>();
+      let returns = new Array<ValType>();
       if (fieldValType != new ValTypeVoid()) {
         returns.push(fieldValType);
       }
@@ -1501,7 +1501,7 @@ export final class WasmModule {
         // constant 0 for fields it lacks, the source's own bit where
         // the source also tracks it. The spec covers every word; the
         // getter's word index selects its 64-bit slice.
-        let spec = new GrowableArray<i32>();
+        let spec = new Array<i32>();
         for (let optName in outOptionalNames) {
           var srcBit = -1;
           for (var j = 0; j < inOptionalNames.length; j += 1) {
@@ -1556,7 +1556,7 @@ export final class WasmModule {
     
     let vtableType = this.getStruct(null, vtableFields);
     
-    let fatPtrFields = new GrowableArray<WasmField>();
+    let fatPtrFields = new Array<WasmField>();
     fatPtrFields.push(new WasmField(null, new ValTypeStructRef(), false));
     fatPtrFields.push(new WasmField(null, new ValTypeRef(vtableType), false));
     
@@ -1579,7 +1579,7 @@ export final class WasmModule {
     if (let (true, existing) = this.vtables.get(key)) {
       return existing;
     }
-    let fresh = new GrowableArray<String>();
+    let fresh = new Array<String>();
     this.vtables[key] = fresh;
     return fresh;
   }
@@ -1596,7 +1596,7 @@ export final class WasmModule {
       this.classMethodMap[key] = func;
       let cKey = getClassKey(classType) as String;
       if (!this.classMethods.has(cKey)) {
-        this.classMethods[cKey] = new GrowableArray<WasmFunction>();
+        this.classMethods[cKey] = new Array<WasmFunction>();
       }
       this.classMethods[cKey].push(func);
     }
@@ -1679,8 +1679,8 @@ export final class WasmModule {
 
     let payloadType = if (errorStruct != null) new ValTypeRefNull(errorStruct) else new ValTypeEqRef();
     
-    let params = new GrowableArray<ValType>();
-    let sig = this.getSignature(params, new GrowableArray<ValType>());
+    let params = new Array<ValType>();
+    let sig = this.getSignature(params, new Array<ValType>());
     
     let tag = new WasmTag(sig);
     this.tags.push(tag);
@@ -1716,7 +1716,7 @@ export final class WasmModule {
     if (this.cancellationTag != null) {
       return;
     }
-    let sig = this.getSignature(new GrowableArray<ValType>(), new GrowableArray<ValType>());
+    let sig = this.getSignature(new Array<ValType>(), new Array<ValType>());
     let tag = new WasmTag(sig);
     this.tags.push(tag);
     this.cancellationTag = tag;
@@ -1725,9 +1725,9 @@ export final class WasmModule {
 
   ensureStringCreate(model: SemanticModel): void {
     if (this.stringCreateFunc != null) return;
-    let createParams = new GrowableArray<ValType>();
+    let createParams = new Array<ValType>();
     createParams.push(new ValTypeI32());
-    let createReturns = new GrowableArray<ValType>();
+    let createReturns = new Array<ValType>();
     createReturns.push(new ValTypeExternRef());
     let createSig = this.getSignature(createParams, createReturns);
     let createFunc = new WasmFunction(createSig, null, model);
@@ -1738,11 +1738,11 @@ export final class WasmModule {
 
   ensureStringSetByte(model: SemanticModel): void {
     if (this.stringSetByteFunc != null) return;
-    let setByteParams = new GrowableArray<ValType>();
+    let setByteParams = new Array<ValType>();
     setByteParams.push(new ValTypeExternRef());
     setByteParams.push(new ValTypeI32());
     setByteParams.push(new ValTypeI32());
-    let setByteReturns = new GrowableArray<ValType>();
+    let setByteReturns = new Array<ValType>();
     let setByteSig = this.getSignature(setByteParams, setByteReturns);
     let setByteFunc = new WasmFunction(setByteSig, null, model);
     setByteFunc.name = "$stringSetByte";
@@ -1752,10 +1752,10 @@ export final class WasmModule {
 
   ensureStringGetByte(model: SemanticModel): void {
     if (this.stringGetByteFunc != null) return;
-    let getByteParams = new GrowableArray<ValType>();
+    let getByteParams = new Array<ValType>();
     getByteParams.push(new ValTypeExternRef());
     getByteParams.push(new ValTypeI32());
-    let getByteReturns = new GrowableArray<ValType>();
+    let getByteReturns = new Array<ValType>();
     getByteReturns.push(new ValTypeI32());
     let getByteSig = this.getSignature(getByteParams, getByteReturns);
     let getByteFunc = new WasmFunction(getByteSig, null, model);
@@ -1766,9 +1766,9 @@ export final class WasmModule {
 
   ensureStringGetLength(model: SemanticModel): void {
     if (this.stringGetLengthFunc != null) return;
-    let getLengthParams = new GrowableArray<ValType>();
+    let getLengthParams = new Array<ValType>();
     getLengthParams.push(new ValTypeExternRef());
-    let getLengthReturns = new GrowableArray<ValType>();
+    let getLengthReturns = new Array<ValType>();
     getLengthReturns.push(new ValTypeI32());
     let getLengthSig = this.getSignature(getLengthParams, getLengthReturns);
     let getLengthFunc = new WasmFunction(getLengthSig, null, model);
@@ -1813,10 +1813,10 @@ export final class WasmModule {
     this.globals.push(sharedGlobal);
     this.sharedStringsGlobal = sharedGlobal;
 
-    let sigParams = new GrowableArray<ValType>();
+    let sigParams = new Array<ValType>();
     sigParams.push(new ValTypeI32()); // offset
     sigParams.push(new ValTypeI32()); // length
-    let sigReturns = new GrowableArray<ValType>();
+    let sigReturns = new Array<ValType>();
     sigReturns.push(stringType);
 
     let sig = this.getSignature(sigParams, sigReturns);
@@ -1825,9 +1825,9 @@ export final class WasmModule {
     this.addFunction(helperFunc);
     this.stringFromSharedFunc = helperFunc;
 
-    let getSigParams = new GrowableArray<ValType>();
+    let getSigParams = new Array<ValType>();
     getSigParams.push(new ValTypeI32()); // id
-    let getSigReturns = new GrowableArray<ValType>();
+    let getSigReturns = new Array<ValType>();
     let nonNullableStringType = new ValTypeRef(stringStruct);
     getSigReturns.push(nonNullableStringType);
 
@@ -1858,9 +1858,9 @@ export final class WasmModule {
       throw new Error("$stringHash discovery: String class struct not found!");
     }
     let stringStruct = stringInfoOpt.structType;
-    let params = new GrowableArray<ValType>();
+    let params = new Array<ValType>();
     params.push(new ValTypeRefNull(stringStruct));
-    let returns = new GrowableArray<ValType>();
+    let returns = new Array<ValType>();
     returns.push(new ValTypeI32());
     let sig = this.getSignature(params, returns);
     let hashFunc = new WasmFunction(sig, null, model);
@@ -1883,7 +1883,7 @@ export final class WasmModule {
     this.classMethodMap.clear();
     this.classMethods.clear();
     this.functionAdaptations.clear();
-    this.arrayMethods = new GrowableArray<WasmFunction>();
+    this.arrayMethods = new Array<WasmFunction>();
     for (let func in this.functions) {
       let {classType} = func;
       if (classType != null && func.methodName != null) {
@@ -1891,7 +1891,7 @@ export final class WasmModule {
         this.classMethodMap[key] = func;
         let cKey = getClassKey(classType) as String;
         if (!this.classMethods.has(cKey)) {
-          this.classMethods[cKey] = new GrowableArray<WasmFunction>();
+          this.classMethods[cKey] = new Array<WasmFunction>();
         }
         this.classMethods[cKey].push(func);
       }
@@ -1920,7 +1920,7 @@ export final class WasmModule {
     // genuine cycle is 8 types), and a singleton emits with no group
     // header — a self-reference included, since the bare form IS a
     // one-member rec group.
-    let uniqueTypes = new GrowableArray<WasmType>();
+    let uniqueTypes = new Array<WasmType>();
     let seenTypes = new HashSet<WasmType>();
     // `types` can contain duplicate entries (the generator/async split
     // passes push types the reachability pass already emitted).
@@ -1935,7 +1935,7 @@ export final class WasmModule {
     for (var i = 0; i < typeCount; i += 1) {
       posOf[uniqueTypes[i]] = i;
     }
-    let adjacency = new GrowableArray<GrowableArray<i32>>();
+    let adjacency = new Array<GrowableArray<i32>>();
     let pushRef = (list: GrowableArray<i32>, vt: ValType): void => {
       match (vt) {
         case ValTypeRef {target}: {
@@ -1949,7 +1949,7 @@ export final class WasmModule {
     };
     for (var i = 0; i < typeCount; i += 1) {
       let t = uniqueTypes[i];
-      let list = new GrowableArray<i32>();
+      let list = new Array<i32>();
       if (t is WasmStruct) {
         if (t.superStruct != null) {
           if (let (true, p) = posOf.get(t.superStruct as WasmStruct)) {
@@ -1968,19 +1968,19 @@ export final class WasmModule {
 
     // Iterative Tarjan. Deterministic: roots in first-seen order,
     // edges in declaration order — the fixpoint gate depends on it.
-    let sccOf = new GrowableArray<i32>();
-    let lowLink = new GrowableArray<i32>();
-    let onStack = new GrowableArray<boolean>();
+    let sccOf = new Array<i32>();
+    let lowLink = new Array<i32>();
+    let onStack = new Array<boolean>();
     for (var i = 0; i < typeCount; i += 1) {
       sccOf.push(-1);
       lowLink.push(0);
       onStack.push(false);
     }
-    let componentStack = new GrowableArray<i32>();
-    let componentMembers = new GrowableArray<GrowableArray<i32>>();
+    let componentStack = new Array<i32>();
+    let componentMembers = new Array<GrowableArray<i32>>();
     var nextDiscovery = 0;
-    let workNode = new GrowableArray<i32>();
-    let workEdge = new GrowableArray<i32>();
+    let workNode = new Array<i32>();
+    let workEdge = new Array<i32>();
     for (var root = 0; root < typeCount; root += 1) {
       if (sccOf[root] != -1) { continue; }
       workNode.push(root);
@@ -2014,7 +2014,7 @@ export final class WasmModule {
         }
         if (descended) { continue; }
         if (lowLink[v] == sccOf[v]) {
-          let members = new GrowableArray<i32>();
+          let members = new Array<i32>();
           while (true) {
             let w = componentStack.pop();
             onStack[w] = false;
@@ -2047,13 +2047,13 @@ export final class WasmModule {
     // merged dependencies, all of which precede the first twin — which
     // makes appending later twins to the first one's group always
     // order-valid.
-    let groupOfType = new GrowableArray<i32>();
-    let memberIndexOfType = new GrowableArray<i32>();
+    let groupOfType = new Array<i32>();
+    let memberIndexOfType = new Array<i32>();
     for (var i = 0; i < typeCount; i += 1) {
       groupOfType.push(-1);
       memberIndexOfType.push(-1);
     }
-    let mergedMembers = new GrowableArray<GrowableArray<i32>>();
+    let mergedMembers = new Array<GrowableArray<i32>>();
     let groupByKey = new HashMap<String, i32>();
     for (let members in componentMembers) {
       // Ascending first-seen order inside a group: deterministic, and
@@ -2073,7 +2073,7 @@ export final class WasmModule {
       for (var i = 0; i < members.length; i += 1) {
         intraIndex[members[i]] = i;
       }
-      let parts = new GrowableArray<String>();
+      let parts = new Array<String>();
       let encodeTarget = (target: WasmType): void => {
         if (let (true, tp) = posOf.get(target)) {
           if (let (true, ii) = intraIndex.get(tp)) {
@@ -2136,7 +2136,7 @@ export final class WasmModule {
         }
         parts.push(";");
       }
-      let keyParts = new FixedArray<String>(parts.length, "");
+      let keyParts = new Array<String>.fixed(parts.length, "");
       for (var pi = 0; pi < parts.length; pi += 1) {
         keyParts[pi] = parts[pi];
       }
@@ -2146,7 +2146,7 @@ export final class WasmModule {
         g = existing;
       } else {
         g = mergedMembers.length;
-        mergedMembers.push(new GrowableArray<i32>());
+        mergedMembers.push(new Array<i32>());
         groupByKey[key] = g;
       }
       let bucket = mergedMembers[g];
@@ -2157,8 +2157,8 @@ export final class WasmModule {
       }
     }
 
-    let orderedTypes = new GrowableArray<WasmType>();
-    let groupSizes = new GrowableArray<i32>();
+    let orderedTypes = new Array<WasmType>();
+    let groupSizes = new Array<i32>();
     for (let bucket in mergedMembers) {
       for (let m in bucket) {
         orderedTypes.push(uniqueTypes[m]);

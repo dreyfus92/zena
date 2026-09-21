@@ -32,7 +32,7 @@ export let inheritMembers = (pkg: DocPackage): void => {
   let index = new PublishedIndex(pkg);
   for (let module in pkg.modules) {
     for (let declaration in module.declarations) {
-      let inherited = new GrowableArray<DocMember>(0);
+      let inherited = new Array<DocMember>(0);
       let seenTypes = new HashSet<String>();
       let seenNames = new HashSet<String>();
       for (let member in declaration.members) {
@@ -91,7 +91,7 @@ let collect = (
 
 /** Every id this declaration's supertypes resolve to. */
 let supertypesOf = (declaration: DocDeclaration): GrowableArray<String> => {
-  let out = new GrowableArray<String>(2);
+  let out = new Array<String>(2);
   let superClass = declaration.superClass;
   if (superClass != null) {
     addLinks(out, superClass);

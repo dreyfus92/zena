@@ -57,7 +57,7 @@ export let substituteTypeParamsInCodegen = (
       new ArrayType(sub, elementsMutable)
     }
     case TupleType {elementTypes}: {
-      let newElems = new GrowableArray<Type>(elementTypes.length);
+      let newElems = new Array<Type>(elementTypes.length);
       var elemsChanged = false;
       for (let el in elementTypes) {
         let sub = substituteTypeParamsInCodegen(wasm, typeParams, typeArgs, el);
@@ -72,7 +72,7 @@ export let substituteTypeParamsInCodegen = (
       new TupleType(newElems)
     }
     case InlineTupleType {elementTypes}: {
-      let newElems = new GrowableArray<Type>(elementTypes.length);
+      let newElems = new Array<Type>(elementTypes.length);
       var elemsChanged = false;
       for (let el in elementTypes) {
         let sub = substituteTypeParamsInCodegen(wasm, typeParams, typeArgs, el);
@@ -87,7 +87,7 @@ export let substituteTypeParamsInCodegen = (
       new InlineTupleType(newElems)
     }
     case UnionType {types}: {
-      let newTypes = new GrowableArray<Type>(types.length);
+      let newTypes = new Array<Type>(types.length);
       var typesChanged = false;
       for (let ut in types) {
         let sub = substituteTypeParamsInCodegen(wasm, typeParams, typeArgs, ut);
@@ -121,7 +121,7 @@ export let substituteTypeParamsInCodegen = (
       newRec
     }
     case FunctionType as ft: {
-      let newParams = new GrowableArray<Type>(ft.parameters.length);
+      let newParams = new Array<Type>(ft.parameters.length);
       var paramsChanged = false;
       for (let p in ft.parameters) {
         let sub = substituteTypeParamsInCodegen(wasm, typeParams, typeArgs, p);
@@ -137,7 +137,7 @@ export let substituteTypeParamsInCodegen = (
       var newArgs: Array<Type> | null = null;
       let {typeArguments} = ft;
       if (typeArguments != null) {
-        newArgs = new GrowableArray<Type>(typeArguments.length);
+        newArgs = new Array<Type>(typeArguments.length);
         for (let arg in typeArguments) {
           let sub = substituteTypeParamsInCodegen(wasm, typeParams, typeArgs, arg);
           newArgs.push(sub);
@@ -181,7 +181,7 @@ export let substituteTypeParamsInCodegen = (
       let {typeArguments} = ta;
       if (typeArguments != null) {
         let srcArgs = typeArguments;
-        let acc = new GrowableArray<Type>(srcArgs.length);
+        let acc = new Array<Type>(srcArgs.length);
         for (let arg in srcArgs) {
           let sub = substituteTypeParamsInCodegen(wasm, typeParams, typeArgs, arg);
           acc.push(sub);
@@ -215,7 +215,7 @@ export let substituteTypeParamsInCodegen = (
     }
     case ClassType as ct: {
       var hasArgs = false;
-      let ctArgsVal = new GrowableArray<Type>();
+      let ctArgsVal = new Array<Type>();
       let ctParams = getClassTypeParameters(ct);
       let {typeArguments} = ct;
       if (typeArguments != null) {
@@ -230,7 +230,7 @@ export let substituteTypeParamsInCodegen = (
         }
       }
       if (hasArgs && ctArgsVal.length > 0) {
-        let newArgs = new GrowableArray<Type>(ctArgsVal.length);
+        let newArgs = new Array<Type>(ctArgsVal.length);
         var argsChanged = false;
         for (let arg in ctArgsVal) {
           let sub = substituteTypeParamsInCodegen(wasm, typeParams, typeArgs, arg);
@@ -272,8 +272,8 @@ export let substituteTypeParamsInCodegen = (
         } else {
           0
         };
-        let combinedParams = new GrowableArray<TypeParameterType>(ctParamsLen + typeParams.length);
-        let combinedArgs = new GrowableArray<Type>(ctParamsLen + typeArgs.length);
+        let combinedParams = new Array<TypeParameterType>(ctParamsLen + typeParams.length);
+        let combinedArgs = new Array<Type>(ctParamsLen + typeArgs.length);
         if (ctParams != null) {
           for (let p in ctParams) {
             combinedParams.push(p);
@@ -303,7 +303,7 @@ export let substituteTypeParamsInCodegen = (
         inst.members = ct.members;
         inst.constructorType = if (ct.constructorType != null) {
           let ctor = ct.constructorType as FunctionType;
-          let newParams = new GrowableArray<Type>(ctor.parameters.length);
+          let newParams = new Array<Type>(ctor.parameters.length);
           for (let p in ctor.parameters) {
             let sub = substituteTypeParamsInCodegen(wasm, combinedParams, combinedArgs, p);
             newParams.push(sub);
@@ -345,7 +345,7 @@ export let substituteTypeParamsInCodegen = (
     }
     case InterfaceType as it: {
       var hasArgs = false;
-      let itArgsVal = new GrowableArray<Type>();
+      let itArgsVal = new Array<Type>();
       let itParams = getInterfaceTypeParameters(it);
       let {typeArguments} = it;
       if (typeArguments != null) {
@@ -360,7 +360,7 @@ export let substituteTypeParamsInCodegen = (
         }
       }
       if (hasArgs && itArgsVal.length > 0) {
-        let newArgs = new GrowableArray<Type>(itArgsVal.length);
+        let newArgs = new Array<Type>(itArgsVal.length);
         var argsChanged = false;
         for (let arg in itArgsVal) {
           let sub = substituteTypeParamsInCodegen(wasm, typeParams, typeArgs, arg);
@@ -376,8 +376,8 @@ export let substituteTypeParamsInCodegen = (
         inst.typeParameters = itParams;
         inst.typeArguments = newArgs;
         inst.genericSource = it.genericSource ?? it;
-        let combinedParams = new GrowableArray<TypeParameterType>();
-        let combinedArgs = new GrowableArray<Type>();
+        let combinedParams = new Array<TypeParameterType>();
+        let combinedArgs = new Array<Type>();
         if (itParams != null) {
           for (let p in itParams) {
             combinedParams.push(p);
@@ -392,7 +392,7 @@ export let substituteTypeParamsInCodegen = (
         for (let a in typeArgs) {
           combinedArgs.push(a);
         }
-        let newExtends = new GrowableArray<InterfaceType>(it.extendsList.length);
+        let newExtends = new Array<InterfaceType>(it.extendsList.length);
         for (let ext in it.extendsList) {
           newExtends.push(substituteTypeParamsInCodegen(wasm, combinedParams, combinedArgs, ext) as InterfaceType);
         }
@@ -406,7 +406,7 @@ export let substituteTypeParamsInCodegen = (
     }
     case MixinType as mt: {
       var hasArgs = false;
-      let mtArgsVal = new GrowableArray<Type>();
+      let mtArgsVal = new Array<Type>();
       let mtParams = mt.typeParameters;
       let {typeArguments} = mt;
       if (typeArguments != null) {
@@ -421,7 +421,7 @@ export let substituteTypeParamsInCodegen = (
         }
       }
       if (hasArgs && mtArgsVal.length > 0) {
-        let newArgs = new GrowableArray<Type>(mtArgsVal.length);
+        let newArgs = new Array<Type>(mtArgsVal.length);
         for (let arg in mtArgsVal) {
           newArgs.push(substituteTypeParamsInCodegen(wasm, typeParams, typeArgs, arg));
         }
@@ -429,8 +429,8 @@ export let substituteTypeParamsInCodegen = (
         inst.typeParameters = mtParams;
         inst.typeArguments = newArgs;
         inst.genericSource = mt.genericSource ?? mt;
-        let combinedParams = new GrowableArray<TypeParameterType>();
-        let combinedArgs = new GrowableArray<Type>();
+        let combinedParams = new Array<TypeParameterType>();
+        let combinedArgs = new Array<Type>();
         if (mtParams != null) {
           for (let p in mtParams) {
             combinedParams.push(p);
@@ -594,8 +594,8 @@ export let substituteTypeParamsInClassContext = (
 
   let subs = wasm.substitutionsFor(classType);
   if (subs.params == null || subs.args == null) {
-    let params = new GrowableArray<TypeParameterType>();
-    let args = new GrowableArray<Type>();
+    let params = new Array<TypeParameterType>();
+    let args = new Array<Type>();
     
     // 1. Add class's own type arguments
     let ctParams = getClassTypeParameters(classType);
@@ -643,7 +643,7 @@ export let substituteTypeParamsInClassContext = (
  */
 export let findImplementedInterfaceTransitive = (wasm: WasmModule, ct: ClassType, name: String): InterfaceType | null => {
   let seen = new HashMap<InterfaceKey, boolean>();
-  let queue = new GrowableArray<InterfaceType>();
+  let queue = new Array<InterfaceType>();
 
   let ctParams = getClassTypeParameters(ct);
   for (let impl in ct.implementsList) {
@@ -741,9 +741,9 @@ export let getInterfaceMemberSignature = (wasm: WasmModule, it: InterfaceType, f
     if (memberType == null) {
       throw new Error("Interface getter member " + fieldName + " not found on interface " + it.name);
     }
-    let params = new GrowableArray<ValType>();
+    let params = new Array<ValType>();
     params.push(new ValTypeAnyRef());
-    let returns = new GrowableArray<ValType>();
+    let returns = new Array<ValType>();
     returns.push(typeToValType(wasm, memberType));
     return wasm.getSignature(params, returns);
   } else if (fieldName.startsWith("set#")) {
@@ -775,10 +775,10 @@ export let getInterfaceMemberSignature = (wasm: WasmModule, it: InterfaceType, f
     if (memberType == null) {
       throw new Error("Interface setter member " + fieldName + " not found on interface " + it.name);
     }
-    let params = new GrowableArray<ValType>();
+    let params = new Array<ValType>();
     params.push(new ValTypeAnyRef());
     mapParamTypeToWasmParams(wasm, memberType, params);
-    let returns = new GrowableArray<ValType>();
+    let returns = new Array<ValType>();
     return wasm.getSignature(params, returns);
   } else {
     var resolvedFt: FunctionType | null = null;
@@ -793,12 +793,12 @@ export let getInterfaceMemberSignature = (wasm: WasmModule, it: InterfaceType, f
       throw new Error("Interface method " + fieldName + " not found on interface " + it.name);
     }
     let rFt = resolvedFt;
-    let params = new GrowableArray<ValType>();
+    let params = new Array<ValType>();
     params.push(new ValTypeAnyRef());
     for (let p in rFt.parameters) {
       mapParamTypeToWasmParams(wasm, p, params);
     }
-    let returns = new GrowableArray<ValType>();
+    let returns = new Array<ValType>();
     mapReturnTypeToWasmResults(wasm, rFt.returnType, returns);
     return wasm.getSignature(params, returns);
   }
@@ -816,7 +816,7 @@ export let substituteThisTypeInCodegen = (receiverType: Type, t: Type): Type => 
   match (t) {
     case ThisType: { return receiverType; }
     case FunctionType as ft: {
-      let subParams = new GrowableArray<Type>();
+      let subParams = new Array<Type>();
       var changed = false;
       for (let param in ft.parameters) {
         let sub = substituteThisTypeInCodegen(receiverType, param);
@@ -837,7 +837,7 @@ export let substituteThisTypeInCodegen = (receiverType: Type, t: Type): Type => 
       return newFt;
     }
     case UnionType {types}: {
-      let substituted = new GrowableArray<Type>();
+      let substituted = new Array<Type>();
       var changed = false;
       for (let type in types) {
         let sub = substituteThisTypeInCodegen(receiverType, type);
@@ -893,12 +893,12 @@ export let getGenericInterfaceMethodType = (wasm: WasmModule, it: InterfaceType,
  */
 export let getGenericInterfaceMemberSignature = (wasm: WasmModule, it: InterfaceType, methName: String, typeArgs: Array<Type>): WasmSignature => {
   let rFt = getGenericInterfaceMethodType(wasm, it, methName, typeArgs);
-  let params = new GrowableArray<ValType>();
+  let params = new Array<ValType>();
   params.push(new ValTypeAnyRef());
   for (let p in rFt.parameters) {
     mapParamTypeToWasmParams(wasm, p, params);
   }
-  let returns = new GrowableArray<ValType>();
+  let returns = new Array<ValType>();
   mapReturnTypeToWasmResults(wasm, rFt.returnType, returns);
   return wasm.getSignature(params, returns);
 };
@@ -936,7 +936,7 @@ export let eraseTypeParameters = (wasm: WasmModule, t: Type): Type => {
       let {typeArguments} = ct;
       if (typeArguments != null && typeArguments.length > 0) {
         let args = typeArguments;
-        let newArgs = new GrowableArray<Type>();
+        let newArgs = new Array<Type>();
         var changed = false;
         for (let arg in args) {
           let sub = eraseTypeParameters(wasm, arg);
@@ -977,7 +977,7 @@ export let eraseTypeParameters = (wasm: WasmModule, t: Type): Type => {
         inst.forwardVariantNames = ct.forwardVariantNames;
         inst.constructorType = if (ct.constructorType != null) {
           let ctor = ct.constructorType as FunctionType;
-          let newParams = new GrowableArray<Type>(ctor.parameters.length);
+          let newParams = new Array<Type>(ctor.parameters.length);
           for (let p in ctor.parameters) {
             newParams.push(eraseTypeParameters(wasm, p));
           }
@@ -1002,7 +1002,7 @@ export let eraseTypeParameters = (wasm: WasmModule, t: Type): Type => {
       let {typeArguments} = it;
       if (typeArguments != null && typeArguments.length > 0) {
         let args = typeArguments;
-        let newArgs = new GrowableArray<Type>();
+        let newArgs = new Array<Type>();
         var changed = false;
         for (let arg in args) {
           let sub = eraseTypeParameters(wasm, arg);
@@ -1025,7 +1025,7 @@ export let eraseTypeParameters = (wasm: WasmModule, t: Type): Type => {
       }
     }
     case FunctionType as ft: {
-      let newParams = new GrowableArray<Type>();
+      let newParams = new Array<Type>();
       var changed = false;
       for (let p in ft.parameters) {
         let sub = eraseTypeParameters(wasm, p);
@@ -1053,7 +1053,7 @@ export let eraseTypeParameters = (wasm: WasmModule, t: Type): Type => {
       let {typeArguments} = mt;
       if (typeArguments != null && typeArguments.length > 0) {
         let args = typeArguments;
-        let newArgs = new GrowableArray<Type>();
+        let newArgs = new Array<Type>();
         var changed = false;
         for (let arg in args) {
           let sub = eraseTypeParameters(wasm, arg);
@@ -1077,7 +1077,7 @@ export let eraseTypeParameters = (wasm: WasmModule, t: Type): Type => {
       }
     }
     case UnionType {types}: {
-      let newTypes = new GrowableArray<Type>();
+      let newTypes = new Array<Type>();
       var changed = false;
       for (let subT in types) {
         let sub = eraseTypeParameters(wasm, subT);
@@ -1088,7 +1088,7 @@ export let eraseTypeParameters = (wasm: WasmModule, t: Type): Type => {
       new UnionType(newTypes)
     }
     case TupleType {elementTypes}: {
-      let newElems = new GrowableArray<Type>();
+      let newElems = new Array<Type>();
       var changed = false;
       for (let subT in elementTypes) {
         let sub = eraseTypeParameters(wasm, subT);
@@ -1099,7 +1099,7 @@ export let eraseTypeParameters = (wasm: WasmModule, t: Type): Type => {
       new TupleType(newElems)
     }
     case InlineTupleType {elementTypes}: {
-      let newElems = new GrowableArray<Type>();
+      let newElems = new Array<Type>();
       var changed = false;
       for (let subT in elementTypes) {
         let sub = eraseTypeParameters(wasm, subT);
@@ -1148,7 +1148,7 @@ export let getClassMemberSignature = (wasm: WasmModule, ct: ClassType, fieldName
   }
 
   let rootClass = getMemberRootClass(erasedCt, fieldName);
-  let params = new GrowableArray<ValType>();
+  let params = new Array<ValType>();
   let rootKey = getClassKey(rootClass);
   let classStruct = if (let (true, rootInfo) = wasm.classInfos.get(rootKey)) rootInfo.structType else null;
   if (classStruct != null) {
@@ -1157,7 +1157,7 @@ export let getClassMemberSignature = (wasm: WasmModule, ct: ClassType, fieldName
     params.push(new ValTypeAnyRef());
   }
 
-  let returns = new GrowableArray<ValType>();
+  let returns = new Array<ValType>();
 
   if (fieldName.startsWith("get#")) {
     let propName = fieldName.sliceBytes(4, fieldName.length);
@@ -1267,12 +1267,12 @@ export let getCellKey = (valType: ValType): CellKey => {
 
 export let getClosureStruct = (wasm: WasmModule, ftVal: anyref): WasmStruct => {
   let ft = ftVal as FunctionType;
-  let params = new GrowableArray<ValType>();
+  let params = new Array<ValType>();
   params.push(new ValTypeStructRef()); // ctx
   for (let p in ft.parameters) {
     mapParamTypeToWasmParams(wasm, p, params);
   }
-  let returns = new GrowableArray<ValType>();
+  let returns = new Array<ValType>();
   mapReturnTypeToWasmResults(wasm, ft.returnType, returns);
 
   let implSig = wasm.getSignature(params, returns);
@@ -1285,7 +1285,7 @@ export let getClosureStruct = (wasm: WasmModule, ftVal: anyref): WasmStruct => {
 
 
 
-  let fields = new GrowableArray<WasmField>();
+  let fields = new Array<WasmField>();
   fields.push(new WasmField("func", new ValTypeRef(implSig), false));
   fields.push(new WasmField("ctx", new ValTypeStructRef(), false));
   let st = wasm.getStruct(null, fields);
@@ -1302,7 +1302,7 @@ export let getCellStruct = (wasm: WasmModule, valType: ValType): WasmStruct => {
   if (wasm.cellStructs.has(key)) {
     return wasm.cellStructs[key];
   }
-  let fields = new GrowableArray<WasmField>();
+  let fields = new Array<WasmField>();
   fields.push(new WasmField("value", valTypeNull, true)); // mutable
   let name = "Cell_" + (key as String);
   let st = new WasmStruct(name, fields);
@@ -1398,7 +1398,7 @@ export let typeToValType = (wasm: WasmModule, t: Type): ValType => {
     }
   }
   case TupleType as tup: {
-    let fields = new GrowableArray<WasmField>();
+    let fields = new Array<WasmField>();
     for (var i = 0; i < tup.elementTypes.length; i += 1) {
       let t_i = tup.elementTypes[i];
       fields.push(new WasmField(i32ToString(i), typeToValType(wasm, t_i), false));
@@ -1466,7 +1466,7 @@ export let typeToValType = (wasm: WasmModule, t: Type): ValType => {
     if (hasVoid) {
       new ValTypeVoid()
     } else {
-      let nonNeverTypes = new GrowableArray<Type>();
+      let nonNeverTypes = new Array<Type>();
       for (let t_i in ut.types) {
         if (!(t_i is NeverType || t_i is HoleType || t_i is ErrorType || t_i is UnknownType)) {
           nonNeverTypes.push(t_i);
@@ -1485,13 +1485,13 @@ export let typeToValType = (wasm: WasmModule, t: Type): ValType => {
           typeToValType(wasm, new UnionType(nonNeverTypes))
         }
       } else {
-        let nonNullTypes = new GrowableArray<Type>();
+        let nonNullTypes = new Array<Type>();
         for (let t_i in ut.types) {
           if (!(t_i is NullType)) {
             nonNullTypes.push(t_i);
           }
         }
-        let mappedValTypes = new GrowableArray<ValType>();
+        let mappedValTypes = new Array<ValType>();
         for (let t_i in nonNullTypes) {
           mappedValTypes.push(typeToValType(wasm, t_i));
         }
@@ -1543,7 +1543,7 @@ export let typeToValType = (wasm: WasmModule, t: Type): ValType => {
  */
 export let inlineLaneValTypes = (wasm: WasmModule, type: Type): Array<ValType> | null => {
   if (type is InlineTupleType) {
-    let lanes = new GrowableArray<ValType>();
+    let lanes = new Array<ValType>();
     for (let el in type.elementTypes) {
       lanes.push(typeToValType(wasm, el));
     }
@@ -1552,7 +1552,7 @@ export let inlineLaneValTypes = (wasm: WasmModule, type: Type): Array<ValType> |
   if (!(type is UnionType)) {
     return null;
   }
-  let memberTuples = new GrowableArray<InlineTupleType>();
+  let memberTuples = new Array<InlineTupleType>();
   for (let t in type.types) {
     if (t is InlineTupleType) {
       memberTuples.push(t);
@@ -1561,11 +1561,11 @@ export let inlineLaneValTypes = (wasm: WasmModule, type: Type): Array<ValType> |
   if (memberTuples.length == 0) {
     return null;
   }
-  let lanes = new GrowableArray<ValType>();
+  let lanes = new Array<ValType>();
   let arity = memberTuples[0].elementTypes.length;
   var i = 0;
   while (i < arity) {
-    let elementTypes = new GrowableArray<Type>();
+    let elementTypes = new Array<Type>();
     for (let t in memberTuples) {
       elementTypes.push(t.elementTypes[i]);
     }
@@ -1671,7 +1671,7 @@ export let mapReturnTypeToWasmResults = (wasm: WasmModule, type: Type, returns: 
 
 export let getNonNullableType = (type: Type): Type => match (type) {
   case UnionType {types}: {
-    let nonNullTypes = new GrowableArray<Type>();
+    let nonNullTypes = new Array<Type>();
     for (let t_i in types) {
       if (!(t_i is NullType)) {
         nonNullTypes.push(t_i);
@@ -1689,7 +1689,7 @@ export let getNonNullableType = (type: Type): Type => match (type) {
 /** A record type's optional field names in sorted order — the canonical
  *  presence-bit assignment shared by every consumer of the mask. */
 export let sortedOptionalNames = (rec: RecordType): Array<String> => {
-  let names = new GrowableArray<String>();
+  let names = new Array<String>();
   let optionals = rec.optionalProperties;
   if (optionals != null) {
     for (let name in optionals) {
@@ -1725,7 +1725,7 @@ let optionalSlotValType = (vt: ValType): ValType => {
  */
 export let recordWasmFields = (wasm: WasmModule, rec: RecordType,
     subFunc: WasmFunction | null): GrowableArray<WasmField> => {
-  let fields = new GrowableArray<WasmField>();
+  let fields = new Array<WasmField>();
   for (let pair in rec.properties) {
     var vt = typeToValTypeWithSub(wasm, pair.value, subFunc);
     if (rec.isOptional(pair.key)) {
@@ -1838,7 +1838,7 @@ export let mapMixinThisInType = (ct: ClassType, type: Type): Type => {
       } else {
         let {typeArguments} = resolvedCt;
         if (typeArguments != null) {
-          let newArgs = new GrowableArray<Type>();
+          let newArgs = new Array<Type>();
           for (let arg in typeArguments) {
             newArgs.push(mapMixinThisInType(ct, arg));
           }
@@ -1856,7 +1856,7 @@ export let mapMixinThisInType = (ct: ClassType, type: Type): Type => {
           inst.members = resolvedCt.members;
           inst.constructorType = if (resolvedCt.constructorType != null) {
             let ctor = resolvedCt.constructorType as FunctionType;
-            let newParams = new GrowableArray<Type>();
+            let newParams = new Array<Type>();
             for (let p in ctor.parameters) {
               newParams.push(mapMixinThisInType(ct, p));
             }
@@ -1892,7 +1892,7 @@ export let mapMixinThisInType = (ct: ClassType, type: Type): Type => {
       }
     }
     case UnionType {types}: {
-      let newTypes = new GrowableArray<Type>();
+      let newTypes = new Array<Type>();
       for (let ut in types) {
         newTypes.push(mapMixinThisInType(ct, ut));
       }
@@ -1902,21 +1902,21 @@ export let mapMixinThisInType = (ct: ClassType, type: Type): Type => {
       new ArrayType(mapMixinThisInType(ct, elementType), elementsMutable) as Type
     }
     case TupleType {elementTypes}: {
-      let newElems = new GrowableArray<Type>();
+      let newElems = new Array<Type>();
       for (let el in elementTypes) {
         newElems.push(mapMixinThisInType(ct, el));
       }
       new TupleType(newElems) as Type
     }
     case InlineTupleType {elementTypes}: {
-      let newElems = new GrowableArray<Type>();
+      let newElems = new Array<Type>();
       for (let el in elementTypes) {
         newElems.push(mapMixinThisInType(ct, el));
       }
       new InlineTupleType(newElems) as Type
     }
     case FunctionType as ft: {
-      let newParams = new GrowableArray<Type>();
+      let newParams = new Array<Type>();
       for (let p in ft.parameters) {
         newParams.push(mapMixinThisInType(ct, p));
       }

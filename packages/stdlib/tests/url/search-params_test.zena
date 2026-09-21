@@ -217,8 +217,8 @@ export let tests = suite('URLSearchParams', (): void => {
   suite('iteration', (): void => {
     test('for-in yields pairs in order', (ctx: TestContext): void => {
       let p = new URLSearchParams('a=1&b=2');
-      let names = new GrowableArray<String>();
-      let values = new GrowableArray<String>();
+      let names = new Array<String>();
+      let values = new Array<String>();
       for (let pair in p) {
         let (n, v) = pair;
         names.push(n);

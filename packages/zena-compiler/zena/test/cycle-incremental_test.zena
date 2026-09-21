@@ -28,7 +28,7 @@ class FsHost implements CompilerHost {
 }
 
 let errorsOf = (result: ProgramCheckResult): GrowableArray<String> => {
-  let out = new GrowableArray<String>();
+  let out = new Array<String>();
   for (let path in result.results.keys()) {
     if (path.startsWith("zena:")) { continue; }
     for (let d in result.results[path].diagnostics) {

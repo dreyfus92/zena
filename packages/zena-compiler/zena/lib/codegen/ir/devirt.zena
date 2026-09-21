@@ -53,7 +53,7 @@ final class VTableCandidate {
 
 /** Per-module state for the pass: the vtable globals, in order. */
 export final class DevirtContext {
-  candidates = new GrowableArray<VTableCandidate>();
+  candidates = new Array<VTableCandidate>();
   new(wasm: WasmModule) {
     for (let g in wasm.globals) {
       let init = g.initVTable;

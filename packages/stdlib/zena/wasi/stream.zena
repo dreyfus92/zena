@@ -24,7 +24,7 @@
  * set, everything else returns packed progress directly.
  */
 
-import { String, Error, FixedArray } from 'zena:core';
+import { String, Error } from 'zena:core';
 import { Memory, defaultAllocator } from 'zena:memory';
 import { Stream, StreamWriter } from 'zena:stream';
 // A core module may not import one canonical builtin under the same
@@ -243,7 +243,7 @@ async function pumpOut(
   end: WritableByteStream
 ): Future<void> {
   if (let (true, chunk) = defaultAllocator.alloc(CHUNK)) {
-    let buf = new FixedArray<u8>(CHUNK, 0);
+    let buf = new Array<u8>.fixed(CHUNK, 0);
     var open = true;
     while (open) {
       let n = await source.read(buf);
@@ -294,7 +294,7 @@ async function pumpIn(
       let n = packed >> 4;
       let completed = (packed & RESULT_MASK) == RESULT_COMPLETED;
       if (n > 0) {
-        let buf = new FixedArray<u8>(n, 0);
+        let buf = new Array<u8>.fixed(n, 0);
         for (var i = 0; i < n; i += 1) {
           buf[i] = mem[chunk + i] as u8;
         }

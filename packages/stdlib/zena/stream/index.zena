@@ -29,7 +29,7 @@
  * `false`), and a closed writer is data to the reader (`read`
  * completes 0).
  */
-import { Error, FixedArray, GrowableArray } from 'zena:core';
+import { Error, FixedArray } from 'zena:core';
 import { Completer, Future } from 'zena:async';
 
 /** The write capability's entry points, unexported so a `Stream`
@@ -158,7 +158,7 @@ export class Stream<T> {
       (pending as Completer<i32>).complete(1);
       return Future.of(true as boolean);
     }
-    let single = new FixedArray<T>(1, value);
+    let single = new Array<T>.fixed(1, value);
     return this.#park(single, 1);
   }
 
@@ -292,8 +292,8 @@ export {
  * value of `T` to fill it with.
  */
 export async function readAllBytes(stream: Stream<u8>): Future<FixedArray<u8>> {
-  let chunk = new FixedArray<u8>(4096, 0);
-  let collected = new GrowableArray<u8>();
+  let chunk = new Array<u8>.fixed(4096, 0);
+  let collected = new Array<u8>();
   while (true) {
     let n = await stream.read(chunk);
     if (n == 0) {

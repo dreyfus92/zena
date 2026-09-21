@@ -41,7 +41,7 @@ export final class EncodedImportPiece {
 }
 
 export final class EncodedImports {
-  pieces = new GrowableArray<EncodedImportPiece>();
+  pieces = new Array<EncodedImportPiece>();
   var typeCount = 0;
   var instanceCount = 0;
   /** Each imported interface's component instance index, by name. */
@@ -400,9 +400,9 @@ export final class ComponentExportFunc {
 
 /** The imports and exports a component wraps a core module in. */
 export final class ComponentShape {
-  imports = new GrowableArray<ComponentImportFunc>();
-  builtins = new GrowableArray<ComponentCanonBuiltin>();
-  exports = new GrowableArray<ComponentExportFunc>();
+  imports = new Array<ComponentImportFunc>();
+  builtins = new Array<ComponentCanonBuiltin>();
+  exports = new Array<ComponentExportFunc>();
   /**
    * Whether the program module imports its memory from the runtime
    * memory module — true exactly when it touches linear memory at all,
@@ -695,7 +695,7 @@ let canonTypeBody = (canonType: String): ByteBuffer => {
 /** One imported WIT interface and the functions the program calls on it. */
 final class ImportedInterface {
   name: String;
-  funcs = new GrowableArray<ComponentImportFunc>();
+  funcs = new Array<ComponentImportFunc>();
   new(this.name);
 }
 
@@ -708,7 +708,7 @@ final class ImportedInterface {
 let groupByInterface = (
   imports: Array<ComponentImportFunc>
 ): Array<ImportedInterface> => {
-  let groups = new GrowableArray<ImportedInterface>();
+  let groups = new Array<ImportedInterface>();
   for (let imp in imports) {
     var found: ImportedInterface | null = null;
     for (let g in groups) {
@@ -950,7 +950,7 @@ export let emitComponent = (
     // types went the same way — their payloads name the interface's
     // types, which only aliases reach. Only the primitive-element
     // stream/future spellings get a literal type section.
-    let canonTypes = new GrowableArray<String>();
+    let canonTypes = new Array<String>();
     for (let b in shape.builtins) {
       if (b.canonType == "" || b.canonType.startsWith("resource:") ||
           b.canonType.startsWith("future:") ||
@@ -1160,7 +1160,7 @@ export let emitComponent = (
   // Every distinct callback, aliased after the exports so a lift can
   // name one. Distinct: several exports may share one callback, and
   // aliasing it twice would be two core functions where one will do.
-  let callbackNames = new GrowableArray<String>();
+  let callbackNames = new Array<String>();
   for (let e in shape.exports) {
     if (e.callbackCoreName != "") {
       var seen = false;
@@ -1273,7 +1273,7 @@ export let emitComponent = (
   // the component type index space after the front matter's types and
   // the canon-builtin types section, when there was one.
   let firstExportType = encoded.typeCount + canonTypeCount;
-  let exportTypeIndex = new GrowableArray<i32>();
+  let exportTypeIndex = new Array<i32>();
   let exportTypes = new ByteBuffer();
   var declaredExportTypes = 0;
   for (let e in shape.exports) {
@@ -1343,7 +1343,7 @@ export let emitComponent = (
   for (let group in groups) {
     firstExportFunc += group.funcs.length;
   }
-  let instanceNames = new GrowableArray<String>();
+  let instanceNames = new Array<String>();
   for (let e in shape.exports) {
     if (e.instanceName == "") { continue; }
     var seen = false;

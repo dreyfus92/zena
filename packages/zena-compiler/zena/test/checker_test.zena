@@ -41,11 +41,11 @@ let createTestSharedState = (): SharedCheckerState => {
   
   let fixedArrayClass = new ClassType(9001 as TypeId, noSymbolId, "FixedArray");
   let faT = new TypeParameterType("T", null, null);
-  let faTArr = new GrowableArray<TypeParameterType>();
+  let faTArr = new Array<TypeParameterType>();
   faTArr.push(faT);
   fixedArrayClass.typeParameters = faTArr;
   fixedArrayClass.members["length"] = new FieldInfo(new I32Type() as Type, false, false, false, false, false);
-  let faPushParams = new GrowableArray<Type>();
+  let faPushParams = new Array<Type>();
   faPushParams.push(faT as Type);
   fixedArrayClass.members["push"] = new MethodInfo(new FunctionType(faPushParams, null, new VoidType() as Type), false, false, false, false);
   sharedState.preludeTypes["FixedArray"] = fixedArrayClass as Type;
@@ -54,7 +54,7 @@ let createTestSharedState = (): SharedCheckerState => {
   // mutable elements, so member lookup on a literal resolves here.
   let immutableArrayClass = new ClassType(9002 as TypeId, noSymbolId, "ImmutableArray");
   let iaT = new TypeParameterType("T", null, null);
-  let iaTArr = new GrowableArray<TypeParameterType>();
+  let iaTArr = new Array<TypeParameterType>();
   iaTArr.push(iaT);
   immutableArrayClass.typeParameters = iaTArr;
   immutableArrayClass.members["length"] = new FieldInfo(new I32Type() as Type, false, false, false, false, false);
@@ -62,11 +62,11 @@ let createTestSharedState = (): SharedCheckerState => {
 
   let growableArrayClass = new ClassType(9003 as TypeId, noSymbolId, "GrowableArray");
   let arrT = new TypeParameterType("T", null, null);
-  let arrTArr = new GrowableArray<TypeParameterType>();
+  let arrTArr = new Array<TypeParameterType>();
   arrTArr.push(arrT);
   growableArrayClass.typeParameters = arrTArr;
   growableArrayClass.members["length"] = new FieldInfo(new I32Type() as Type, false, false, false, false, false);
-  let arrPushParams = new GrowableArray<Type>();
+  let arrPushParams = new Array<Type>();
   arrPushParams.push(arrT as Type);
   growableArrayClass.members["push"] = new MethodInfo(new FunctionType(arrPushParams, null, new VoidType() as Type), false, false, false, false);
   sharedState.preludeTypes["GrowableArray"] = growableArrayClass as Type;
@@ -75,44 +75,44 @@ let createTestSharedState = (): SharedCheckerState => {
   let mapClass = new ClassType(9005 as TypeId, noSymbolId, "HashMap");
   let mapK = new TypeParameterType("K", null, null);
   let mapV = new TypeParameterType("V", null, null);
-  let mapTArr = new GrowableArray<TypeParameterType>();
+  let mapTArr = new Array<TypeParameterType>();
   mapTArr.push(mapK);
   mapTArr.push(mapV);
   mapClass.typeParameters = mapTArr;
-  let getParams = new GrowableArray<Type>();
+  let getParams = new Array<Type>();
   getParams.push(mapK as Type);
   // Mirror the stdlib signature: inline (true, V) | inline (false, _).
-  let hitElems = new GrowableArray<Type>();
+  let hitElems = new Array<Type>();
   hitElems.push(new BoolLiteralType(true) as Type);
   hitElems.push(mapV as Type);
-  let missElems = new GrowableArray<Type>();
+  let missElems = new Array<Type>();
   missElems.push(new BoolLiteralType(false) as Type);
   missElems.push(new HoleType() as Type);
-  let getReturnArms = new GrowableArray<Type>();
+  let getReturnArms = new Array<Type>();
   getReturnArms.push(new InlineTupleType(hitElems) as Type);
   getReturnArms.push(new InlineTupleType(missElems) as Type);
   mapClass.members["get"] = new MethodInfo(new FunctionType(getParams, null, new UnionType(getReturnArms) as Type), false, false, false, false);
-  let hasParams = new GrowableArray<Type>();
+  let hasParams = new Array<Type>();
   hasParams.push(mapK as Type);
   mapClass.members["has"] = new MethodInfo(new FunctionType(hasParams, null, new BooleanType() as Type), false, false, false, false);
-  let setParams = new GrowableArray<Type>();
+  let setParams = new Array<Type>();
   setParams.push(mapK as Type);
   setParams.push(mapV as Type);
   mapClass.members["[]="] = new MethodInfo(new FunctionType(setParams, null, new VoidType() as Type), false, false, false, false);
-  let idxParams = new GrowableArray<Type>();
+  let idxParams = new Array<Type>();
   idxParams.push(mapK as Type);
   mapClass.members["[]"] = new MethodInfo(new FunctionType(idxParams, null, mapV as Type), false, false, false, false);
   sharedState.preludeTypes["HashMap"] = mapClass as Type;
 
   let futureClass = new ClassType(9007 as TypeId, noSymbolId, "Future");
   let futureT = new TypeParameterType("T", null, null);
-  let futureTArr = new GrowableArray<TypeParameterType>();
+  let futureTArr = new Array<TypeParameterType>();
   futureTArr.push(futureT);
   futureClass.typeParameters = futureTArr;
   sharedState.preludeTypes["Future"] = futureClass as Type;
 
   let iterT = new TypeParameterType("T", null, null);
-  let iterTArr = new GrowableArray<TypeParameterType>();
+  let iterTArr = new Array<TypeParameterType>();
   iterTArr.push(iterT);
 
   let iteratorIface = new InterfaceType(9008 as TypeId, noSymbolId, "Iterator");
@@ -129,7 +129,7 @@ let createTestSharedState = (): SharedCheckerState => {
   sharedState.preludeTypes["Resource"] = resourceClass as Type;
 
   let hashableIface = new InterfaceType(9011 as TypeId, noSymbolId, "Hashable");
-  let hashMethodType = new FunctionType(new GrowableArray<Type>(), null, new I32Type());
+  let hashMethodType = new FunctionType(new Array<Type>(), null, new I32Type());
   hashableIface.members["hashCode"] = new MethodInfo(hashMethodType, false, false, false, false);
   sharedState.preludeTypes["Hashable"] = hashableIface as Type;
 
@@ -216,7 +216,7 @@ let checkError = (source: String, pattern: String): void => {
  * Filter diagnostics to only error severity.
  */
 let errorDiagnostics = (diags: Array<Diagnostic>): Array<Diagnostic> => {
-  let errors = new GrowableArray<Diagnostic>(4);
+  let errors = new Array<Diagnostic>(4);
   var i = 0;
   while (i < diags.length) {
     match (diags[i].severity) {

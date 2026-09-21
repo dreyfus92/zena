@@ -45,7 +45,7 @@ export let runBlockCleanup = (body: IrBody): i32 => {
 
 /** The join blocks of the function's user tries, which stay as they are. */
 let tryJoins = (body: IrBody): GrowableArray<i32> => {
-  let joins = new GrowableArray<i32>();
+  let joins = new Array<i32>();
   for (let k in body.tryJoin.keys()) {
     joins.push(body.tryJoin[k]);
   }
@@ -75,11 +75,11 @@ let forwardEmptyBlocks = (body: IrBody): i32 => {
   // nothing but the block's own br, since a block it dominates could
   // otherwise read it and the forwarded edges would carry no value.
   let count = body.instCount();
-  let useCount = new GrowableArray<i32>();
+  let useCount = new Array<i32>();
   for (var i = 0; i < count; i += 1) {
     useCount.push(0);
   }
-  let operands = new GrowableArray<i32>();
+  let operands = new Array<i32>();
   for (var i = 0; i < count; i += 1) {
     if (body.op(i) == IrOp.nop) {
       continue;
@@ -162,7 +162,7 @@ let forwardEmptyBlocks = (body: IrBody): i32 => {
           k += 1;
           continue;
         }
-        let args = new GrowableArray<i32>();
+        let args = new Array<i32>();
         var i = 0;
         while (i < onward.argCount) {
           let v = body.extra[onward.argStart + i];
@@ -198,7 +198,7 @@ let fuseStraightLine = (body: IrBody): i32 => {
   while (progress) {
     progress = false;
     // Incoming edge counts.
-    let incoming = new GrowableArray<i32>();
+    let incoming = new Array<i32>();
     for (var b = 0; b < nb; b += 1) {
       incoming.push(0);
     }
@@ -301,11 +301,11 @@ let removeUnreachable = (body: IrBody): i32 => {
   if (nb == 0) {
     return 0;
   }
-  let reachable = new GrowableArray<boolean>();
+  let reachable = new Array<boolean>();
   for (var i = 0; i < nb; i += 1) {
     reachable.push(false);
   }
-  let stack = new GrowableArray<i32>();
+  let stack = new Array<i32>();
   reachable[0] = true;
   stack.push(0);
   while (stack.length > 0) {
@@ -355,7 +355,7 @@ let removeUnreachable = (body: IrBody): i32 => {
     return 0;
   }
 
-  let map = new GrowableArray<i32>();
+  let map = new Array<i32>();
   var next = 0;
   for (var i = 0; i < nb; i += 1) {
     if (reachable[i]) {
@@ -408,7 +408,7 @@ let removeUnreachable = (body: IrBody): i32 => {
   }
   // tryJoin's field is immutable; rebuild its contents in place, in
   // instruction-id order for determinism.
-  let oldKeys = new GrowableArray<i32>();
+  let oldKeys = new Array<i32>();
   for (let k in body.tryJoin.keys()) {
     oldKeys.push(k);
   }
@@ -424,7 +424,7 @@ let removeUnreachable = (body: IrBody): i32 => {
   }
 
   // Compact the block list in place (the field itself is immutable).
-  let survivors = new GrowableArray<IrBlock>();
+  let survivors = new Array<IrBlock>();
   for (var i = 0; i < nb; i += 1) {
     if (reachable[i]) {
       survivors.push(body.blocks[i]);
@@ -457,9 +457,9 @@ let removeUnreachable = (body: IrBody): i32 => {
  */
 let removeTrivialParams = (body: IrBody): i32 => {
   let nb = body.blocks.length;
-  let incoming = new GrowableArray<GrowableArray<i32>>();
+  let incoming = new Array<GrowableArray<i32>>();
   for (var i = 0; i < nb; i += 1) {
-    incoming.push(new GrowableArray<i32>());
+    incoming.push(new Array<i32>());
   }
   for (let blk in body.blocks) {
     if (blk.insts.length == 0) {
@@ -476,7 +476,7 @@ let removeTrivialParams = (body: IrBody): i32 => {
     }
   }
   let count = body.instCount();
-  let repl = new GrowableArray<i32>();
+  let repl = new Array<i32>();
   for (var i = 0; i < count; i += 1) {
     repl.push(i);
   }
@@ -545,7 +545,7 @@ let removeTrivialParams = (body: IrBody): i32 => {
 };
 
 export let dropParamAt = (blk: IrBlock, j: i32): void => {
-  let kept = new GrowableArray<i32>();
+  let kept = new Array<i32>();
   for (var k = 0; k < blk.params.length; k += 1) {
     if (k != j) {
       kept.push(blk.params[k]);

@@ -151,7 +151,7 @@ export final class TypeLowerer implements TypeLowererInterface {
       for (var i = 0; i < t.elementTypes.length; i += 1) {
         this.discoverType(t.elementTypes[i], model);
       }
-      let fields = new GrowableArray<WasmField>();
+      let fields = new Array<WasmField>();
       for (var i = 0; i < t.elementTypes.length; i += 1) {
         let type = t.elementTypes[i];
         fields.push(new WasmField(i32ToString(i), typeToValType(this.pass.wasm, type), false));
@@ -192,7 +192,7 @@ export final class TypeLowerer implements TypeLowererInterface {
         let specializer = this.pass.specializer;
         let visitor = this.pass.visitor;
         let targetSymId = t.functionSymbolId;
-        let resolvedArgs = new GrowableArray<Type>();
+        let resolvedArgs = new Array<Type>();
         let typeArguments = t.typeArguments;
         if (typeArguments != null) {
           for (let arg in typeArguments) {
@@ -223,7 +223,7 @@ export final class TypeLowerer implements TypeLowererInterface {
           
           let targs = t.typeArguments;
           if (targs != null && targs.length > 0) {
-            let erasedArgs = new GrowableArray<Type>();
+            let erasedArgs = new Array<Type>();
             for (let arg in (targs as Array<Type>)) {
               erasedArgs.push(eraseType(arg));
             }
@@ -418,13 +418,13 @@ export final class TypeLowerer implements TypeLowererInterface {
         this.pass.suppressNameEvidence = true;
         let faClass = this.pass.findPreludeClass("FixedArray");
         if (faClass != null) {
-          let typeArgs = new GrowableArray<Type>();
+          let typeArgs = new Array<Type>();
           typeArgs.push(t.elementType);
           this.discoverType(instantiateClassType(faClass, typeArgs), model);
         }
         let iaClass = this.pass.findPreludeClass("ImmutableArray");
         if (iaClass != null) {
-          let typeArgs = new GrowableArray<Type>();
+          let typeArgs = new Array<Type>();
           typeArgs.push(t.elementType);
           this.discoverType(instantiateClassType(iaClass, typeArgs), model);
         }
@@ -816,7 +816,7 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
             if (calleeType is FunctionType) {
               let cTargs = calleeType.typeArguments;
               if (cTargs != null && cTargs.length > 0) {
-                let resolved = new GrowableArray<Type>();
+                let resolved = new Array<Type>();
                 for (let a in (cTargs as Array<Type>)) {
                   resolved.push(resolveType(a));
                 }
@@ -1426,7 +1426,7 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
     if (useType == null || !(useType is FunctionType)) { return; }
     let rawArgs = useType.typeArguments;
     if (rawArgs == null || rawArgs.length == 0) { return; }
-    let typeArgs = new GrowableArray<Type>();
+    let typeArgs = new Array<Type>();
     for (let a in rawArgs) {
       typeArgs.push(resolveType(a));
     }
@@ -1482,7 +1482,7 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
     if (useType == null || !(useType is FunctionType)) { return; }
     let rawArgs = useType.typeArguments;
     if (rawArgs == null || rawArgs.length == 0) { return; }
-    let typeArgs = new GrowableArray<Type>();
+    let typeArgs = new Array<Type>();
     for (let a in rawArgs) {
       typeArgs.push(resolveType(a));
     }
@@ -1629,8 +1629,8 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
       return;
     }
     let cdModel = this.pass.classModels[declId];
-    let members = new GrowableArray<Node>();
-    let scopes = new GrowableArray<String>();
+    let members = new Array<Node>();
+    let scopes = new Array<String>();
     let seen = new HashMap<MixinKey, boolean>();
     collectMixinMembers(this.pass.program, cdModel,
         cdNode.mixins, members, seen, scopes);
@@ -1922,7 +1922,7 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
             this.pass.wasm.usedInterfaceMembers[getInterfaceMemberKey(iName, ":iterator")] = true;
           }
           
-          let resolvedIterableTypes = new GrowableArray<ClassType>();
+          let resolvedIterableTypes = new Array<ClassType>();
           if (resolvedIterable is ClassType) {
             if (resolvedIterable.name.length >= 5 && resolvedIterable.name.sliceBytes(resolvedIterable.name.length - 5, resolvedIterable.name.length) == "_This") {
               // Find enclosing mixin declaration
@@ -2011,7 +2011,7 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
           // protocol machinery. The filter mirrors lowerForIn's
           // dispatch; a class skipped here that lowering DOES
           // iterator-path fails loudly there, never silently.
-          let protocolClasses = new GrowableArray<ClassType>();
+          let protocolClasses = new Array<ClassType>();
           for (let rc in resolvedIterableTypes) {
             if (!forInLowersToIndexLoop(rc)) {
               protocolClasses.push(rc);
@@ -2139,7 +2139,7 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
                           // parameter mints the erasure — see
                           // registerGenericMethodUse, which this
                           // mirrors.
-                          let resolvedArgs = new GrowableArray<Type>();
+                          let resolvedArgs = new Array<Type>();
                           for (let a in typeArguments) {
                             resolvedArgs.push(resolveType(a));
                           }
@@ -2274,7 +2274,7 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
             if (declaration is ImportSpecifier) {
               targetSymId = resolveImportedSymbolId(this.pass.program, model, declaration, null);
             }
-            let resolvedArgs = new GrowableArray<Type>();
+            let resolvedArgs = new Array<Type>();
             let rawNodeType = model.getNodeType(n);
             if (rawNodeType != null) {
               let nodeType = resolveType(rawNodeType);
@@ -2319,7 +2319,7 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
     if (declaration is ImportSpecifier) {
       targetSymId = resolveImportedSymbolId(this.pass.program, model, declaration, null);
     }
-    let resolvedArgs = new GrowableArray<Type>();
+    let resolvedArgs = new Array<Type>();
     let {typeArguments} = nodeType;
     if (typeArguments != null) {
       for (let arg in typeArguments) {
@@ -2369,7 +2369,7 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
       
       let ntArgs = nodeType.typeArguments;
       if (ntArgs != null && ntArgs.length > 0) {
-        let erasedArgs = new GrowableArray<Type>();
+        let erasedArgs = new Array<Type>();
         for (let arg in (ntArgs as Array<Type>)) {
           erasedArgs.push(eraseType(arg));
         }
@@ -2391,12 +2391,12 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
   }
 
   registerWrapper(keyName: String, ft: FunctionType, targetWasmFunc: WasmFunction, model: SemanticModel): void {
-    let wrapperParams = new GrowableArray<ValType>();
+    let wrapperParams = new Array<ValType>();
     wrapperParams.push(new ValTypeStructRef());
     for (let p in ft.parameters) {
       mapParamTypeToWasmParams(this.pass.wasm, p, wrapperParams);
     }
-    let wrapperReturns = new GrowableArray<ValType>();
+    let wrapperReturns = new Array<ValType>();
     mapReturnTypeToWasmResults(this.pass.wasm, ft.returnType, wrapperReturns);
     let sig = this.pass.wasm.getSignature(wrapperParams, wrapperReturns);
     
@@ -2428,7 +2428,7 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
       return;
     }
     
-    let resolvedArgs = new GrowableArray<Type>();
+    let resolvedArgs = new Array<Type>();
     let {typeArguments} = ft;
     if (typeArguments != null) {
       for (let arg in typeArguments) {
@@ -2478,7 +2478,7 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
       
       let ftArgs = ft.typeArguments;
       if (ftArgs != null && ftArgs.length > 0) {
-        let erasedArgs = new GrowableArray<Type>();
+        let erasedArgs = new Array<Type>();
         for (let arg in (ftArgs as Array<Type>)) {
           erasedArgs.push(eraseType(arg));
         }
@@ -2596,8 +2596,8 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
         }
       }
 
-      let params = new GrowableArray<ValType>();
-      let returns = new GrowableArray<ValType>();
+      let params = new Array<ValType>();
+      let returns = new Array<ValType>();
       
       if (funcTypeNode is FunctionType) {
         for (let p in funcTypeNode.parameters) {
@@ -2689,7 +2689,7 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
                       f.isReferenceTaken = true;
                       this.pass.markFunctionReached(f);
                       if (f.closureTrampoline == null) {
-                        let tParams = new GrowableArray<ValType>();
+                        let tParams = new Array<ValType>();
                         tParams.push(new ValTypeStructRef());
                         for (let p in f.signature.params) {
                           tParams.push(p);
@@ -2760,7 +2760,7 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
           // commas of its own, so only depth-zero commas separate.
           if (dec.args.length == 3) {
             let raw = dec.args[2].value;
-            let optionList = new GrowableArray<String>();
+            let optionList = new Array<String>();
             var depth = 0;
             var from = 0;
             for (var oi = 0; oi <= raw.length; oi += 1) {
@@ -2859,11 +2859,11 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
       // READS String parameters it receives (console's log_string) and
       // WRITES String returns it produces.
       this.pass.noteHostImportSignature(funcType);
-      let params = new GrowableArray<ValType>();
+      let params = new Array<ValType>();
       for (let pt in funcType.parameters) {
         mapParamTypeToWasmParams(this.pass.wasm, pt, params);
       }
-      let returns = new GrowableArray<ValType>();
+      let returns = new Array<ValType>();
       mapReturnTypeToWasmResults(this.pass.wasm, funcType.returnType, returns);
 
       let isWasi = (externalModule == "wasi_snapshot_preview1");
@@ -2880,7 +2880,7 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
       }
 
       if (isGcRef && !isWasi) {
-        let importReturns = new GrowableArray<ValType>();
+        let importReturns = new Array<ValType>();
         importReturns.push(new ValTypeExternRef());
         let importSig = this.pass.wasm.getSignature(params, importReturns);
         let importFunc = new WasmFunction(importSig, decl, moduleModel);
@@ -2935,9 +2935,9 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
       throw new Error("string_hash_helper discovery: String class struct not found!");
     }
     
-    let helperParams = new GrowableArray<ValType>();
+    let helperParams = new Array<ValType>();
     helperParams.push(new ValTypeRefNull(stringStruct));
-    let helperReturns = new GrowableArray<ValType>();
+    let helperReturns = new Array<ValType>();
     helperReturns.push(new ValTypeI32());
     let helperSig = this.pass.wasm.getSignature(helperParams, helperReturns);
     
@@ -2953,12 +2953,12 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
     
     this.pass.wasm.ensureMemory();
     
-    let fdWriteParams = new GrowableArray<ValType>();
+    let fdWriteParams = new Array<ValType>();
     fdWriteParams.push(new ValTypeI32());
     fdWriteParams.push(new ValTypeI32());
     fdWriteParams.push(new ValTypeI32());
     fdWriteParams.push(new ValTypeI32());
-    let fdWriteReturns = new GrowableArray<ValType>();
+    let fdWriteReturns = new Array<ValType>();
     fdWriteReturns.push(new ValTypeI32());
     let fdWriteSig = this.pass.wasm.getSignature(fdWriteParams, fdWriteReturns);
     
@@ -2981,10 +2981,10 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
       throw new Error("wasi_write_string_helper discovery: String class struct not found!");
     }
     
-    let helperParams = new GrowableArray<ValType>();
+    let helperParams = new Array<ValType>();
     helperParams.push(new ValTypeI32());
     helperParams.push(new ValTypeRefNull(stringStruct));
-    let helperReturns = new GrowableArray<ValType>();
+    let helperReturns = new Array<ValType>();
     let helperSig = this.pass.wasm.getSignature(helperParams, helperReturns);
     
     let helperFunc = new WasmFunction(helperSig, null, model);
@@ -3019,7 +3019,7 @@ let eraseType = (t: Type): Type => {
   return match (t) {
     case TypeParameterType: new ErasedType()
     case FunctionType as ft: {
-      let params = new GrowableArray<Type>();
+      let params = new Array<Type>();
       for (let p in ft.parameters) {
         params.push(eraseType(p));
       }
@@ -3034,7 +3034,7 @@ let eraseType = (t: Type): Type => {
     case ClassType as ct: {
       let {typeArguments} = ct;
       if (typeArguments != null) {
-        let args = new GrowableArray<Type>();
+        let args = new Array<Type>();
         for (let arg in typeArguments) {
           args.push(eraseType(arg));
         }
@@ -3046,7 +3046,7 @@ let eraseType = (t: Type): Type => {
     case InterfaceType as it: {
       let {typeArguments} = it;
       if (typeArguments != null) {
-        let args = new GrowableArray<Type>();
+        let args = new Array<Type>();
         for (let arg in typeArguments) {
           args.push(eraseType(arg));
         }
@@ -3059,7 +3059,7 @@ let eraseType = (t: Type): Type => {
       new ArrayType(eraseType(at.elementType), at.elementsMutable)
     }
     case TupleType as tt: {
-      let types = new GrowableArray<Type>();
+      let types = new Array<Type>();
       for (let type in tt.elementTypes) {
         types.push(eraseType(type));
       }

@@ -7,7 +7,6 @@
  * surface; not importable as a module of its own.
  */
 
-import { GrowableArray } from 'zena:core';
 
 // The executor: a FIFO queue of runnable tasks.
 // ---------------------------------------------------------------------------
@@ -37,7 +36,7 @@ class ClosureWaiter implements Waiter {
 }
 
 class TaskQueue {
-  #items = new GrowableArray<Waiter>();
+  #items = new Array<Waiter>();
   var #head = 0;
 
   schedule(task: Waiter): void {

@@ -51,7 +51,7 @@ let getArguments = (): Array<String> => {
   if (errno != 0) {
     alloc.free(argcPtr);
     alloc.free(argvBufSizePtr);
-    return new GrowableArray<String>();
+    return new Array<String>();
   }
   
   let argc = mem.getI32(argcPtr);
@@ -60,7 +60,7 @@ let getArguments = (): Array<String> => {
   alloc.free(argvBufSizePtr);
   
   if (argc == 0) {
-    return new GrowableArray<String>();
+    return new Array<String>();
   }
   
   let argvPtr = allocOrPanic(argc * 4);
@@ -70,10 +70,10 @@ let getArguments = (): Array<String> => {
   if (errno != 0) {
     alloc.free(argvPtr);
     alloc.free(argvBufPtr);
-    return new GrowableArray<String>();
+    return new Array<String>();
   }
   
-  let result = new GrowableArray<String>();
+  let result = new Array<String>();
   
   for (var i = 0; i < argc; i += 1) {
     let strPtr = mem.getI32(argvPtr + i * 4);

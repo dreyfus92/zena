@@ -74,13 +74,13 @@ export let lowerLetCondition = (cx: LoweringContext, lpc: LetPatternCondition): 
       bail(cx, 'let-condition pattern');
     }
     let value = lowerExpr(cx, lpc.init, null);
-    let patterns = new GrowableArray<Node>();
+    let patterns = new Array<Node>();
     patterns.push(pat);
-    let patternValues = new GrowableArray<i32>();
+    let patternValues = new Array<i32>();
     patternValues.push(value);
     let cond = cx.b.constI32(1, new ValTypeI32() as ValType);
-    return new LetCondBinds(cond, new GrowableArray<Symbol>(), new GrowableArray<i32>(),
-        new GrowableArray<ValType>(), patterns, patternValues);
+    return new LetCondBinds(cond, new Array<Symbol>(), new Array<i32>(),
+        new Array<ValType>(), patterns, patternValues);
   }
   let values = multiSource(cx, lpc.init);
   if (values.length != pat.elements.length) {
@@ -103,11 +103,11 @@ export let lowerLetCondition = (cx: LoweringContext, lpc: LetPatternCondition): 
       cond = cx.b.emit(IrOp.i32_eqz, new ValTypeI32(), cond, -1);
     }
   }
-  let syms = new GrowableArray<Symbol>();
-  let bindValues = new GrowableArray<i32>();
-  let vts = new GrowableArray<ValType>();
-  let patterns = new GrowableArray<Node>();
-  let patternValues = new GrowableArray<i32>();
+  let syms = new Array<Symbol>();
+  let bindValues = new Array<i32>();
+  let vts = new Array<ValType>();
+  let patterns = new Array<Node>();
+  let patternValues = new Array<i32>();
   for (var i = 0; i < pat.elements.length; i += 1) {
     let el = pat.elements[i];
     if (el == null || el is LiteralPattern || el is BooleanLiteral ||
@@ -315,7 +315,7 @@ let lowerBlockValueFrom = (cx: LoweringContext, body: Array<Statement>,
       if (symOpt == null) {
         bail(cx, 'implicit-drop binding symbol');
       }
-      let syms = new GrowableArray<SymbolId>();
+      let syms = new Array<SymbolId>();
       syms.push(symOpt.id);
       let value = cx.envValues(syms)[0];
       return lowerValueRegionRest(cx, value, owners, body, i + 1, ctxVt);
@@ -371,7 +371,7 @@ let lowerValueRegionRest = (cx: LoweringContext, value: i32,
   if (ctxVt == null) {
     bail(cx, 'value region result type');
   }
-  let mirrored = new GrowableArray<SymbolId>();
+  let mirrored = new Array<SymbolId>();
   for (var k = start; k < body.length; k += 1) {
     cx.appendAssignedEnvSyms(body[k] as Node, mirrored);
   }
@@ -393,7 +393,7 @@ let lowerValueRegionRestVar = (cx: LoweringContext, plan: VarDropPlan,
   if (ctxVt == null) {
     bail(cx, 'value region result type');
   }
-  let mirrored = new GrowableArray<SymbolId>();
+  let mirrored = new Array<SymbolId>();
   for (var k = start; k < body.length; k += 1) {
     cx.appendAssignedEnvSyms(body[k] as Node, mirrored);
   }
@@ -489,7 +489,7 @@ export let lowerMatch = (cx: LoweringContext, expr: MatchExpression): i32 => {
     disc = lowerExpr(cx, expr.discriminant, null);
   }
 
-  let mergeSyms = new GrowableArray<SymbolId>();
+  let mergeSyms = new Array<SymbolId>();
   for (let mc in expr.cases) {
     cx.appendAssignedEnvSyms(mc.body, mergeSyms);
     if (mc.guard != null) {
@@ -566,7 +566,7 @@ let emitMatchArmDrops = (cx: LoweringContext, expr: MatchExpression, armIndex: i
       bail(cx, 'edge drop untyped binding');
     }
     let owners = disposeOwnerClasses(cx, declType);
-    let syms = new GrowableArray<SymbolId>();
+    let syms = new Array<SymbolId>();
     syms.push(d.symbolId);
     let value = cx.envValues(syms)[0];
     emitMaybeDispose(cx, value, owners);
@@ -589,7 +589,7 @@ let emitEdgeDrops = (cx: LoweringContext, stmt: IfStatement, onTrue: boolean): v
       bail(cx, 'edge drop untyped binding');
     }
     let ownerClasses = disposeOwnerClasses(cx, declType);
-    let syms = new GrowableArray<SymbolId>();
+    let syms = new Array<SymbolId>();
     syms.push(d.symbolId);
     let value = cx.envValues(syms)[0];
     emitMaybeDispose(cx, value, ownerClasses);
@@ -850,7 +850,7 @@ export let returnMultiThroughFinally = (cx: LoweringContext,
   let scope = cx.finallyScopes[cx.finallyScopes.length - 1];
   var vars = scope.returnVars;
   if (vars == null) {
-    let created = new GrowableArray<i32>();
+    let created = new Array<i32>();
     for (let slot in cx.func.signature.returns) {
       created.push(cx.b.newVar(slot));
     }
@@ -967,7 +967,7 @@ let lowerFinallyRegion = (cx: LoweringContext, mirrored: GrowableArray<SymbolId>
   if (cx.wasm.exceptionTag == null || cx.wasm.exceptionPayload == null) {
     bail(cx, 'exception infra missing');
   }
-  let ownedVars = new GrowableArray<SymbolId>();
+  let ownedVars = new Array<SymbolId>();
   for (let symId in mirrored) {
     if (cx.tryVars.has(symId)) { continue; }
     let vt = cx.bindingValType(symId);
@@ -1096,7 +1096,7 @@ let lowerFinallyRegion = (cx: LoweringContext, mirrored: GrowableArray<SymbolId>
     let multiVars = scope.returnVars;
     if (multiVars != null) {
       let parked = multiVars as GrowableArray<i32>;
-      let values = new GrowableArray<i32>();
+      let values = new Array<i32>();
       for (let rv in parked) {
         values.push(cx.b.varGet(rv));
       }
@@ -1370,11 +1370,11 @@ export let lowerShieldedRegion = (cx: LoweringContext,
 
   let cur = cx.b.callFunc(cx.b.addRef(new IrRefFunc(currentScopeFn)),
       noValues(), scopeVt);
-  let shieldArgs = new GrowableArray<i32>();
+  let shieldArgs = new Array<i32>();
   shieldArgs.push(cur);
   let shield = cx.b.callFunc(cx.b.addRef(new IrRefFunc(shieldFn)),
       shieldArgs, scopeVt);
-  let installArgs = new GrowableArray<i32>();
+  let installArgs = new Array<i32>();
   installArgs.push(shield);
   let prev = cx.b.callFunc(cx.b.addRef(new IrRefFunc(installFn)),
       installArgs, scopeVt);
@@ -1393,7 +1393,7 @@ export let lowerShieldedRegion = (cx: LoweringContext,
         finishProtectedArm(cx, scope, resultVar, -1);
       },
       (fscope) => {
-        let restoreArgs = new GrowableArray<i32>();
+        let restoreArgs = new Array<i32>();
         restoreArgs.push(prev);
         let ignored = cx.b.callFunc(cx.b.addRef(new IrRefFunc(installFn)),
             restoreArgs, scopeVt);
@@ -1487,7 +1487,7 @@ export let lowerTryExpression = (cx: LoweringContext, expr: TryExpression): i32 
   // assigning). An enclosing try already mirroring a symbol keeps
   // ownership of its variable — one per symbol, always holding the
   // last value written.
-  let ownedVars = new GrowableArray<SymbolId>();
+  let ownedVars = new Array<SymbolId>();
   for (let symId in bodyAssigned) {
     if (cx.tryVars.has(symId)) { continue; }
     let vt = cx.bindingValType(symId);
@@ -1564,7 +1564,7 @@ export let disposeOwnerClasses = (cx: LoweringContext, t: Type): Array<ClassType
     target = inner;
   }
   let base = unwrapAliases(target);
-  let result = new GrowableArray<ClassType>();
+  let result = new Array<ClassType>();
   match (base) {
     case ClassType as ct: { result.push(ct); }
     case UnionType {types}: {
@@ -1621,7 +1621,7 @@ let emitDispose = (cx: LoweringContext, value: i32, ownerClass: ClassType): void
   }
 
   let receiver = cx.conformToSlot(value, sig.params[0], 'dispose receiver type');
-  let args = new GrowableArray<i32>();
+  let args = new Array<i32>();
   args.push(receiver);
 
   if (!cx.exactValues.has(value) &&
@@ -1738,7 +1738,7 @@ final class VarDropPlan {
 }
 
 let varDropPlans = (cx: LoweringContext, body: Array<Statement>): GrowableArray<VarDropPlan> => {
-  let plans = new GrowableArray<VarDropPlan>();
+  let plans = new Array<VarDropPlan>();
   for (let s in body) {
     if (!(s is VariableDeclaration)) { continue; }
     let pat = (s as VariableDeclaration).pattern as Node;
@@ -1781,7 +1781,7 @@ let varDropIntervalEnd = (plan: VarDropPlan, i: i32, len: i32): i32 => {
  * holds its entry value.
  */
 let emitVarDropRelease = (cx: LoweringContext, plan: VarDropPlan): void => {
-  let syms = new GrowableArray<SymbolId>();
+  let syms = new Array<SymbolId>();
   syms.push(plan.symId);
   emitMaybeDispose(cx, cx.envValues(syms)[0], plan.owners);
 };
@@ -1796,7 +1796,7 @@ let emitVarDropRelease = (cx: LoweringContext, plan: VarDropPlan): void => {
  */
 let lowerVarDropRegion = (cx: LoweringContext, plan: VarDropPlan,
     body: Array<Statement>, start: i32, end: i32, toBlockEnd: boolean): void => {
-  let mirrored = new GrowableArray<SymbolId>();
+  let mirrored = new Array<SymbolId>();
   for (var k = start; k < end; k += 1) {
     cx.appendAssignedEnvSyms(body[k] as Node, mirrored);
   }
@@ -1883,7 +1883,7 @@ export let lowerUsingRegion = (cx: LoweringContext, stmt: UsingStatement,
     cx.bindPatternSym(symOpt, value);
   }
 
-  let mirrored = new GrowableArray<SymbolId>();
+  let mirrored = new Array<SymbolId>();
   for (var k = restStart; k < restEnd; k += 1) {
     cx.appendAssignedEnvSyms(rest[k] as Node, mirrored);
   }
@@ -1975,7 +1975,7 @@ export let emitMarkDropped = (cx: LoweringContext): void => {
     bail(cx, 'resource lifecycle field missing');
   }
   let dropped = cx.b.constI32(3, new ValTypeI32() as ValType);
-  let pair = new GrowableArray<i32>();
+  let pair = new Array<i32>();
   pair.push(cx.thisValue);
   pair.push(dropped);
   let fieldRef = cx.b.addRef(new IrRefField(st, key));
@@ -2000,14 +2000,14 @@ export let lowerSyntheticDispose = (cx: LoweringContext): IrBody => {
   cx.thisValue = thisParam;
   emitMarkDropped(cx);
 
-  let names = new GrowableArray<String>();
-  let types = new GrowableArray<Type>();
+  let names = new Array<String>();
+  let types = new Array<Type>();
   collectAffineDropFields(cx, names, types);
   if (names.length == 0) {
     bail(cx, 'synthetic dispose without owner fields');
   }
-  let emptyBody = new GrowableArray<Statement>();
-  let emptySyms = new GrowableArray<Symbol>();
+  let emptyBody = new Array<Statement>();
+  let emptySyms = new Array<Symbol>();
   lowerFieldDropRegions(cx, names, types, 0, emptySyms, emptyBody, 0, 0);
   if (cx.reachable) {
     cx.b.retVoid();
@@ -2062,7 +2062,7 @@ export let lowerFieldDropRegions = (cx: LoweringContext,
       cx.thisValue, fieldRef);
   let owners = disposeOwnerClasses(cx, types[idx]);
 
-  let mirrored = new GrowableArray<SymbolId>();
+  let mirrored = new Array<SymbolId>();
   for (var k = start; k < end; k += 1) {
     cx.appendAssignedEnvSyms(body[k] as Node, mirrored);
   }
@@ -2096,11 +2096,11 @@ export let lowerParamDropRegions = (cx: LoweringContext,
     bail(cx, 'param drop untyped binding');
   }
   let owners = disposeOwnerClasses(cx, declType);
-  let syms = new GrowableArray<SymbolId>();
+  let syms = new Array<SymbolId>();
   syms.push(dropSyms[idx].id);
   let value = cx.envValues(syms)[0];
 
-  let mirrored = new GrowableArray<SymbolId>();
+  let mirrored = new Array<SymbolId>();
   for (var k = start; k < end; k += 1) {
     cx.appendAssignedEnvSyms(body[k] as Node, mirrored);
   }
@@ -2136,11 +2136,11 @@ export let lowerScopeDropRegion = (cx: LoweringContext, vd: VariableDeclaration,
   if (symOpt == null) {
     bail(cx, 'implicit-drop binding symbol');
   }
-  let syms = new GrowableArray<SymbolId>();
+  let syms = new Array<SymbolId>();
   syms.push(symOpt.id);
   let value = cx.envValues(syms)[0];
 
-  let mirrored = new GrowableArray<SymbolId>();
+  let mirrored = new Array<SymbolId>();
   for (var k = restStart; k < restEnd; k += 1) {
     cx.appendAssignedEnvSyms(rest[k] as Node, mirrored);
   }
@@ -2230,7 +2230,7 @@ export let lowerFor = (cx: LoweringContext, stmt: ForStatement): void => {
     }
   }
 
-  let carried = new GrowableArray<SymbolId>();
+  let carried = new Array<SymbolId>();
   let test = stmt.test;
   if (test != null) {
     cx.appendAssignedEnvSyms(test, carried);
@@ -2579,7 +2579,7 @@ export let lowerForInIterator = (cx: LoweringContext, stmt: ForInStatement, iter
   // `emitGeneratorDispose` is a no-op-shaped state write for anything
   // already finished and for non-generator iterators.
   if (cx.wasm.generatorDisposalActive && cx.wasm.generatorFrameSuper != null) {
-    let mirrored = new GrowableArray<SymbolId>();
+    let mirrored = new Array<SymbolId>();
     cx.appendAssignedEnvSyms(stmt.body as Node, mirrored);
     lowerFinallyRegion(cx, mirrored, true, null,
         (scope, resultVar, saved) => {

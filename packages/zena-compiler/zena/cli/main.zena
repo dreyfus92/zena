@@ -215,7 +215,7 @@ export let main = (): i32 => {
     // Including the packages the stdlib carries (`wasi`), the same
     // set the resolver sees.
     let allPackages = withBuiltinPackages("/stdlib", packages);
-    let witPackages = new GrowableArray<String>();
+    let witPackages = new Array<String>();
     let packageNames = allPackages.keys();
     while (let (true, packageName) = packageNames.next()) {
       let root = allPackages[packageName].witRoot;
@@ -295,7 +295,7 @@ export let main = (): i32 => {
     
     checkResults.results[filename].model;
     let entryAst = compResult.entry.ast;
-    let units = new GrowableArray<CompilationUnit>();
+    let units = new Array<CompilationUnit>();
     var entryUnit: CompilationUnit | null = null;
     for (let file in compResult.files) {
       let res = checkResults.results[file.path];

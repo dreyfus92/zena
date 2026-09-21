@@ -62,10 +62,10 @@ export let runSpecialize = (wasm: WasmModule, bodies: GrowableArray<IrBody>,
   // Every direct call to a local function, by callee: the sites that
   // pass a pack for some parameter, and the count of all sites (a
   // site passing anything else for that parameter blocks it).
-  let sitesOf = new GrowableArray<GrowableArray<Site>>();
-  let callCount = new GrowableArray<i32>();
+  let sitesOf = new Array<GrowableArray<Site>>();
+  let callCount = new Array<i32>();
   for (var j = 0; j < originalCount; j += 1) {
-    sitesOf.push(new GrowableArray<Site>());
+    sitesOf.push(new Array<Site>());
     callCount.push(0);
   }
   for (var i = 0; i < originalCount; i += 1) {
@@ -114,8 +114,8 @@ export let runSpecialize = (wasm: WasmModule, bodies: GrowableArray<IrBody>,
     // Per parameter: the one vtable global every site agrees on, or
     // null. A parameter with fewer pack sites than calls has a call
     // passing something else.
-    let agreed = new GrowableArray<WasmGlobal | null>();
-    let instanceType = new GrowableArray<ValType | null>();
+    let agreed = new Array<WasmGlobal | null>();
+    let instanceType = new Array<ValType | null>();
     var any = false;
     for (var k = 0; k < params.length; k += 1) {
       var g: WasmGlobal | null = null;
@@ -163,13 +163,13 @@ export let runSpecialize = (wasm: WasmModule, bodies: GrowableArray<IrBody>,
     // retyped to the instance and re-packed at entry.
     let original = wasm.functions[j];
     let clone = cloneBody(callee);
-    let sigParams = new GrowableArray<ValType>();
+    let sigParams = new Array<ValType>();
     for (let p in original.signature.params) {
       sigParams.push(p);
     }
-    let heads = new GrowableArray<i32>();
+    let heads = new Array<i32>();
     let count = clone.instCount();
-    let repl = new GrowableArray<i32>();
+    let repl = new Array<i32>();
     for (var i = 0; i < count; i += 1) {
       repl.push(i);
     }
@@ -330,7 +330,7 @@ let cloneBody = (src: IrBody): IrBody => {
 };
 
 let prependInsts = (blk: IrBlock, ids: GrowableArray<i32>): void => {
-  let old = new GrowableArray<i32>();
+  let old = new Array<i32>();
   for (let i in blk.insts) {
     old.push(i);
   }

@@ -170,7 +170,7 @@ export final class ProgramCheckResult {
   exportSignatures: HashMap<String, HashMap<String, Type>>;
 
   /** Aggregated diagnostics from all modules. */
-  diagnostics = new GrowableArray<Diagnostic>();
+  diagnostics = new Array<Diagnostic>();
 
   /** The entry module's check result (convenience accessor). */
   entry: CheckResult;
@@ -340,7 +340,7 @@ export final class Compiler {
    * In pull-based environments, call `refreshCache()` first.
    */
   compile(entryPoint: String, version: String | null = null): CompilationResult {
-    let entries = new GrowableArray<SourceFile>();
+    let entries = new Array<SourceFile>();
 
     // Load prelude modules first.
     let prelude = getStandardPrelude(this.#resolver.target);
@@ -516,7 +516,7 @@ export final class Compiler {
     }
 
     let closure = new HashSet<String>();
-    let pending = new GrowableArray<String>();
+    let pending = new Array<String>();
 
     let prelude = getStandardPrelude(this.#resolver.target);
     let specifierIter = prelude.keys();
@@ -581,7 +581,7 @@ export final class Compiler {
     }
 
     let closure = new HashSet<String>();
-    let pending = new GrowableArray<String>();
+    let pending = new Array<String>();
 
     let prelude = getStandardPrelude(this.#resolver.target);
     let specifierIter = prelude.keys();
@@ -1467,7 +1467,7 @@ let buildReverseDeps = (
             }
             let depMap = reverseDeps[depPath];
             if (!depMap.has(file.path)) {
-              depMap[file.path] = new GrowableArray<String>(4);
+              depMap[file.path] = new Array<String>(4);
             }
             let names = depMap[file.path];
             var k = 0;
@@ -1492,7 +1492,7 @@ let buildReverseDeps = (
             }
             let depMap = reverseDeps[depPath];
             if (!depMap.has(file.path)) {
-              depMap[file.path] = new GrowableArray<String>(4);
+              depMap[file.path] = new Array<String>(4);
             }
             let names = depMap[file.path];
             names.push("*");
@@ -1507,7 +1507,7 @@ let buildReverseDeps = (
             }
             let depMap = reverseDeps[depPath];
             if (!depMap.has(file.path)) {
-              depMap[file.path] = new GrowableArray<String>(4);
+              depMap[file.path] = new Array<String>(4);
             }
             let names = depMap[file.path];
             var m = 0;
@@ -1716,12 +1716,12 @@ let checkFile = (
 final class ImportComponents {
   #files: GrowableArray<SourceFile>;
   #pathIndex: HashMap<String, i32>;
-  #index = new GrowableArray<i32>();
-  #low = new GrowableArray<i32>();
-  #onStack = new GrowableArray<boolean>();
-  #stack = new GrowableArray<i32>();
+  #index = new Array<i32>();
+  #low = new Array<i32>();
+  #onStack = new Array<boolean>();
+  #stack = new Array<i32>();
   var #next = 0;
-  components = new GrowableArray<GrowableArray<i32>>();
+  components = new Array<GrowableArray<i32>>();
 
   new(files: GrowableArray<SourceFile>, pathIndex: HashMap<String, i32>)
     : #files = files, #pathIndex = pathIndex {
@@ -1767,7 +1767,7 @@ final class ImportComponents {
       }
     }
     if (this.#low[v] == this.#index[v]) {
-      let component = new GrowableArray<i32>();
+      let component = new Array<i32>();
       var w = -1;
       while (w != v) {
         w = this.#stack.pop();
@@ -1907,7 +1907,7 @@ export let checkCompilation = (
           last = member;
         }
       }
-      let members = new GrowableArray<SourceFile>();
+      let members = new Array<SourceFile>();
       var mi = 0;
       while (mi < result.files.length) {
         if (inComponent.has(mi)) {

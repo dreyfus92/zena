@@ -82,7 +82,7 @@ let charToDigit = (c: i32): i32 => {
  * the library's public surface, which index.zena defines.
  */
 export let toCodePoints = (s: String): Array<i32> | null => {
-  let out = new GrowableArray<i32>();
+  let out = new Array<i32>();
   var i = 0;
   while (i < s.length) {
     let b = s.getByteAt(i);
@@ -225,7 +225,7 @@ export let punycodeDecode = (label: String): String | null => {
     i += 1;
   }
 
-  let out = new GrowableArray<i32>();
+  let out = new Array<i32>();
   var next = 0;
   // The delimiter is consumed only if something preceded it. A leading '-'
   // is therefore not a separator but a digit — and not a valid one — so

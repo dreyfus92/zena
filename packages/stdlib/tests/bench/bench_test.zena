@@ -145,11 +145,11 @@ export let tests = suite('zena:bench runner', (): void => {
   });
 
   test('analyze builds a report from external samples', (ctx: TestContext): void => {
-    let slow = new GrowableArray<f64>();
+    let slow = new Array<f64>();
     slow.push(10.0); slow.push(10.1); slow.push(9.9); slow.push(10.05); slow.push(9.95);
-    let fast = new GrowableArray<f64>();
+    let fast = new Array<f64>();
     fast.push(5.0); fast.push(5.1); fast.push(4.9); fast.push(5.05); fast.push(4.95);
-    let cases = new GrowableArray<NamedSamples>();
+    let cases = new Array<NamedSamples>();
     cases.push(new NamedSamples('slow', slow));
     cases.push(new NamedSamples('fast', fast));
 

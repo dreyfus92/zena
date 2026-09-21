@@ -46,7 +46,7 @@ let lowerMemLoad = (cx: LoweringContext, call: CallExpression, op: IrOp, resultV
 let lowerMemStore = (cx: LoweringContext, call: CallExpression, op: IrOp, align: i32): i32 => {
   let addr = lowerExpr(cx, call.args[0], null);
   let value = lowerExpr(cx, call.args[1], null);
-  let pair = new GrowableArray<i32>();
+  let pair = new Array<i32>();
   pair.push(addr);
   pair.push(value);
   return cx.b.emitVoid(op, cx.b.pushExtra(pair), align);
@@ -83,7 +83,7 @@ let lowerCancelRaise = (cx: LoweringContext, call: CallExpression): i32 => {
     cx.reachable = false;
     return -1;
   }
-  cx.b.throwWithTag(new GrowableArray<i32>(),
+  cx.b.throwWithTag(new Array<i32>(),
       cx.b.addRef(new IrRefTag(tagOpt as WasmTag)));
   cx.reachable = false;
   return -1;
@@ -294,7 +294,7 @@ let lowerByteArrayCopy = (cx: LoweringContext, call: CallExpression): i32 => {
       !(srcType.elementType is ValTypeI8)) {
     cx.fail('byte builtin on non-byte array');
   }
-  let tuple = new GrowableArray<i32>();
+  let tuple = new Array<i32>();
   tuple.push(dest);
   tuple.push(destOff);
   tuple.push(src);
@@ -305,14 +305,14 @@ let lowerByteArrayCopy = (cx: LoweringContext, call: CallExpression): i32 => {
 };
 
 let twoValues = (a: i32, b: i32): GrowableArray<i32> => {
-  let out = new GrowableArray<i32>();
+  let out = new Array<i32>();
   out.push(a);
   out.push(b);
   return out;
 };
 
 let threeValues = (a: i32, b: i32, c: i32): GrowableArray<i32> => {
-  let out = new GrowableArray<i32>();
+  let out = new Array<i32>();
   out.push(a);
   out.push(b);
   out.push(c);
@@ -333,7 +333,7 @@ let lowerWasiWriteString = (cx: LoweringContext, call: CallExpression): i32 => {
   }
   let helper = helperOpt;
   let sig = helper.signature;
-  let args = new GrowableArray<i32>();
+  let args = new Array<i32>();
   let fd = lowerExpr(cx, call.args[0], sig.params[0]);
   args.push(fd);
   let s = lowerExpr(cx, call.args[1], sig.params[1]);
@@ -431,7 +431,7 @@ let wideArithPolyfill = (
   op: IrOp,
   ops: GrowableArray<i32>
 ): GrowableArray<i32> => {
-  let out = new GrowableArray<i32>();
+  let out = new Array<i32>();
   if (op == IrOp.i64_mul_wide_u || op == IrOp.i64_mul_wide_s) {
     let x = ops[0];
     let y = ops[1];
@@ -498,7 +498,7 @@ let lowerWideArith = (
   if (call.args.length != arity) {
     cx.fail(name + ': wrong argument count');
   }
-  let ops = new GrowableArray<i32>();
+  let ops = new Array<i32>();
   for (var i = 0; i < arity; i += 1) {
     ops.push(lowerExpr(cx, call.args[i], null));
   }
@@ -558,7 +558,7 @@ let simdOperands = (
   from: i32,
   count: i32
 ): GrowableArray<i32> => {
-  let out = new GrowableArray<i32>();
+  let out = new Array<i32>();
   var i = 0;
   while (i < count) {
     out.push(lowerExpr(cx, call.args[from + i], null));
@@ -676,7 +676,7 @@ let lowerSimd = (
     case SimdShape.Const: {
       // Four i32 literals, little-endian, into the sixteen immediate
       // bytes — the same order `v128.const i32x4 a b c d` writes them.
-      let imm = new GrowableArray<i32>();
+      let imm = new Array<i32>();
       imm.push(instr.opcode);
       var w = 0;
       while (w < 4) {
@@ -692,7 +692,7 @@ let lowerSimd = (
     }
     case SimdShape.Shuffle: {
       let ops = simdOperands(cx, call, 0, 2);
-      let imm = new GrowableArray<i32>();
+      let imm = new Array<i32>();
       imm.push(instr.opcode);
       var i = 0;
       while (i < 16) {

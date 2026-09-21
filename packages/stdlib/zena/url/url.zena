@@ -81,7 +81,7 @@ let defaultPort = (scheme: String): i32 => {
 
 /** Strictly split `s` on `sep`, keeping empty pieces. */
 let splitOn = (s: String, sep: i32): GrowableArray<String> => {
-  let out = new GrowableArray<String>();
+  let out = new Array<String>();
   var start = 0;
   for (var i = 0; i <= s.length; i += 1) {
     if (i == s.length || s.getByteAt(i) == sep) {
@@ -145,7 +145,7 @@ export class UrlRecord {
   // with an empty authority) and is distinct from null.
   var host: String | null = null;
   var port: i32 = -1;              // -1 means null
-  var path: GrowableArray<String> = new GrowableArray<String>();
+  var path: GrowableArray<String> = new Array<String>();
   var opaquePath: String | null = null;
   var query: String | null = null;
   var fragment: String | null = null;
@@ -171,7 +171,7 @@ export class UrlRecord {
   }
 
   clonePath(): GrowableArray<String> {
-    let out = new GrowableArray<String>();
+    let out = new Array<String>();
     for (let seg in this.path) { out.push(seg); }
     return out;
   }
@@ -269,7 +269,7 @@ let parseIPv4 = (input: String): (boolean, i64) => {
   }
   if (parts.length > 4) return (false, 0 as i64);
 
-  let numbers = new GrowableArray<i64>();
+  let numbers = new Array<i64>();
   for (let part in parts) {
     let (ok, value, _ve) = parseIPv4Number(part);
     if (!ok) return (false, 0 as i64);
@@ -334,7 +334,7 @@ let endsInNumber = (input: String): boolean => {
 // ============================================================================
 
 let parseIPv6 = (input: String): Array<i32> | null => {
-  let address = new GrowableArray<i32>();
+  let address = new Array<i32>();
   for (var i = 0; i < 8; i += 1) { address.push(0); }
   var pieceIndex = 0;
   var compress = -1;
@@ -627,7 +627,7 @@ export let basicUrlParse = (
   // parsing, then fall through to the flush that commits these buffers.
   if (stateOverride == S_QUERY) { hasQueryBuf = true; }
   if (stateOverride == S_FRAGMENT) { hasFragmentBuf = true; }
-  if (stateOverride == S_PATH_START) { url.path = new GrowableArray<String>(); }
+  if (stateOverride == S_PATH_START) { url.path = new Array<String>(); }
 
   while (running && !failed) {
     let c = if (pointer < len) input.getByteAt(pointer) else EOF;
@@ -934,7 +934,7 @@ export let basicUrlParse = (
           if (!startsWithWindowsDriveLetter(input, pointer)) {
             url.shortenPath();
           } else {
-            url.path = new GrowableArray<String>();
+            url.path = new Array<String>();
           }
           state = S_PATH;
           pointer -= 1;

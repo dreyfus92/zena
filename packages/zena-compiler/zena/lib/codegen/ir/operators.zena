@@ -515,7 +515,7 @@ export let lowerIntPow = (cx: LoweringContext, baseVal: i32, expVal: i32,
   let baseParam = cx.b.blockParam(header, vt);
   let expParam = cx.b.blockParam(header, vt);
 
-  let initArgs = new GrowableArray<i32>();
+  let initArgs = new Array<i32>();
   initArgs.push(one);
   initArgs.push(baseVal);
   initArgs.push(expVal);
@@ -523,7 +523,7 @@ export let lowerIntPow = (cx: LoweringContext, baseVal: i32, expVal: i32,
 
   cx.b.switchTo(header);
   let cond = cx.b.binary(gtOp, new ValTypeI32(), expParam, zero);
-  let exitArgs = new GrowableArray<i32>();
+  let exitArgs = new Array<i32>();
   exitArgs.push(accParam);
   cx.b.brIf(cond, loopBody, noValues(), exitB, exitArgs);
 
@@ -531,20 +531,20 @@ export let lowerIntPow = (cx: LoweringContext, baseVal: i32, expVal: i32,
   let isOddBit = cx.b.binary(andOp, vt, expParam, one);
   let isOdd = cx.b.binary(neOp, new ValTypeI32(), isOddBit, zero);
   let nextAccParam = cx.b.blockParam(nextB, vt);
-  let notOddArgs = new GrowableArray<i32>();
+  let notOddArgs = new Array<i32>();
   notOddArgs.push(accParam);
   cx.b.brIf(isOdd, mulB, noValues(), nextB, notOddArgs);
 
   cx.b.switchTo(mulB);
   let newAcc = cx.b.binary(mulOp, vt, accParam, baseParam);
-  let oddArgs = new GrowableArray<i32>();
+  let oddArgs = new Array<i32>();
   oddArgs.push(newAcc);
   cx.b.br(nextB, oddArgs);
 
   cx.b.switchTo(nextB);
   let nextBase = cx.b.binary(mulOp, vt, baseParam, baseParam);
   let nextExp = cx.b.binary(shrOp, vt, expParam, shiftOne);
-  let loopArgs = new GrowableArray<i32>();
+  let loopArgs = new Array<i32>();
   loopArgs.push(nextAccParam);
   loopArgs.push(nextBase);
   loopArgs.push(nextExp);
@@ -608,7 +608,7 @@ export let lowerFloatPow = (cx: LoweringContext, baseVal: i32, expVal: i32,
   let baseParam = cx.b.blockParam(header, vt);
   let expParam = cx.b.blockParam(header, new ValTypeI32());
 
-  let initArgs = new GrowableArray<i32>();
+  let initArgs = new Array<i32>();
   initArgs.push(oneF);
   initArgs.push(baseVal);
   initArgs.push(absExpParam);
@@ -616,7 +616,7 @@ export let lowerFloatPow = (cx: LoweringContext, baseVal: i32, expVal: i32,
 
   cx.b.switchTo(header);
   let cond = cx.b.binary(IrOp.i32_gt_s, new ValTypeI32(), expParam, zeroI);
-  let exitArgs = new GrowableArray<i32>();
+  let exitArgs = new Array<i32>();
   exitArgs.push(accParam);
   cx.b.brIf(cond, loopBody, noValues(), exitB, exitArgs);
 
@@ -624,20 +624,20 @@ export let lowerFloatPow = (cx: LoweringContext, baseVal: i32, expVal: i32,
   let isOddBit = cx.b.binary(IrOp.i32_and, new ValTypeI32(), expParam, oneI);
   let isOdd = cx.b.binary(IrOp.i32_ne, new ValTypeI32(), isOddBit, zeroI);
   let nextAccParam = cx.b.blockParam(nextB, vt);
-  let notOddArgs = new GrowableArray<i32>();
+  let notOddArgs = new Array<i32>();
   notOddArgs.push(accParam);
   cx.b.brIf(isOdd, mulB, noValues(), nextB, notOddArgs);
 
   cx.b.switchTo(mulB);
   let newAcc = cx.b.binary(mulOp, vt, accParam, baseParam);
-  let oddArgs = new GrowableArray<i32>();
+  let oddArgs = new Array<i32>();
   oddArgs.push(newAcc);
   cx.b.br(nextB, oddArgs);
 
   cx.b.switchTo(nextB);
   let nextBase = cx.b.binary(mulOp, vt, baseParam, baseParam);
   let nextExp = cx.b.binary(IrOp.i32_shr_u, new ValTypeI32(), expParam, oneI);
-  let loopArgs = new GrowableArray<i32>();
+  let loopArgs = new Array<i32>();
   loopArgs.push(nextAccParam);
   loopArgs.push(nextBase);
   loopArgs.push(nextExp);

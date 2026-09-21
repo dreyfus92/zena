@@ -55,17 +55,17 @@ export let pruneUnreached = (wasm: WasmModule,
   // the position in wasm.globals and which this pass rebinds the same
   // way, so it stays the position across harvests.
   let gcount = wasm.globals.length;
-  let liveF = new GrowableArray<boolean>();
+  let liveF = new Array<boolean>();
   for (var i = 0; i < fcount; i += 1) {
     liveF.push(false);
   }
-  let liveG = new GrowableArray<boolean>();
+  let liveG = new Array<boolean>();
   for (var i = 0; i < gcount; i += 1) {
     liveG.push(false);
   }
   // One worklist for both kinds: function entries are their body
   // index, global entries are offset past the function count.
-  let work = new GrowableArray<i32>();
+  let work = new Array<i32>();
   let markFunction = (f: WasmFunction): void => {
     if (let (true, idx) = bodyIndex.get(f)) {
       if (!liveF[idx]) {
@@ -136,8 +136,8 @@ export let pruneUnreached = (wasm: WasmModule,
   }
 
   var removedF = 0;
-  let keptFunctions = new GrowableArray<WasmFunction>();
-  let keptBodies = new GrowableArray<IrBody>();
+  let keptFunctions = new Array<WasmFunction>();
+  let keptBodies = new Array<IrBody>();
   for (var i = 0; i < fcount; i += 1) {
     if (liveF[i]) {
       keptFunctions.push(wasm.functions[i]);
@@ -147,7 +147,7 @@ export let pruneUnreached = (wasm: WasmModule,
     }
   }
   var removedG = 0;
-  let keptGlobals = new GrowableArray<WasmGlobal>();
+  let keptGlobals = new Array<WasmGlobal>();
   for (var i = 0; i < gcount; i += 1) {
     if (liveG[i]) {
       keptGlobals.push(wasm.globals[i]);

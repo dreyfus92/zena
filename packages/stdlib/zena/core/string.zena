@@ -301,12 +301,12 @@ export final class String implements Hashable {
   split(separator: String): FixedArray<String> {
     let sepLength = separator.#end - separator.#start;
     if (sepLength == 0) {
-      return new FixedArray<String>(1, this);
+      return new Array<String>.fixed(1, this);
     }
 
     let haystackLength = this.#end - this.#start;
     if (sepLength > haystackLength) {
-      return new FixedArray<String>(1, this);
+      return new Array<String>.fixed(1, this);
     }
 
     // First pass: count parts

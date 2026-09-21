@@ -31,7 +31,7 @@
  * written as classes rather than callbacks.
  */
 
-import { Error, GrowableArray, Disposable } from 'zena:core';
+import { Error, Disposable } from 'zena:core';
 import { Waiter, scheduleTask } from './async/executor.zena';
 import {
   subscribe, result, tryComplete, tryFail,
@@ -104,7 +104,7 @@ let getRootScope = (): CancelScope => {
 export class CancelScope {
   #parent: CancelScope | null;
   var #cancelled: boolean = false;
-  #children = new GrowableArray<CancelScope>();
+  #children = new Array<CancelScope>();
   /** The frames bound to this scope, registered by their ramps so
    * `cancel` can WAKE them: a parked frame's next checkpoint only
    * runs when something schedules it, and the future it awaits may
@@ -114,7 +114,7 @@ export class CancelScope {
    * and a parked frame's resume checkpoint tests the scope before
    * touching its still-pending future. The root registers nothing:
    * it cannot be cancelled, so uncancellable work pays no tracking. */
-  #tasks = new GrowableArray<Waiter>();
+  #tasks = new Array<Waiter>();
 
   /** A child of the current scope, sharing its cancelled level. */
   new() : #parent = current {

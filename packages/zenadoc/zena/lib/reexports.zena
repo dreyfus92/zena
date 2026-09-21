@@ -151,7 +151,7 @@ let narrow = (
   outer: DocReexport,
   source: DocModule
 ): DocReexport | null => {
-  let wanted = new GrowableArray<DocReexportName>(2);
+  let wanted = new Array<DocReexportName>(2);
   for (let name in outer.names) {
     if (source.declares(name.source)) {
       continue;

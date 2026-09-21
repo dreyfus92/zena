@@ -187,14 +187,14 @@ export final class ScopeBuilder {
    * Unresolved identifiers found during the walk.
    * These may be resolved later when cross-module imports are wired up.
    */
-  #unresolvedNames = new GrowableArray<UnresolvedName>();
+  #unresolvedNames = new Array<UnresolvedName>();
   #symbols = new SymbolMap();
-  #duplicateDeclarations = new GrowableArray<UnresolvedName>();
+  #duplicateDeclarations = new Array<UnresolvedName>();
   #parents = new NodeMap<Node>();
   #isRead = new HashMap<SymbolId, boolean>();
   #isWritten = new HashMap<SymbolId, boolean>();
-  #allVariables = new GrowableArray<Symbol>();
-  #allImportDeclarations = new GrowableArray<ImportDeclaration>();
+  #allVariables = new Array<Symbol>();
+  #allImportDeclarations = new Array<ImportDeclaration>();
 
   /**
    * Whether an import of a prelude name still earns its place here.
@@ -258,8 +258,8 @@ export final class ScopeBuilder {
       case _: {}
     }
 
-    let unused = new GrowableArray<Symbol>();
-    let neverMutated = new GrowableArray<Symbol>();
+    let unused = new Array<Symbol>();
+    let neverMutated = new Array<Symbol>();
 
     for (let sym in this.#allVariables) {
       if (!this.#isRead.has(sym.id) && !this.#isUnusedButAllowed(sym)) {
@@ -270,16 +270,16 @@ export final class ScopeBuilder {
     }
 
     let seenImportedNames = new HashSet<String>();
-    let unusedImportDeclarations = new GrowableArray<ImportDeclaration>();
-    let unusedImportedSymbols = new GrowableArray<Symbol>();
-    let unnecessaryImports = new GrowableArray<Symbol>();
-    let duplicateImports = new GrowableArray<Symbol>();
+    let unusedImportDeclarations = new Array<ImportDeclaration>();
+    let unusedImportedSymbols = new Array<Symbol>();
+    let unnecessaryImports = new Array<Symbol>();
+    let duplicateImports = new Array<Symbol>();
 
     for (let importDecl in this.#allImportDeclarations) {
       if (importDecl.imports.length == 0) {
         continue;
       }
-      let declUnusedSymbols = new GrowableArray<Symbol>();
+      let declUnusedSymbols = new Array<Symbol>();
       var hasUsedOrSuppressedOrSpecial = false;
 
       for (let spec in importDecl.imports) {

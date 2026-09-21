@@ -356,7 +356,7 @@ let getTypeKeyForSpecializationRaw = (type: Type): String => {
       let {typeArguments} = ct;
       if (typeArguments != null && typeArguments.length > 0 && isConcrete(ct)) {
         let args = typeArguments;
-        let parts = new FixedArray<String>(1 + 2 * args.length, "");
+        let parts = new Array<String>.fixed(1 + 2 * args.length, "");
         parts[0] = base;
         var i = 0;
         while (i < args.length) {
@@ -380,7 +380,7 @@ let getTypeKeyForSpecializationRaw = (type: Type): String => {
       let {typeArguments} = it;
       if (typeArguments != null && typeArguments.length > 0 && isConcrete(it)) {
         let args = typeArguments;
-        let parts = new FixedArray<String>(1 + 2 * args.length, "");
+        let parts = new Array<String>.fixed(1 + 2 * args.length, "");
         parts[0] = base;
         var i = 0;
         while (i < args.length) {
@@ -397,7 +397,7 @@ let getTypeKeyForSpecializationRaw = (type: Type): String => {
       (if (elementsMutable) "arr_" else "arrimm_") + getTypeKeyForSpecialization(elementType)
     case RecordType as rec: {
       let len = rec.properties.size;
-      let parts = new FixedArray<String>(1 + 4 * len, "");
+      let parts = new Array<String>.fixed(1 + 4 * len, "");
       parts[0] = "rec";
       let keys = rec.properties.keys();
       var i = 0;
@@ -411,7 +411,7 @@ let getTypeKeyForSpecializationRaw = (type: Type): String => {
       String.fromParts(parts)
     }
     case TupleType {elementTypes}: {
-      let parts = new FixedArray<String>(1 + 2 * elementTypes.length, "");
+      let parts = new Array<String>.fixed(1 + 2 * elementTypes.length, "");
       parts[0] = "tup";
       var i = 0;
       while (i < elementTypes.length) {
@@ -422,7 +422,7 @@ let getTypeKeyForSpecializationRaw = (type: Type): String => {
       String.fromParts(parts)
     }
     case InlineTupleType {elementTypes}: {
-      let parts = new FixedArray<String>(1 + 2 * elementTypes.length, "");
+      let parts = new Array<String>.fixed(1 + 2 * elementTypes.length, "");
       parts[0] = "itup";
       var i = 0;
       while (i < elementTypes.length) {
@@ -442,7 +442,7 @@ let getTypeKeyForSpecializationRaw = (type: Type): String => {
     case TypeParameterType as tp: "erased"
     case ErasedType: "erased"
     case UnionType {types}: {
-      let parts = new FixedArray<String>(1 + 2 * types.length, "");
+      let parts = new Array<String>.fixed(1 + 2 * types.length, "");
       parts[0] = "union";
       var i = 0;
       while (i < types.length) {
@@ -453,7 +453,7 @@ let getTypeKeyForSpecializationRaw = (type: Type): String => {
       String.fromParts(parts)
     }
     case FunctionType as ft: {
-      let parts = new FixedArray<String>(3 + 2 * ft.parameters.length, "");
+      let parts = new Array<String>.fixed(3 + 2 * ft.parameters.length, "");
       parts[0] = "func";
       var i = 0;
       while (i < ft.parameters.length) {
@@ -560,7 +560,7 @@ export let containsErasedType = (t: Type): boolean => {
 
 export let getSpecializedName = (baseName: String, typeArgs: Array<Type>): String => {
   let len = typeArgs.length;
-  let parts = new FixedArray<String>(2 + 2 * len, "");
+  let parts = new Array<String>.fixed(2 + 2 * len, "");
   parts[0] = baseName;
   parts[1] = "_spec";
   var i = 0;
@@ -705,7 +705,7 @@ export let getSignatureKey = (funcType: FunctionType): String => {
   if (len == 0) {
     return "$void";
   }
-  let parts = new FixedArray<String>(2 * len, "");
+  let parts = new Array<String>.fixed(2 * len, "");
   var i = 0;
   while (i < len) {
     parts[2 * i] = "$";
@@ -719,7 +719,7 @@ export let matchOverload = (moduleModel: SemanticModel, ft: FunctionType, mDef: 
   if (ft.overloads == null) {
     return null;
   }
-  let paramTypes = new GrowableArray<Type>();
+  let paramTypes = new Array<Type>();
   for (let p in mDef.params) {
     let sym = moduleModel.resolveDeclaration(p as Node);
     if (sym != null) {
@@ -875,8 +875,8 @@ export let mixinScopeOfMember = (
   match (cd) {
     case ClassDeclaration as cdd: {
       if (cdd.mixins == null) { return null; }
-      let members = new GrowableArray<Node>();
-      let scopes = new GrowableArray<String>();
+      let members = new Array<Node>();
+      let scopes = new Array<String>();
       let seen = new HashMap<MixinKey, boolean>();
       collectMixinMembers(program, model, cdd.mixins, members, seen, scopes);
       for (var i = 0; i < members.length; i += 1) {
@@ -899,9 +899,9 @@ export let mixinModelOfMember = (
   match (cd) {
     case ClassDeclaration as cdd: {
       if (cdd.mixins == null) { return null; }
-      let members = new GrowableArray<Node>();
+      let members = new Array<Node>();
       let seen = new HashMap<MixinKey, boolean>();
-      let models = new GrowableArray<SemanticModel>();
+      let models = new Array<SemanticModel>();
       collectMixinMembers(program, model, cdd.mixins, members, seen, null, models);
       for (var i = 0; i < members.length; i += 1) {
         if (members[i] == member) {
@@ -1017,7 +1017,7 @@ export let substituteTypeParams = (
       t
     }
     case UnionType {types}: {
-      let substituted = new GrowableArray<Type>();
+      let substituted = new Array<Type>();
       for (let subtype in types) {
         substituted.push(substituteTypeParams(typeParams, typeArgs, subtype));
       }
@@ -1028,14 +1028,14 @@ export let substituteTypeParams = (
       new ArrayType(subElem, elementsMutable)
     }
     case TupleType {elementTypes}: {
-      let subElems = new GrowableArray<Type>();
+      let subElems = new Array<Type>();
       for (let elem in elementTypes) {
         subElems.push(substituteTypeParams(typeParams, typeArgs, elem));
       }
       new TupleType(subElems)
     }
     case InlineTupleType {elementTypes}: {
-      let subElems = new GrowableArray<Type>();
+      let subElems = new Array<Type>();
       for (let elem in elementTypes) {
         subElems.push(substituteTypeParams(typeParams, typeArgs, elem));
       }
@@ -1050,7 +1050,7 @@ export let substituteTypeParams = (
       res
     }
     case FunctionType as ft: {
-      let subParams = new GrowableArray<Type>();
+      let subParams = new Array<Type>();
       for (let param in ft.parameters) {
         subParams.push(substituteTypeParams(typeParams, typeArgs, param));
       }
@@ -1073,7 +1073,7 @@ export let substituteTypeParams = (
       let {typeArguments} = ct;
       if (typeArguments != null) {
         let srcArgs = typeArguments;
-        let subArgs = new GrowableArray<Type>();
+        let subArgs = new Array<Type>();
         for (let arg in srcArgs) {
           subArgs.push(substituteTypeParams(typeParams, typeArgs, arg));
         }
@@ -1113,7 +1113,7 @@ let getTypeUniqueKeyRaw = (t: Type): String => match (t) {
       let args = typeArguments;
       let len = args.length;
       if (len > 0) {
-        let parts = new FixedArray<String>(2 * len + 2, "");
+        let parts = new Array<String>.fixed(2 * len + 2, "");
         parts[0] = base;
         parts[1] = "<";
         parts[2] = getTypeUniqueKey(args[0]);
@@ -1140,7 +1140,7 @@ let getTypeUniqueKeyRaw = (t: Type): String => match (t) {
       let args = typeArguments;
       let len = args.length;
       if (len > 0) {
-        let parts = new FixedArray<String>(2 * len + 2, "");
+        let parts = new Array<String>.fixed(2 * len + 2, "");
         parts[0] = base;
         parts[1] = "<";
         parts[2] = getTypeUniqueKey(args[0]);
@@ -1164,7 +1164,7 @@ let getTypeUniqueKeyRaw = (t: Type): String => match (t) {
   case TupleType {elementTypes}: {
     let len = elementTypes.length;
     if (len > 0) {
-      let parts = new FixedArray<String>(2 * len + 1, "");
+      let parts = new Array<String>.fixed(2 * len + 1, "");
       parts[0] = "[";
       parts[1] = getTypeUniqueKey(elementTypes[0]);
       var i = 1;
@@ -1182,7 +1182,7 @@ let getTypeUniqueKeyRaw = (t: Type): String => match (t) {
   case InlineTupleType {elementTypes}: {
     let len = elementTypes.length;
     if (len > 0) {
-      let parts = new FixedArray<String>(2 * len + 1, "");
+      let parts = new Array<String>.fixed(2 * len + 1, "");
       parts[0] = "(";
       parts[1] = getTypeUniqueKey(elementTypes[0]);
       var i = 1;
@@ -1200,7 +1200,7 @@ let getTypeUniqueKeyRaw = (t: Type): String => match (t) {
   case UnionType {types}: {
     let len = types.length;
     if (len > 0) {
-      let parts = new FixedArray<String>(2 * len - 1, "");
+      let parts = new Array<String>.fixed(2 * len - 1, "");
       parts[0] = getTypeUniqueKey(types[0]);
       var i = 1;
       while (i < len) {
@@ -1217,7 +1217,7 @@ let getTypeUniqueKeyRaw = (t: Type): String => match (t) {
     let {properties} = recT;
     let len = properties.size;
     if (len > 0) {
-      let parts = new FixedArray<String>(4 * len + 1, "");
+      let parts = new Array<String>.fixed(4 * len + 1, "");
       parts[0] = "{ ";
       let keys = properties.keys();
       var i = 0;
@@ -1261,7 +1261,7 @@ let getTypeUniqueKeyRaw = (t: Type): String => match (t) {
     }
     
     // Allocate FixedArray
-    let parts = new FixedArray<String>(numParts, "");
+    let parts = new Array<String>.fixed(numParts, "");
     parts[0] = "(";
     
     // Second pass: fill parts

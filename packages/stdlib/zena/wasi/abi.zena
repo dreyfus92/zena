@@ -22,7 +22,7 @@
  */
 
 import { Memory, defaultAllocator } from 'zena:memory';
-import { String, Encoding, newByteArray, Error, FixedArray, Array, GrowableArray } from 'zena:core';
+import { String, Encoding, newByteArray, Error, FixedArray, Array } from 'zena:core';
 
 let mem = Memory.default;
 
@@ -295,7 +295,7 @@ export function liftStringAt(ptr: i32): String {
 /** A `list<u8>` lifted in place, with the same ownership story. */
 export function liftBytesAt(ptr: i32): FixedArray<u8> {
   let (buffer, len) = takeBuffer(ptr);
-  let bytes = new FixedArray<u8>(len, 0);
+  let bytes = new Array<u8>.fixed(len, 0);
   for (var i = 0; i < len; i += 1) {
     bytes[i] = mem[buffer + i] as u8;
   }
@@ -396,7 +396,7 @@ export function storeF64(ptr: i32, value: f64): void {
 // lowering completes before the wrapper returns, and nothing here
 // suspends), so one arena is enough.
 
-let stagedPtrs = new GrowableArray<i32>();
+let stagedPtrs = new Array<i32>();
 
 /** Allocate `size` bytes of staging space, freed by `releaseStaged`.
  * Zero bytes is zero: `realloc(…, 0)` returns an unowned aligned

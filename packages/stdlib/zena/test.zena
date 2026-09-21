@@ -23,8 +23,8 @@ export class TestResult {
 // Result of running a suite
 export class SuiteResult {
   name: String;
-  tests = new GrowableArray<TestResult>();
-  suites = new GrowableArray<SuiteResult>();
+  tests = new Array<TestResult>();
+  suites = new Array<SuiteResult>();
   var passed = 0;
   var failed = 0;
 
@@ -88,8 +88,8 @@ class TestCase {
  */
 export class Suite {
   name: String;
-  tests = new GrowableArray<TestCase>();
-  suites = new GrowableArray<Suite>();
+  tests = new Array<TestCase>();
+  suites = new Array<Suite>();
   var hasOnly = false;
 
   new(this.name: String);
@@ -264,7 +264,7 @@ let reportSummary = (result: SuiteResult, write: (s: String) => void): void => {
     return;
   }
   write(`\n${RED}FAILURES:${NC}`);
-  let path = new GrowableArray<String>(4);
+  let path = new Array<String>(4);
   reportFailedTests(result, write, path);
 };
 

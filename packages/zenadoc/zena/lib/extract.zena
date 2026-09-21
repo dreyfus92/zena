@@ -71,7 +71,7 @@ final class Walk {
   refsOf(
     annotations: GrowableArray<TypeAnnotation> | null
   ): GrowableArray<TypeRef> {
-    let out = new GrowableArray<TypeRef>(0);
+    let out = new Array<TypeRef>(0);
     if (annotations == null) {
       return out;
     }
@@ -136,16 +136,16 @@ export let extractModule = (
       options, out.anchors, linker);
   out.doc = walk.docFor(ast);
 
-  let declarations = new GrowableArray<DocDeclaration>(8);
-  let reexports = new GrowableArray<DocReexport>(0);
+  let declarations = new Array<DocDeclaration>(8);
+  let reexports = new Array<DocReexport>(0);
   for (let statement in ast.body) {
     match (statement) {
       case ExportAllDeclaration as exportAll: {
         reexports.push(new DocReexport(exportAll.moduleSpecifier.value,
-            new GrowableArray<DocReexportName>(0), true));
+            new Array<DocReexportName>(0), true));
       }
       case ExportFromDeclaration as exportFrom: {
-        let names = new GrowableArray<DocReexportName>(
+        let names = new Array<DocReexportName>(
             exportFrom.specifiers.length);
         for (let spec in exportFrom.specifiers) {
           names.push(new DocReexportName(spec.local.name, spec.imported.name));
@@ -206,7 +206,7 @@ let classDeclaration = (
   if (!included(walk, decl.exported, decl.name.name)) {
     return null;
   }
-  let modifiers = new GrowableArray<String>(2);
+  let modifiers = new Array<String>(2);
   if (decl.isFinal) { modifiers.push('final'); }
   if (decl.isAbstract) { modifiers.push('abstract'); }
   if (decl.isSealed) { modifiers.push('sealed'); }
@@ -254,7 +254,7 @@ let classDeclaration = (
   out.interfaces = walk.refsOf(decl.implementsList);
   out.mixins = walk.refsOf(decl.mixins);
 
-  let members = new GrowableArray<DocMember>(8);
+  let members = new Array<DocMember>(8);
   if (caseParams != null) {
     // A case class's parameters are its fields, and nothing else in the
     // body declares them.
@@ -301,7 +301,7 @@ let interfaceDeclaration = (
   out.doc = walk.docFor(decl);
   out.loc = walk.locFor(decl.loc);
   out.interfaces = walk.refsOf(decl.extendsList);
-  let members = new GrowableArray<DocMember>(8);
+  let members = new Array<DocMember>(8);
   collectMembers(walk, out, decl.body, members);
   out.members = members;
   return out;
@@ -337,7 +337,7 @@ let mixinDeclaration = (
   out.loc = walk.locFor(decl.loc);
   out.superClass = walk.ref(decl.on);
   out.mixins = walk.refsOf(decl.mixins);
-  let members = new GrowableArray<DocMember>(8);
+  let members = new Array<DocMember>(8);
   collectMembers(walk, out, decl.body, members);
   out.members = members;
   return out;
@@ -355,7 +355,7 @@ let enumDeclaration = (
   out.exported = decl.exported;
   out.doc = walk.docFor(decl);
   out.loc = walk.locFor(decl.loc);
-  let members = new GrowableArray<DocMember>(decl.members.length);
+  let members = new Array<DocMember>(decl.members.length);
   for (let member in decl.members) {
     let name = member.name.name;
     let entry = new DocMember(MemberKind.EnumMember, name,
@@ -377,7 +377,7 @@ let typeAliasDeclaration = (
     return null;
   }
   let typeParams = typeParameters(walk, decl.typeParameters);
-  let modifiers = new GrowableArray<String>(2);
+  let modifiers = new Array<String>(2);
   if (decl.isOpaque) {
     modifiers.push('opaque');
   } else if (decl.isDistinct) {
@@ -438,7 +438,7 @@ let variableDeclaration = (
 
   let out = start(walk, DeclarationKind.Variable, name, sb.toString());
   out.exported = decl.exported;
-  let modifiers = new GrowableArray<String>(1);
+  let modifiers = new Array<String>(1);
   modifiers.push(decl.kind);
   out.modifiers = modifiers;
   out.type = type;
@@ -472,7 +472,7 @@ let declareFunction = (
       'declare function ' + decl.name.name + typeParameterText(typeParams) +
           parameterText(params) + returnText(returns));
   out.exported = decl.exported;
-  let modifiers = new GrowableArray<String>(1);
+  let modifiers = new Array<String>(1);
   modifiers.push('declare');
   out.modifiers = modifiers;
   out.typeParameters = typeParams;
@@ -510,7 +510,7 @@ let functionLike = (
   let typeParams = typeParameters(walk, fn.typeParameters);
   let params = parameters(walk, fn.params);
   let returns = walk.ref(fn.returnType);
-  let modifiers = new GrowableArray<String>(2);
+  let modifiers = new Array<String>(2);
   if (fn.isAsync) { modifiers.push('async'); }
   if (fn.isGenerator) { modifiers.push('generator'); }
 
@@ -824,7 +824,7 @@ let typeParameters = (
   walk: Walk,
   params: GrowableArray<TypeParameter> | null
 ): GrowableArray<DocTypeParam> => {
-  let out = new GrowableArray<DocTypeParam>(0);
+  let out = new Array<DocTypeParam>(0);
   if (params == null) {
     return out;
   }
@@ -868,7 +868,7 @@ let parameters = (
   walk: Walk,
   params: Array<Parameter>
 ): GrowableArray<DocParam> => {
-  let out = new GrowableArray<DocParam>(params.length);
+  let out = new Array<DocParam>(params.length);
   for (let param in params) {
     if (param.isThisParam) {
       continue;

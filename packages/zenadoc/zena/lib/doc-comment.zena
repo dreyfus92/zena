@@ -79,7 +79,7 @@ export final class DocComment(
 
   /** Every tag with this name, in source order. */
   tagsNamed(name: String): Array<DocTag> {
-    let found = new GrowableArray<DocTag>(2);
+    let found = new Array<DocTag>(2);
     for (let tag in this.tags) {
       if (tag.name == name) {
         found.push(tag);
@@ -169,7 +169,7 @@ let stripPrefix = (line: String): String => {
 
 /** Splits on newlines, keeping empty lines. */
 let splitLines = (s: String): Array<String> => {
-  let lines = new GrowableArray<String>(8);
+  let lines = new Array<String>(8);
   var start = 0;
   var i = 0;
   while (i < s.length) {
@@ -185,7 +185,7 @@ let splitLines = (s: String): Array<String> => {
 
 /** Strips the star prefix from every line, then drops blank edges. */
 let bodyLines = (body: String): Array<String> => {
-  let stripped = new GrowableArray<String>(8);
+  let stripped = new Array<String>(8);
   for (let line in splitLines(body)) {
     stripped.push(stripPrefix(line));
   }
@@ -197,7 +197,7 @@ let bodyLines = (body: String): Array<String> => {
   while (end > start && stripped[end - 1].length == 0) {
     end -= 1;
   }
-  let out = new GrowableArray<String>(8);
+  let out = new Array<String>(8);
   var i = start;
   while (i < end) {
     out.push(stripped[i]);
@@ -333,7 +333,7 @@ let parseTags = (lines: Array<String>, start: i32): Array<DocTag> => {
   // Every line that opens a tag. A tag's text is the lines from its
   // opener up to the next one, so fenced code inside a tag is carried
   // along rather than ending it.
-  let openers = new GrowableArray<i32>(2);
+  let openers = new Array<i32>(2);
   var inFence = false;
   var i = start;
   while (i < lines.length) {
@@ -345,7 +345,7 @@ let parseTags = (lines: Array<String>, start: i32): Array<DocTag> => {
     i += 1;
   }
 
-  let tags = new GrowableArray<DocTag>(openers.length);
+  let tags = new Array<DocTag>(openers.length);
   var t = 0;
   while (t < openers.length) {
     let from = openers[t];

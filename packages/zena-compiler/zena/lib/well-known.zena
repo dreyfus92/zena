@@ -81,7 +81,7 @@ var ordered: GrowableArray<WellKnown> | null = null;
 
 let buildLocations = (): HashMap<i32, Location> => {
   let t = new HashMap<i32, Location>();
-  let order = new GrowableArray<WellKnown>();
+  let order = new Array<WellKnown>();
   let add = (w: WellKnown, library: String, name: String): void => {
     t[w as i32] = new Location(library, name);
     order.push(w);

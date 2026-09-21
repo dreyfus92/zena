@@ -62,17 +62,17 @@ export let runSccp = (body: IrBody): i32 => {
 
   // Control-flow edges, numbered in block order so a terminator's
   // edges are contiguous: edge k of block b is termFirstEdge[b] + k.
-  let edgeTerm = new GrowableArray<i32>();
-  let edgeTarget = new GrowableArray<i32>();
-  let edgeArgStart = new GrowableArray<i32>();
-  let edgeExec = new GrowableArray<boolean>();
-  let termFirstEdge = new GrowableArray<i32>();
-  let termEdgeCount = new GrowableArray<i32>();
-  let incoming = new GrowableArray<GrowableArray<i32>>();
+  let edgeTerm = new Array<i32>();
+  let edgeTarget = new Array<i32>();
+  let edgeArgStart = new Array<i32>();
+  let edgeExec = new Array<boolean>();
+  let termFirstEdge = new Array<i32>();
+  let termEdgeCount = new Array<i32>();
+  let incoming = new Array<GrowableArray<i32>>();
   for (var b = 0; b < nb; b += 1) {
     termFirstEdge.push(-1);
     termEdgeCount.push(0);
-    incoming.push(new GrowableArray<i32>());
+    incoming.push(new Array<i32>());
   }
   for (var b = 0; b < nb; b += 1) {
     let insts = body.blocks[b].insts;
@@ -95,11 +95,11 @@ export let runSccp = (body: IrBody): i32 => {
   // Def → users, for the SSA worklist. Branch arguments make the
   // terminator a user, which is what re-meets a target's parameters
   // when an argument lowers.
-  let users = new GrowableArray<GrowableArray<i32>>();
+  let users = new Array<GrowableArray<i32>>();
   for (var i = 0; i < count; i += 1) {
-    users.push(new GrowableArray<i32>());
+    users.push(new Array<i32>());
   }
-  let operands = new GrowableArray<i32>();
+  let operands = new Array<i32>();
   for (var i = 0; i < count; i += 1) {
     if (body.op(i) == IrOp.nop) {
       continue;
@@ -115,18 +115,18 @@ export let runSccp = (body: IrBody): i32 => {
     }
   }
 
-  let state = new GrowableArray<i32>();
-  let value = new GrowableArray<IrConst | null>();
+  let state = new Array<i32>();
+  let value = new Array<IrConst | null>();
   for (var i = 0; i < count; i += 1) {
     state.push(TOP);
     value.push(null);
   }
-  let blockExec = new GrowableArray<boolean>();
+  let blockExec = new Array<boolean>();
   for (var b = 0; b < nb; b += 1) {
     blockExec.push(false);
   }
-  let ssaWork = new GrowableArray<i32>();
-  let flowWork = new GrowableArray<i32>();
+  let ssaWork = new Array<i32>();
+  let flowWork = new Array<i32>();
 
   // Moves an instruction's lattice value down to (s, v). Values only
   // descend: a constant that meets a different constant varies.
@@ -413,7 +413,7 @@ export let runSccp = (body: IrBody): i32 => {
   // Constant block parameters: a constant at the head of the block
   // takes the parameter's uses, and the parameter and its arguments
   // go. Higher indices first, so a deletion leaves the lower ones.
-  let repl = new GrowableArray<i32>();
+  let repl = new Array<i32>();
   for (var i = 0; i < count; i += 1) {
     repl.push(i);
   }
@@ -423,7 +423,7 @@ export let runSccp = (body: IrBody): i32 => {
       continue;
     }
     let blk = body.blocks[b];
-    let heads = new GrowableArray<i32>();
+    let heads = new Array<i32>();
     var j = blk.params.length - 1;
     while (j >= 0) {
       let p = blk.params[j];
@@ -505,7 +505,7 @@ let newConst = (body: IrBody, block: i32, typeId: i32, c: IrConst): i32 => {
 
 /** Puts `ids` ahead of the block's existing instructions. */
 let prependInsts = (blk: IrBlock, ids: GrowableArray<i32>): void => {
-  let old = new GrowableArray<i32>();
+  let old = new Array<i32>();
   for (let i in blk.insts) {
     old.push(i);
   }
@@ -527,7 +527,7 @@ let prependInsts = (blk: IrBlock, ids: GrowableArray<i32>): void => {
  */
 let uniqueTerms = (body: IrBody, edges: GrowableArray<i32>,
     edgeTerm: GrowableArray<i32>): GrowableArray<i32> => {
-  let terms = new GrowableArray<i32>();
+  let terms = new Array<i32>();
   for (let e in edges) {
     let t = edgeTerm[e];
     if (terms.length == 0 || terms[terms.length - 1] != t) {

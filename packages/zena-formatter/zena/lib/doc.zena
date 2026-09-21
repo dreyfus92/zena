@@ -212,7 +212,7 @@ export let concat = (parts: Array<Doc>): Doc =>
 
 // Join docs with a separator
 export let join = (sep: Doc, docs: Array<Doc>): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   var i = 0;
   while (i < docs.length) {
     if (i > 0) {

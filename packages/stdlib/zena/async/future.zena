@@ -194,7 +194,7 @@ export class Future<T> {
       w.push(t);
       return;
     }
-    let list = new GrowableArray<Waiter>();
+    let list = new Array<Waiter>();
     list.push(w);
     list.push(t);
     this.#waiters = list;
@@ -491,7 +491,7 @@ export class Future<T> {
    */
   static async allSettled<scoped T>(
       futures: Array<T>): ScopedFrom<T, Future<Array<Outcome<Awaited<T>, Error>>>> {
-    let out = new GrowableArray<Outcome<Awaited<T>, Error>>();
+    let out = new Array<Outcome<Awaited<T>, Error>>();
     for (let f in futures) {
       try {
         out.push(new Ok<Awaited<T>, Error>(await f));
@@ -651,7 +651,7 @@ export let runFuture = <T>(f: Future<T>): T => {
  * outstanding, and the future they all settle. */
 class AllState<T> {
   result = new Future<Array<T>>();
-  inputs = new GrowableArray<Future<T>>();
+  inputs = new Array<Future<T>>();
   var remaining = 0;
 
   new();
@@ -672,7 +672,7 @@ class AllState<T> {
   attach(futures: Array<Future<T>>): Future<Array<T>> {
     this.remaining = futures.length;
     if (futures.length == 0) {
-      this.result.[complete](new GrowableArray<T>());
+      this.result.[complete](new Array<T>());
       return this.result;
     }
     var i = 0;
@@ -703,7 +703,7 @@ class AllState<T> {
     }
     this.remaining -= 1;
     if (this.remaining == 0) {
-      let values = new GrowableArray<T>();
+      let values = new Array<T>();
       var i = 0;
       while (i < this.inputs.length) {
         values.push(this.inputs[i].[valueOrThrow]());
@@ -796,7 +796,7 @@ class RaceWaiter<T> implements Waiter {
  */
 class AnyState<T> {
   result = new Future<T>();
-  inputs = new GrowableArray<Future<T>>();
+  inputs = new Array<Future<T>>();
   var remaining = 0;
 
   new();
@@ -830,7 +830,7 @@ class AnyState<T> {
     }
     this.remaining -= 1;
     if (this.remaining == 0) {
-      let failures = new GrowableArray<Error>();
+      let failures = new Array<Error>();
       var i = 0;
       while (i < this.inputs.length) {
         if (let (false, _, e) = this.inputs[i].[result]()) {

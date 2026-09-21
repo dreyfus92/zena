@@ -114,7 +114,7 @@ let tests = suite('doc-comment', () => {
 
   test('joins consecutive doc comments and ignores the rest',
       (t: TestContext) => {
-    let comments = new GrowableArray<Comment>(3);
+    let comments = new Array<Comment>(3);
     comments.push(line(' ordinary'));
     comments.push(block('* First.'));
     comments.push(block('* Second.'));
@@ -126,7 +126,7 @@ let tests = suite('doc-comment', () => {
   });
 
   test('reports no doc when no leading comment is one', (t: TestContext) => {
-    let comments = new GrowableArray<Comment>(1);
+    let comments = new Array<Comment>(1);
     comments.push(line(' ordinary'));
     equal(parseLeadingDoc(comments) == null, true);
     equal(parseLeadingDoc(null) == null, true);

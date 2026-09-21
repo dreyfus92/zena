@@ -61,5 +61,5 @@ export let getTargetRuntimeModules = (target: String): FixedArray<String> => {
   if (targetEmitsComponent(target)) {
     return ["zena:wasi"];
   }
-  return new FixedArray<String>(0, "");
+  return new Array<String>.fixed(0, "");
 };

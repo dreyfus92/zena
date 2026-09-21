@@ -13,8 +13,8 @@ export let tests = suite('isValSubtype', (): void => {
     // strength of this predicate must check nullability itself
     // (simplify.zena's castIsIdentity does). When #583 lands, flip
     // the last two assertions.
-    let base = new WasmStruct("Base", new GrowableArray<WasmField>());
-    let sub = new WasmStruct("Sub", new GrowableArray<WasmField>());
+    let base = new WasmStruct("Base", new Array<WasmField>());
+    let sub = new WasmStruct("Sub", new Array<WasmField>());
     sub.superStruct = base;
     isTrue(isValSubtype(new ValTypeRef(sub), new ValTypeRef(base)),
         'non-null sub <: non-null base');

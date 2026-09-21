@@ -296,8 +296,8 @@ export final class ClassType extends Type {
   var typeParameters: Array<TypeParameterType> | null = null;
   var typeArguments: Array<Type> | null = null;
   var superType: ClassType | null = null;
-  var implementsList: GrowableArray<InterfaceType> = new GrowableArray<InterfaceType>();
-  var mixins: GrowableArray<MixinType> = new GrowableArray<MixinType>();
+  var implementsList: GrowableArray<InterfaceType> = new Array<InterfaceType>();
+  var mixins: GrowableArray<MixinType> = new Array<MixinType>();
   var classKey: String | null = null;
   /**
    * For the synthetic `This` class of a mixin declaration: the scope
@@ -383,7 +383,7 @@ export final class ClassType extends Type {
  */
 final class SubstitutionFrame(source: Type, key: String, result: Type)
 
-var substitutionFrames = new GrowableArray<SubstitutionFrame>();
+var substitutionFrames = new Array<SubstitutionFrame>();
 
 let reentrantSubstitution = (source: Type, key: String): Type | null => {
   for (let frame in substitutionFrames) {
@@ -426,7 +426,7 @@ let substituteInType = (
       }
     }
     case TupleType {elementTypes}: {
-      let newElems = new GrowableArray<Type>();
+      let newElems = new Array<Type>();
       for (let el in elementTypes) {
         let sub = substituteInType(el, typeParameters, typeArguments);
         newElems.push((sub ?? el));
@@ -434,7 +434,7 @@ let substituteInType = (
       new TupleType(newElems)
     }
     case InlineTupleType {elementTypes}: {
-      let newElems = new GrowableArray<Type>();
+      let newElems = new Array<Type>();
       for (let el in elementTypes) {
         let sub = substituteInType(el, typeParameters, typeArguments);
         newElems.push((sub ?? el));
@@ -442,7 +442,7 @@ let substituteInType = (
       new InlineTupleType(newElems)
     }
     case UnionType {types}: {
-      let newTypes = new GrowableArray<Type>();
+      let newTypes = new Array<Type>();
       for (let ut in types) {
         let sub = substituteInType(ut, typeParameters, typeArguments);
         newTypes.push((sub ?? ut));
@@ -461,7 +461,7 @@ let substituteInType = (
       newRec
     }
     case FunctionType as ft: {
-      let newParams = new GrowableArray<Type>();
+      let newParams = new Array<Type>();
       for (let p in ft.parameters) {
         let sub = substituteInType(p, typeParameters, typeArguments);
         newParams.push((sub ?? p));
@@ -483,7 +483,7 @@ let substituteInType = (
     }
     case ClassType as ct: {
       var hasArgs = false;
-      let ctArgsVal = new GrowableArray<Type>();
+      let ctArgsVal = new Array<Type>();
       let ctParams = (ct.genericSource ?? ct).typeParameters;
       if (ct.typeArguments != null) {
         hasArgs = true;
@@ -504,7 +504,7 @@ let substituteInType = (
         }
       }
       if (hasArgs && ctArgsVal.length > 0) {
-        let newArgs = new GrowableArray<Type>(ctArgsVal.length);
+        let newArgs = new Array<Type>(ctArgsVal.length);
         for (let arg in ctArgsVal) {
           let sub = substituteInType(arg, typeParameters, typeArguments);
           newArgs.push((sub ?? arg));
@@ -520,8 +520,8 @@ let substituteInType = (
         inst.typeArguments = newArgs;
         inst.genericSource = ct.genericSource ?? ct;
         substitutionFrames.push(new SubstitutionFrame(ct as Type, frameKey, inst as Type));
-        let combinedParams = new GrowableArray<TypeParameterType>();
-        let combinedArgs = new GrowableArray<Type>();
+        let combinedParams = new Array<TypeParameterType>();
+        let combinedArgs = new Array<Type>();
         if (ctParams != null) {
           for (let p in ctParams) {
             combinedParams.push(p);
@@ -553,7 +553,7 @@ let substituteInType = (
         }
         inst.constructorType = if (ct.constructorType != null) {
           let ctor = ct.constructorType as FunctionType;
-          let newParams = new GrowableArray<Type>();
+          let newParams = new Array<Type>();
           for (let p in ctor.parameters) {
             let sub = substituteInType(p, combinedParams, combinedArgs);
             newParams.push((sub ?? p));
@@ -572,7 +572,7 @@ let substituteInType = (
         for (let entry in ct.constructors) {
           let ctorName = entry.key;
           let ctor = entry.value;
-          let newParams = new GrowableArray<Type>();
+          let newParams = new Array<Type>();
           for (let p in ctor.parameters) {
             let sub = substituteInType(p, combinedParams, combinedArgs);
             newParams.push((sub ?? p));
@@ -617,7 +617,7 @@ let substituteInType = (
     }
     case InterfaceType as it: {
       var hasArgs = false;
-      let itArgsVal = new GrowableArray<Type>();
+      let itArgsVal = new Array<Type>();
       let itParams = (it.genericSource ?? it).typeParameters;
       if (it.typeArguments != null) {
         hasArgs = true;
@@ -638,7 +638,7 @@ let substituteInType = (
         }
       }
       if (hasArgs && itArgsVal.length > 0) {
-        let newArgs = new GrowableArray<Type>();
+        let newArgs = new Array<Type>();
         for (let arg in itArgsVal) {
           let sub = substituteInType(arg, typeParameters, typeArguments);
           newArgs.push((sub ?? arg));
@@ -653,8 +653,8 @@ let substituteInType = (
         inst.typeArguments = newArgs;
         inst.genericSource = it.genericSource ?? it;
         substitutionFrames.push(new SubstitutionFrame(it as Type, frameKey, inst as Type));
-        let combinedParams = new GrowableArray<TypeParameterType>();
-        let combinedArgs = new GrowableArray<Type>();
+        let combinedParams = new Array<TypeParameterType>();
+        let combinedArgs = new Array<Type>();
         if (itParams != null) {
           for (let p in itParams) {
             combinedParams.push(p);
@@ -671,7 +671,7 @@ let substituteInType = (
             combinedArgs.push(a);
           }
         }
-        let newExtends = new GrowableArray<InterfaceType>();
+        let newExtends = new Array<InterfaceType>();
         for (let ext in it.extendsList) {
           let subExt = substituteInType(ext, combinedParams, combinedArgs);
           newExtends.push((subExt ?? ext) as InterfaceType);
@@ -688,7 +688,7 @@ let substituteInType = (
     }
     case TypeAliasType as alias: {
       var hasArgs = false;
-      let aliasArgsVal = new GrowableArray<Type>();
+      let aliasArgsVal = new Array<Type>();
       let aliasParams = alias.typeParameters;
       if (alias.typeArguments != null) {
         hasArgs = true;
@@ -709,7 +709,7 @@ let substituteInType = (
         }
       }
       if (hasArgs && aliasArgsVal.length > 0) {
-        let newArgs = new GrowableArray<Type>();
+        let newArgs = new Array<Type>();
         for (let arg in aliasArgsVal) {
           let sub = substituteInType(arg, typeParameters, typeArguments);
           newArgs.push((sub ?? arg));
@@ -738,7 +738,7 @@ let substituteInType = (
     }
     case MixinType as mt: {
       var hasArgs = false;
-      let mtArgsVal = new GrowableArray<Type>();
+      let mtArgsVal = new Array<Type>();
       let mtParams = mt.typeParameters;
       if (mt.typeArguments != null) {
         hasArgs = true;
@@ -759,7 +759,7 @@ let substituteInType = (
         }
       }
       if (hasArgs && mtArgsVal.length > 0) {
-        let newArgs = new GrowableArray<Type>();
+        let newArgs = new Array<Type>();
         for (let arg in mtArgsVal) {
           let sub = substituteInType(arg, typeParameters, typeArguments);
           newArgs.push((sub ?? arg));
@@ -929,7 +929,7 @@ let toGrowable = (arr: Array<Type>): GrowableArray<Type> => {
   if (arr is GrowableArray<Type>) {
     return arr as GrowableArray<Type>;
   }
-  let g = new GrowableArray<Type>(arr.length);
+  let g = new Array<Type>(arr.length);
   var i = 0;
   let len = arr.length;
   while (i < len) {
@@ -980,7 +980,7 @@ export let instantiateClassType = (
     null
   };
   // Copy and substitute implementsList entries
-  result.implementsList = new GrowableArray<InterfaceType>();
+  result.implementsList = new Array<InterfaceType>();
   var i = 0;
   while (i < source.implementsList.length) {
     let subImpl = substituteInType(source.implementsList[i] as Type, source.typeParameters, typeArguments);
@@ -988,7 +988,7 @@ export let instantiateClassType = (
     i += 1;
   }
   // Copy and substitute mixins list
-  result.mixins = new GrowableArray<MixinType>();
+  result.mixins = new Array<MixinType>();
   for (let m in source.mixins) {
     let subM = substituteInType(m, source.typeParameters, typeArguments);
     result.mixins.push((subM ?? m) as MixinType);
@@ -996,7 +996,7 @@ export let instantiateClassType = (
   result.members = source.members;
   result.constructorType = if (source.constructorType != null) {
     let ctor = source.constructorType as FunctionType;
-    let newParams = new GrowableArray<Type>();
+    let newParams = new Array<Type>();
     for (let p in ctor.parameters) {
       let sub = substituteInType(p, source.typeParameters, typeArguments);
       newParams.push((sub ?? p));
@@ -1015,7 +1015,7 @@ export let instantiateClassType = (
   for (let entry in source.constructors) {
     let ctorName = entry.key;
     let ctor = entry.value;
-    let newParams = new GrowableArray<Type>();
+    let newParams = new Array<Type>();
     for (let p in ctor.parameters) {
       let sub = substituteInType(p, source.typeParameters, typeArguments);
       newParams.push((sub ?? p));
@@ -1055,7 +1055,7 @@ export let instantiateFunctionType = (
   source: FunctionType,
   typeArguments: Array<Type>,
 ): FunctionType => {
-  let newParams = new GrowableArray<Type>();
+  let newParams = new Array<Type>();
   for (let p in source.parameters) {
     let sub = substituteInType(p, source.typeParameters, typeArguments);
     newParams.push((sub ?? p));
@@ -1082,7 +1082,7 @@ export final class InterfaceType extends Type {
   name: String;
   var typeParameters: Array<TypeParameterType> | null = null;
   var typeArguments: Array<Type> | null = null;
-  var extendsList: GrowableArray<InterfaceType> = new GrowableArray<InterfaceType>();
+  var extendsList: GrowableArray<InterfaceType> = new Array<InterfaceType>();
   var members: OrderedHashMap<String, MemberInfo> = new OrderedHashMap<String, MemberInfo>();
   var genericSource: InterfaceType | null = null;
   var interfaceKey: String | null = null;
@@ -1157,7 +1157,7 @@ export final class MixinType extends Type {
   var members: OrderedHashMap<String, MemberInfo> = new OrderedHashMap<String, MemberInfo>();
   var genericSource: MixinType | null = null;
   var sourcePath: String = "";
-  var mixins: GrowableArray<MixinType> = new GrowableArray<MixinType>();
+  var mixins: GrowableArray<MixinType> = new Array<MixinType>();
   var mixinKeyCache: MixinKey | null = null;
   /**
    * Scope key namespacing this mixin's private fields in host
@@ -1191,7 +1191,7 @@ export let instantiateMixinType = (
   result.onType = source.onType;
   result.members = source.members;
   result.sourcePath = source.sourcePath;
-  result.mixins = new GrowableArray<MixinType>();
+  result.mixins = new Array<MixinType>();
   // Copy and substitute mixins
   for (let m in source.mixins) {
     let subM = substituteInType(m, source.typeParameters, typeArguments);
@@ -1530,7 +1530,7 @@ export let awaitedTypeOf = (t: Type): Type => {
     return arm;
   };
   if (t is UnionType) {
-    let mapped = new GrowableArray<Type>();
+    let mapped = new Array<Type>();
     for (let arm in t.types) {
       let next = unwrapArm(arm);
       var seen = false;
@@ -1582,7 +1582,7 @@ export let scopedFromTypeOf = (alias: TypeAliasType): Type => {
   let scopedDecl = alias.target;
   if (scopedDecl is TypeAliasType) {
     if (scopedDecl.typeParameters != null) {
-      let one = new GrowableArray<Type>();
+      let one = new Array<Type>();
       one.push(args[1]);
       return instantiateTypeAliasType(scopedDecl, one);
     }

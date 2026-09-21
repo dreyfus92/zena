@@ -13,7 +13,7 @@ import { Disposable } from 'zena:core';
 /** Reads `st` to end-of-stream, recording elements as digits. */
 let collect = async (st: Stream<i32>, tag: String): Future<String> => {
   var out = tag;
-  let buf = new FixedArray<i32>(4, 0);
+  let buf = new Array<i32>.fixed(4, 0);
   var n = await st.read(buf);
   while (n > 0) {
     var i = 0;
@@ -27,7 +27,7 @@ let collect = async (st: Stream<i32>, tag: String): Future<String> => {
 };
 
 let newMulticast = (w: StreamWriter<i32>): Multicast<i32> => {
-  return new Multicast(w.stream, new FixedArray<i32>(4, 0));
+  return new Multicast(w.stream, new Array<i32>.fixed(4, 0));
 };
 
 export let tests = suite('stream multicast', () => {

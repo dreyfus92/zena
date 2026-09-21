@@ -31,7 +31,7 @@ export final class Package {
   name: String;
   root: String;
   var version: String | null = null;
-  var modules = new GrowableArray<PackageModule>(0);
+  var modules = new Array<PackageModule>(0);
 
   new(this.name, this.root);
 }
@@ -111,7 +111,7 @@ let manifestPackage = (
     out.modules = openModules(sourceRoot);
     return out;
   }
-  let modules = new GrowableArray<PackageModule>(16);
+  let modules = new Array<PackageModule>(16);
   (exports as JsonObject).forEach((moduleName: String, value: JsonValue): void => {
     let file = entryFileOf(moduleName, value, target);
     if (file != null) {
@@ -180,7 +180,7 @@ let openPackage = (root: String, override: String | null): Package => {
 };
 
 let openModules = (root: String): GrowableArray<PackageModule> => {
-  let modules = new GrowableArray<PackageModule>(16);
+  let modules = new Array<PackageModule>(16);
   collectZenaFiles(root, '', modules);
   return sortModules(modules);
 };
@@ -218,7 +218,7 @@ let singleFilePackage = (path: String, override: String | null): Package => {
     stripExtension(file)
   };
   let out = new Package(name, dirName(path));
-  let modules = new GrowableArray<PackageModule>(1);
+  let modules = new Array<PackageModule>(1);
   modules.push(new PackageModule(stripExtension(file), file));
   out.modules = modules;
   return out;

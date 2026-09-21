@@ -19,7 +19,7 @@
  * public surface); not importable as a module of its own.
  */
 
-import { Error, FixedArray, GrowableArray, Disposable } from 'zena:core';
+import { Error, FixedArray, Disposable } from 'zena:core';
 import { Future, Completer } from 'zena:async';
 import { Stream, StreamWriter } from './index.zena';
 
@@ -158,10 +158,10 @@ export class Multicast<T> {
   /** Undelivered elements. `#ring[i]` holds absolute element index
    * `#base + i`; the prefix every live cursor has passed is dropped
    * by `#trim`. */
-  #ring = new GrowableArray<T>();
+  #ring = new Array<T>();
   /** Absolute index of `#ring[0]`. */
   var #base = 0;
-  #subs = new GrowableArray<SubState<T>>();
+  #subs = new Array<SubState<T>>();
   var #done = false;
 
   new(source: Stream<T>, scratch: FixedArray<T>)
@@ -198,7 +198,7 @@ export class Multicast<T> {
    * scope tears the whole thing down.
    */
   async run(): Future<void> {
-    let drains = new GrowableArray<Future<void>>();
+    let drains = new Array<Future<void>>();
     while (true) {
       let n = await this.#source.read(this.#scratch);
       if (n == 0) {

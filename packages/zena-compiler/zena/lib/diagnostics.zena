@@ -107,7 +107,7 @@ export final class DiagnosticBag {
   #file: String;
 
   new(file: String)
-    : #diagnostics = new GrowableArray<Diagnostic>(),
+    : #diagnostics = new Array<Diagnostic>(),
       #file = file;
 
   // Report a diagnostic directly.

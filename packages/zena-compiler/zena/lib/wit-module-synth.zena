@@ -112,7 +112,7 @@ final class UsedTypeImport {
   new(this.specifier, this.name);
 }
 
-var usedTypeImports = new GrowableArray<UsedTypeImport>();
+var usedTypeImports = new Array<UsedTypeImport>();
 
 function noteUsedImport(specifier: String, name: String): void {
   for (let existing in usedTypeImports) {
@@ -196,10 +196,10 @@ final class Ty {
   reason: String;
   /** Enum/variant case count, or flags label count. */
   var caseCount = 0;
-  children = new GrowableArray<Ty>();
+  children = new Array<Ty>();
   /** Record field names (camelCase) or variant case names (Pascal,
    * already prefixed with the variant's own name). */
-  childNames = new GrowableArray<String>();
+  childNames = new Array<String>();
   var size = 0;
   var align = 1;
   var flats = 0;
@@ -322,7 +322,7 @@ let layoutRecord = (ty: Ty): void => {
 
 /** A record-shaped type's field offsets, in declaration order. */
 let fieldOffsets = (ty: Ty): GrowableArray<i32> => {
-  let offsets = new GrowableArray<i32>();
+  let offsets = new Array<i32>();
   var offset = 0;
   for (let child in ty.children) {
     offset = alignTo(offset, child.align);
@@ -667,14 +667,14 @@ final class SynthUses {
   /** Whether a `stream<u8>` position rendered — pulls in `Stream`. */
   var stream = false;
   /** The `zena:wasi` names used, in first-use order. */
-  abi = new GrowableArray<String>();
+  abi = new Array<String>();
   /** The `zena:wasi` names used, in first-use order. */
-  componentStream = new GrowableArray<String>();
+  componentStream = new Array<String>();
   /** Enums lifted from discriminants, each owed a range-checked lift. */
-  enumLifts = new GrowableArray<Ty>();
+  enumLifts = new Array<Ty>();
   /** Memory-lift helpers owed, discovered recursively; `emitted`
    * tracks how many have been rendered so far. */
-  lifts = new GrowableArray<LiftEntry>();
+  lifts = new Array<LiftEntry>();
   var emittedLifts = 0;
   /** Whether anything was staged through the arena — the wrapper then
    * ends its call with `releaseStaged()`. */
@@ -692,7 +692,7 @@ final class SynthUses {
    * helper, the one spellable void value. */
   var unit = false;
   /** Future payload types moved, each owed declares and helpers. */
-  futures = new GrowableArray<FutureEntry>();
+  futures = new Array<FutureEntry>();
   /** How many of `futures` have had their helpers emitted. */
   var emittedFutures = 0;
   /** Whether a lifted future rendered — pulls in `DeferredFuture`,
@@ -1005,7 +1005,7 @@ let castToCore = (scalar: String, value: String): String => {
  * every case writes its own layout.
  */
 function flatCoreSlots(ty: Ty): GrowableArray<String> | null {
-  let out = new GrowableArray<String>();
+  let out = new Array<String>();
   if (ty.kind == TyKind.Scalar) {
     out.push(coreOf(ty.scalar));
     return out;
@@ -1037,7 +1037,7 @@ function flatCoreSlots(ty: Ty): GrowableArray<String> | null {
   // OptionT, ResultT, VariantT: a discriminant, then the slotwise
   // join of the arms.
   out.push("i32");
-  let joined = new GrowableArray<String>();
+  let joined = new Array<String>();
   for (let child in ty.children) {
     if (isVoid(child)) { continue; }
     let inner = flatCoreSlots(child);
@@ -1243,7 +1243,7 @@ function lowerMemStmts(sb: StringBuilder, ty: Ty, value: String,
   }
   if (ty.kind == TyKind.RecordT || ty.kind == TyKind.TupleT) {
     let offsets = fieldOffsets(ty);
-    var names = new GrowableArray<String>();
+    var names = new Array<String>();
     if (ty.kind == TyKind.RecordT) {
       for (let field in ty.childNames) {
         names.push(value + "." + field);
@@ -1349,7 +1349,7 @@ function emitListStaging(sb: StringBuilder, ty: Ty, value: String,
  * i64 is an i64), so an arm's narrower value widens on the way in.
  * Set by the caller that declared the slots.
  */
-var currentSlotTypes = new GrowableArray<String>();
+var currentSlotTypes = new Array<String>();
 
 /**
  * `slot = expr;`, widening an i32 `expr` when the slot is an i64 —
@@ -1901,7 +1901,7 @@ export function declaredPackageNamespaces(witSource: String): Array<String> {
   // Syntax only: the world's `use` paths reach packages the compiler
   // splices in later, and the package names need no resolution.
   let ast = parseSyntax(witSource);
-  let names = new GrowableArray<String>();
+  let names = new Array<String>();
   let add = (pkg: PackageName | null): void => {
     if (pkg == null) { return; }
     let ns = (pkg as PackageName).namespace.name;
@@ -1957,7 +1957,7 @@ export function synthesizeWitModule(canonicalPath: String,
   currentPackage = iface.packageName;
   selfSpecifier = namespace + ":" + interfacePath;
   currentSpecifier = selfSpecifier;
-  usedTypeImports = new GrowableArray<UsedTypeImport>();
+  usedTypeImports = new Array<UsedTypeImport>();
   let version = iface.packageName.version;
   var interfaceName = namespace + ":" + interfacePath;
   if (version != null) {
@@ -2043,7 +2043,7 @@ export function synthesizeWitModule(canonicalPath: String,
   // Sibling synthesized modules whose types this interface `use`s:
   // the declarations live there, so this module imports them.
   {
-    let specifiers = new GrowableArray<String>();
+    let specifiers = new Array<String>();
     for (let u in usedTypeImports) {
       var known = false;
       for (let s in specifiers) {
@@ -2218,8 +2218,8 @@ function renderFuncIn(
   mode: FnMode
 ): String {
   let func = nf.func;
-  let params = new GrowableArray<Ty>();
-  let paramNames = new GrowableArray<String>();
+  let params = new Array<Ty>();
+  let paramNames = new Array<String>();
   var anyRich = false;
   for (var i = 0; i < func.params.length; i += 1) {
     let wire = classifyType(func.params[i].type, ifaceItems);
@@ -2549,7 +2549,7 @@ function renderFuncIn(
       // zero, which the canonical ABI never reads.
       let slots = flatCoreSlots(params[i]) as GrowableArray<String>;
       currentSlotTypes = slots;
-      let slotNames = new GrowableArray<String>();
+      let slotNames = new Array<String>();
       for (var k = 0; k < slots.length; k += 1) {
         let slotName = "s" + i32ToString(i) + "_" + i32ToString(k);
         slotNames.push(slotName);
@@ -2766,10 +2766,10 @@ export function synthesizeExportWrapper(
   // each exported interface, which land in an instance of the
   // interface's name and resolve their named types through its
   // `use`s.
-  let exports = new GrowableArray<AsyncWorldExport>();
-  let interfaces = new GrowableArray<FoundInterface>();
-  let interfaceExports = new GrowableArray<AsyncWorldExport>();
-  let noItemsForWorld = new GrowableArray<InterfaceItem>();
+  let exports = new Array<AsyncWorldExport>();
+  let interfaces = new Array<FoundInterface>();
+  let interfaceExports = new Array<AsyncWorldExport>();
+  let noItemsForWorld = new Array<InterfaceItem>();
   if (world != null) {
     for (let wi in (world as WorldDef).items) {
       if (wi.tag != WorldItemTag.Export) { continue; }
@@ -2838,11 +2838,11 @@ export function synthesizeExportWrapper(
   currentPackage = ast.packageName;
   selfSpecifier = "";
   currentSpecifier = "";
-  usedTypeImports = new GrowableArray<UsedTypeImport>();
-  let noItems = new GrowableArray<InterfaceItem>();
+  usedTypeImports = new Array<UsedTypeImport>();
+  let noItems = new Array<InterfaceItem>();
   let uses = new SynthUses();
   let body = new StringBuilder();
-  let imported = new GrowableArray<String>();
+  let imported = new Array<String>();
   if (mainResult != "") {
     imported.push("main");
     renderMainWrapper(body, mainResult);
@@ -2940,7 +2940,7 @@ export function synthesizeExportWrapper(
   // The synthesized modules whose types the wrappers name: a resource
   // parameter lifts into its class, a result lowers out of one.
   {
-    let specifiers = new GrowableArray<String>();
+    let specifiers = new Array<String>();
     for (let u in usedTypeImports) {
       var known = false;
       for (let s in specifiers) {
@@ -3107,7 +3107,7 @@ function renderSyncExportWrapper(sb: StringBuilder, witName: String,
         else "0";
     sb.append("  var s0: ").append(slotTypes[0]).append(" = ")
         .append(zero).append(";\n");
-    let slotNames = new GrowableArray<String>();
+    let slotNames = new Array<String>();
     slotNames.push("s0");
     currentSlotTypes = slotTypes;
     lowerFlatStmts(sb, resultTy, "value", slotNames, 0, "  ", uses);
@@ -3152,8 +3152,8 @@ function renderExportWrapper(sb: StringBuilder, witName: String,
   var hasResult = false;
   var resultTy = voidTy();
   var zenaResult = "void";
-  var slotNames = new GrowableArray<String>();
-  var slotTypes = new GrowableArray<String>();
+  var slotNames = new Array<String>();
+  var slotTypes = new Array<String>();
   if (result != null) {
     hasResult = true;
     let resultType = result as Type;

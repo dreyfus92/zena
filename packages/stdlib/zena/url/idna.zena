@@ -79,9 +79,9 @@ let decodeTable = (): DecodedTable => {
 
   let reader = new TableReader(0);
   let count = reader.next();
-  let starts = new GrowableArray<i32>(count);
-  let tags = new GrowableArray<i32>(count);
-  let payloads = new GrowableArray<i32>(count);
+  let starts = new Array<i32>(count);
+  let tags = new Array<i32>(count);
+  let payloads = new Array<i32>(count);
 
   var start = 0;
   var i = 0;

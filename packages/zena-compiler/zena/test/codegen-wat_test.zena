@@ -37,7 +37,7 @@ let compileAndGenerateWatWith = (source: String, wideArithmetic: boolean): Strin
   let checkRes = checkCompilation(compResult, null, false);
   
   let entryAst = compResult.entry.ast;
-  let units = new GrowableArray<CompilationUnit>();
+  let units = new Array<CompilationUnit>();
   var entryUnit: CompilationUnit | null = null;
   
   for (let file in compResult.files) {
@@ -94,7 +94,7 @@ export let tests = suite('WatGenerator', (): void => {
     let checkRes = checkCompilation(compResult, null, false);
     
     let entryAst = compResult.entry.ast;
-    let units = new GrowableArray<CompilationUnit>();
+    let units = new Array<CompilationUnit>();
     var entryUnit: CompilationUnit | null = null;
     
     for (let file in compResult.files) {
@@ -130,7 +130,7 @@ export let tests = suite('WatGenerator', (): void => {
     let checkRes = checkCompilation(compResult, null, false);
     
     let entryAst = compResult.entry.ast;
-    let units = new GrowableArray<CompilationUnit>();
+    let units = new Array<CompilationUnit>();
     var entryUnit: CompilationUnit | null = null;
     
     for (let file in compResult.files) {
@@ -163,7 +163,7 @@ export let tests = suite('WatGenerator', (): void => {
     let checkRes = checkCompilation(compResult, null, false);
     
     let entryAst = compResult.entry.ast;
-    let units = new GrowableArray<CompilationUnit>();
+    let units = new Array<CompilationUnit>();
     var entryUnit: CompilationUnit | null = null;
     
     for (let file in compResult.files) {
@@ -196,7 +196,7 @@ export let tests = suite('WatGenerator', (): void => {
     let checkRes = checkCompilation(compResult, null, false);
     
     let entryAst = compResult.entry.ast;
-    let units = new GrowableArray<CompilationUnit>();
+    let units = new Array<CompilationUnit>();
     var entryUnit: CompilationUnit | null = null;
     
     for (let file in compResult.files) {
@@ -237,7 +237,7 @@ export let tests = suite('WatGenerator', (): void => {
     let checkRes = checkCompilation(compResult, null, false);
     
     let entryAst = compResult.entry.ast;
-    let units = new GrowableArray<CompilationUnit>();
+    let units = new Array<CompilationUnit>();
     var entryUnit: CompilationUnit | null = null;
     
     for (let file in compResult.files) {
@@ -270,7 +270,7 @@ export let tests = suite('WatGenerator', (): void => {
     let checkRes = checkCompilation(compResult, null, false);
     
     let entryAst = compResult.entry.ast;
-    let units = new GrowableArray<CompilationUnit>();
+    let units = new Array<CompilationUnit>();
     var entryUnit: CompilationUnit | null = null;
     
     for (let file in compResult.files) {
@@ -325,7 +325,7 @@ export let tests = suite('WatGenerator', (): void => {
     isTrue(errs.length == 0, if (errs.length > 0) errs[0].message else "");
     
     let entryAst = compResult.entry.ast;
-    let units = new GrowableArray<CompilationUnit>();
+    let units = new Array<CompilationUnit>();
     var entryUnit: CompilationUnit | null = null;
     
     for (let file in compResult.files) {
@@ -378,7 +378,7 @@ export let tests = suite('WatGenerator', (): void => {
     isTrue(errs.length == 0, if (errs.length > 0) errs[0].message else "");
     
     let entryAst = compResult.entry.ast;
-    let units = new GrowableArray<CompilationUnit>();
+    let units = new Array<CompilationUnit>();
     var entryUnit: CompilationUnit | null = null;
     
     for (let file in compResult.files) {
@@ -452,7 +452,7 @@ export let tests = suite('WatGenerator', (): void => {
         return vext(s, 2);
       };
     `);
-    let ops = new GrowableArray<String>();
+    let ops = new Array<String>();
     // The 16 bytes of a v128.const are the four words little-endian.
     ops.push('v128.const i8x16 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0');
     ops.push('i32x4.add');
@@ -527,7 +527,7 @@ export let tests = suite('WatGenerator', (): void => {
 
   test('wide arithmetic lowers to a software sequence by default', (ctx: TestContext): void => {
     let result = compileAndGenerateWatWith(wideSource, false);
-    let absent = new GrowableArray<String>();
+    let absent = new Array<String>();
     absent.push('i64.mul_wide_u');
     absent.push('i64.add128');
     assertFunctionOmits(result, '$wide', absent,
@@ -535,7 +535,7 @@ export let tests = suite('WatGenerator', (): void => {
         'and the stdlib has to run under node');
     // What it emits instead: the 32x32 partial products and the
     // compare-and-add carry.
-    let present = new GrowableArray<String>();
+    let present = new Array<String>();
     present.push('i64.mul');
     present.push('i64.shr_u');
     present.push('i64.lt_u');
@@ -546,13 +546,13 @@ export let tests = suite('WatGenerator', (): void => {
 
   test('wide arithmetic lowers to the real instructions when enabled', (ctx: TestContext): void => {
     let result = compileAndGenerateWatWith(wideSource, true);
-    let present = new GrowableArray<String>();
+    let present = new Array<String>();
     present.push('i64.mul_wide_u');
     present.push('i64.add128');
     assertFunctionUses(result, '$wide', present,
         'with the flag on, each intrinsic is one instruction');
     // And the partial-product sequence is gone entirely.
-    let absent = new GrowableArray<String>();
+    let absent = new Array<String>();
     absent.push('i64.shr_u');
     assertFunctionOmits(result, '$wide', absent,
         'the native instructions replace the halves-and-carries sequence, ' +
@@ -573,7 +573,7 @@ export let tests = suite('WatGenerator', (): void => {
       }
       export let main = (): i32 => down(3, 0);
     `);
-    let present = new GrowableArray<String>();
+    let present = new Array<String>();
     present.push('return_call $down');
     assertFunctionUses(result, '$down', present,
         'the recursive call is annotated tail, so it discards the frame');
@@ -604,7 +604,7 @@ export let tests = suite('WatGenerator', (): void => {
     `);
     // A closure value and a virtual method are the two callee shapes
     // that dispatch through a funcref, and neither is a direct call.
-    let present = new GrowableArray<String>();
+    let present = new Array<String>();
     present.push('return_call_ref');
     assertFunctionUses(result, '$viaClosure', present,
         'calling a closure parameter goes through the funcref in its pair struct');
@@ -620,11 +620,11 @@ export let tests = suite('WatGenerator', (): void => {
       }
       export let main = (): i32 => down(3, 0);
     `);
-    let present = new GrowableArray<String>();
+    let present = new Array<String>();
     present.push('call $down');
     assertFunctionUses(result, '$down', present,
         'tail-call elimination is opt-in; nothing infers it');
-    let absent = new GrowableArray<String>();
+    let absent = new Array<String>();
     absent.push('return_call');
     assertFunctionOmits(result, '$down', absent,
         'tail-call elimination is opt-in; nothing infers it');

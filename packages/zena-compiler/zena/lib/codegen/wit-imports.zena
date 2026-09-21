@@ -215,7 +215,7 @@ export let deriveImportsWit = (
   // Group by interface, preserving first-appearance order (the same
   // grouping the emitter's aliases use), then group interfaces by
   // package for the nested-package declarations.
-  let interfaceNames = new GrowableArray<String>();
+  let interfaceNames = new Array<String>();
   for (let imp in shape.imports) {
     var seen = false;
     for (let n in interfaceNames) {
@@ -241,7 +241,7 @@ export let deriveImportsWit = (
     }
   }
 
-  let renderedPackages = new GrowableArray<String>();
+  let renderedPackages = new Array<String>();
   for (let name in interfaceNames) {
     if (provided(name)) { continue; }
     let path = splitInterfaceName(name);
@@ -547,9 +547,9 @@ final class DeclaredWorldEncoder implements ImportTypeEncoder {
   #ast: Ast;
   var #worldName = "";
   /** The world's explicit interface imports, by qualified name. */
-  #importedInterfaces = new GrowableArray<String>();
+  #importedInterfaces = new Array<String>();
   /** The world's function exports, in declaration order. */
-  #declaredExports = new GrowableArray<DeclaredExport>();
+  #declaredExports = new Array<DeclaredExport>();
 
   new(witSource: String, worldName: String, packagesWit: String = "")
       : #ast = parseWithWasi(witSource, packagesWit) {

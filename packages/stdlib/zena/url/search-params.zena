@@ -121,7 +121,7 @@ export final class URLSearchParams with IterableUtils<(String, String)>
 
   /** Every value for `name`, in order. Empty when there is none. */
   getAll(name: String): Array<String> {
-    let out = new GrowableArray<String>();
+    let out = new Array<String>();
     for (let pair in this.#pairs) {
       let (n, v) = pair;
       if (n == name) {
@@ -143,7 +143,7 @@ export final class URLSearchParams with IterableUtils<(String, String)>
    * pair keeps its position.
    */
   set(name: String, value: String): void {
-    let out = new GrowableArray<(String, String)>();
+    let out = new Array<(String, String)>();
     var seen = false;
     for (let pair in this.#pairs) {
       let (n, v) = pair;
@@ -166,7 +166,7 @@ export final class URLSearchParams with IterableUtils<(String, String)>
    * the pairs matching both.
    */
   delete(name: String, value: String | null = null): void {
-    let out = new GrowableArray<(String, String)>();
+    let out = new Array<(String, String)>();
     for (let pair in this.#pairs) {
       let (n, v) = pair;
       if (n != name || (value != null && v != (value as String))) {

@@ -191,8 +191,8 @@ let signatureOf = (
   isAsync: boolean = false
 ): ComponentFuncType => {
   let declared = declaredTypeOf(func, what);
-  let paramTypes = new GrowableArray<i32>();
-  let paramNames = new GrowableArray<String>();
+  let paramTypes = new Array<i32>();
+  let paramNames = new Array<String>();
   for (var i = 0; i < declared.parameters.length; i += 1) {
     let mapped = componentTypeOf(wasm, declared.parameters[i]);
     if (mapped < 0) {
@@ -392,7 +392,7 @@ export let buildComponentShape = (
     if (importEncoder != null &&
         (importEncoder as ImportTypeEncoder).witProvided(module)) {
       let imp = new ComponentImportFunc(module, field,
-          new ComponentFuncType(new GrowableArray<i32>(), new GrowableArray<String>(),
+          new ComponentFuncType(new Array<i32>(), new Array<String>(),
               noComponentResult, f.importIsAsync),
           f.importIsAsync);
       imp.witProvided = true;
@@ -438,7 +438,7 @@ export let buildComponentShape = (
     }
     shape.exports.push(new ComponentExportFunc(
       componentEntryExport, "main",
-      new ComponentFuncType(new GrowableArray<i32>(), new GrowableArray<String>(),
+      new ComponentFuncType(new Array<i32>(), new Array<String>(),
           entryResult, true),
       componentCallbackExport));
   }
@@ -462,7 +462,7 @@ export let buildComponentShape = (
     }
     let lifted = new ComponentExportFunc(
       adapterName as String, asyncExport.exportName,
-      new ComponentFuncType(new GrowableArray<i32>(), new GrowableArray<String>(),
+      new ComponentFuncType(new Array<i32>(), new Array<String>(),
           noComponentResult, true),
       componentCallbackExport);
     lifted.witTyped = true;
@@ -477,7 +477,7 @@ export let buildComponentShape = (
   for (let syncExport in wasm.componentSyncExports) {
     let lifted = new ComponentExportFunc(
       syncExport.coreName, syncExport.exportName,
-      new ComponentFuncType(new GrowableArray<i32>(), new GrowableArray<String>(),
+      new ComponentFuncType(new Array<i32>(), new Array<String>(),
           noComponentResult, false));
     lifted.witTyped = true;
     shape.exports.push(lifted);

@@ -134,7 +134,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
   var equalityDispatchUsed = false;
   /** Classes whose ==/hashCode slots were dropped while the equality
    * flag was false — repaired at settle if the flag flips late. */
-  #eqPrunedClasses = new GrowableArray<ClassKey>();
+  #eqPrunedClasses = new Array<ClassKey>();
   /**
    * Generic-source symbol ids of classes some DECLARED class extends —
    * built at init from every unit's class declarations (and sealed
@@ -158,7 +158,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
    * lowering paths. While registration force-reached every method
    * this timing hole was invisible.
    */
-  #pendingMemberReaches = new GrowableArray<ClassMethodKey>();
+  #pendingMemberReaches = new Array<ClassMethodKey>();
   reachablyNamedClosures = new HashSet<WasmStruct>();
   reachablyNamedAnonStructs = new HashSet<WasmStruct>();
   /**
@@ -168,7 +168,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
    * array + key set: iteration order must not depend on Type.hashCode,
    * which is a process-global uid (the batch-nondeterminism bug).
    */
-  #namedCompositeTypes = new GrowableArray<Type>();
+  #namedCompositeTypes = new Array<Type>();
   #namedCompositeKeys = new HashSet<String>();
 
   /**
@@ -191,8 +191,8 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
   referencedReachableInterfaceMembers = new HashSet<String>();
   discoveredTypes = new HashSet<String>();
   reachedSemanticTypes = new HashSet<String>();
-  specializedInterfaces = new GrowableArray<InterfaceType>();
-  genericInterfaceMethodDemands = new GrowableArray<GenericInterfaceMethodDemand>();
+  specializedInterfaces = new Array<InterfaceType>();
+  genericInterfaceMethodDemands = new Array<GenericInterfaceMethodDemand>();
   /** Demands keyed "<interfaceKey>.<slotName>" for dedup and slot lookup. */
   #genericInterfaceDemandsByKey = new HashMap<String, GenericInterfaceMethodDemand>();
   specializedClassTypes = new HashMap<SymbolId, GrowableArray<ClassType>>();
@@ -207,8 +207,8 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
   #preludeClassCache = new HashMap<String, ClassType>();
   #preludeInterfaceCache = new HashMap<String, InterfaceType>();
 
-  reachableQueue = new GrowableArray<Referrer>();
-  checkableQueue = new GrowableArray<Referrer>();
+  reachableQueue = new Array<Referrer>();
+  checkableQueue = new Array<Referrer>();
   var reachHead = 0;
   var checkHead = 0;
   var globalsHead = 0;
@@ -217,7 +217,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
 
   reachedFunctionsSet = new HashSet<WasmFunction>();
   reachedTypesSet = new HashSet<WasmType>();
-  emittedTypes = new GrowableArray<WasmType>();
+  emittedTypes = new Array<WasmType>();
 
   /**
    * Cell structs interned for `try`-body-assigned locals. Closure cells
@@ -225,7 +225,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
    * these have no such referrer — only the lowered body's struct.new —
    * so layout roots them explicitly.
    */
-  tryCellStructs = new GrowableArray<WasmStruct>();
+  tryCellStructs = new Array<WasmStruct>();
 
   /**
    * Interfaces something is actually packed into — recorded when a
@@ -234,7 +234,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
    * after layout and so are invisible to signature-driven type
    * reachability, exactly like closure structs.
    */
-  usedInterfaceTypes = new GrowableArray<InterfaceType>();
+  usedInterfaceTypes = new Array<InterfaceType>();
 
   /**
    * Set once struct layout begins. After that point a class that has
@@ -263,8 +263,8 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
   var generatorReached: boolean = false;
   /** Every async function's frame Future instantiation, recorded so a
    * cause discovered late can still equip every frame. */
-  asyncFrameFutures = new GrowableArray<Type>();
-  asyncFrameFutureModels = new GrowableArray<SemanticModel>();
+  asyncFrameFutures = new Array<Type>();
+  asyncFrameFutureModels = new Array<SemanticModel>();
 
   /**
    * Mints the tag and queues the scope machinery for every recorded
@@ -387,7 +387,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
   noteSpecialization(ct: ClassType, model: SemanticModel): void {
     let lookupId = (ct.genericSource ?? ct).symbolId;
     if (!this.specializedClassTypes.has(lookupId)) {
-      this.specializedClassTypes[lookupId] = new GrowableArray<ClassType>();
+      this.specializedClassTypes[lookupId] = new Array<ClassType>();
     }
     let list = this.specializedClassTypes[lookupId];
     let ctKey = getClassKey(ct);
@@ -739,7 +739,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
       let ctVtable = this.wasm.classVtable(cKey);
       let superVtable = this.wasm.classVtable(superKey);
       if (superVtable.length > 0 || ctVtable.length > 0) {
-        let newVTable = new GrowableArray<String>();
+        let newVTable = new Array<String>();
         let seen = new HashSet<String>();
         for (let methName in superVtable) {
           newVTable.push(methName);
@@ -901,7 +901,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
             let currCt = ctWalk;
             let cKey = getClassKey(currCt);
             if (!this.wasm.classInfos.has(cKey)) {
-              let emptyStruct = new WasmStruct(currCt.name, new GrowableArray<WasmField>());
+              let emptyStruct = new WasmStruct(currCt.name, new Array<WasmField>());
               emptyStruct.classType = currCt;
               if (!currCt.isExtension) {
                 this.wasm.types.push(emptyStruct);
@@ -909,7 +909,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
               let info = new ClassCodegenInfo(emptyStruct);
               this.wasm.classInfos[cKey] = info;
               
-              let emptyVTableStruct = new WasmStruct(currCt.name + "_VTable", new GrowableArray<WasmField>());
+              let emptyVTableStruct = new WasmStruct(currCt.name + "_VTable", new Array<WasmField>());
               emptyVTableStruct.classType = currCt;
               if (!currCt.isExtension) {
                 this.wasm.types.push(emptyVTableStruct);
@@ -949,7 +949,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
                   let vKey = getClassKey(currV);
                   if (!this.wasm.classInfos.has(vKey)) {
                     let isIntermediate = currV.isMixinIntermediate;
-                    let emptyStruct = new WasmStruct(currV.name, new GrowableArray<WasmField>());
+                    let emptyStruct = new WasmStruct(currV.name, new Array<WasmField>());
                     emptyStruct.classType = currV;
                     if (!currV.isExtension && !isIntermediate) {
                       this.wasm.types.push(emptyStruct);
@@ -957,7 +957,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
                     let info = new ClassCodegenInfo(emptyStruct);
                     this.wasm.classInfos[vKey] = info;
                     
-                    let emptyVTableStruct = new WasmStruct(currV.name + "_VTable", new GrowableArray<WasmField>());
+                    let emptyVTableStruct = new WasmStruct(currV.name + "_VTable", new Array<WasmField>());
                     emptyVTableStruct.classType = currV;
                     if (!currV.isExtension && !isIntermediate) {
                       this.wasm.types.push(emptyVTableStruct);
@@ -985,11 +985,11 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
 
         let iKey = getInterfaceKey(ifaceType);
         if (!this.wasm.interfaceStructs.has(iKey)) {
-          let emptyVTableStruct = new WasmStruct(ifaceType.name + "_VTable", new GrowableArray<WasmField>());
+          let emptyVTableStruct = new WasmStruct(ifaceType.name + "_VTable", new Array<WasmField>());
           this.wasm.types.push(emptyVTableStruct);
           this.wasm.interfaceVTableStructs[iKey] = emptyVTableStruct;
 
-          let fatPtrFields = new GrowableArray<WasmField>();
+          let fatPtrFields = new Array<WasmField>();
           fatPtrFields.push(new WasmField("instance", new ValTypeAnyRef(), false));
           fatPtrFields.push(new WasmField("vtable", new ValTypeRef(emptyVTableStruct), false));
           let emptyStruct = new WasmStruct(ifaceType.name + "_FatPtr", fatPtrFields);
@@ -1068,13 +1068,13 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
         let classDecl = model.classDeclarations[id];
         let rawClassType = this.getClassDeclType(classDecl, model);
         if (rawClassType != null) {
-          let mixinMembers = new GrowableArray<Node>();
+          let mixinMembers = new Array<Node>();
           let seenMixins = new HashMap<MixinKey, boolean>();
           collectMixinMembers(this.program, model, classDecl.mixins, mixinMembers, seenMixins);
           let mKeys = seenMixins.keys();
           while (let (true, mixKey) = mKeys.next()) {
             if (!this.mixinToClasses.has(mixKey)) {
-              this.mixinToClasses[mixKey] = new GrowableArray<ClassType>();
+              this.mixinToClasses[mixKey] = new Array<ClassType>();
             }
             this.mixinToClasses[mixKey].push(rawClassType);
           }
@@ -1242,7 +1242,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
     let linkedClasses = new HashMap<ClassKey, boolean>();
 
     // Pre-discover implemented interfaces of all reached/specialized and declared classes.
-    let classesToDiscover = new GrowableArray<ClassType>();
+    let classesToDiscover = new Array<ClassType>();
     for (let cPair in this.wasm.classInfos) {
       let info = cPair.value;
       let {classType} = info.structType;
@@ -1266,7 +1266,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
       }
     }
 
-    let classesToLink = new GrowableArray<ClassType>();
+    let classesToLink = new Array<ClassType>();
     for (let cPair in this.wasm.classInfos) {
       let info = cPair.value;
       let {classType} = info.structType;
@@ -1283,7 +1283,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
     // Each interface is paired with the model to resolve its member types in:
     // the declaring module's model for declared interfaces, the root unit's
     // model for specializations.
-    let allInterfaces = new GrowableArray<(InterfaceType, SemanticModel)>();
+    let allInterfaces = new Array<(InterfaceType, SemanticModel)>();
     for (let pair in this.interfaceDecls) {
       let ifaceDecl = pair.value;
       let moduleModel = this.interfaceModels[pair.key];
@@ -1472,7 +1472,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
     // instantiated class was force-reached, being in wasm.functions
     // was equivalent to being registered; with reaching driven by use,
     // a getter can be registered now and reached later.
-    let synthFixups = new GrowableArray<WasmFunction>();
+    let synthFixups = new Array<WasmFunction>();
     for (let f in this.wasm.functions) {
       synthFixups.push(f);
     }
@@ -1699,7 +1699,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
           }
           if (addedSlot && prunedInfo.vtableGlobal != null) {
             let staleGlobal = prunedInfo.vtableGlobal as WasmGlobal;
-            let keptGlobals = new GrowableArray<WasmGlobal>();
+            let keptGlobals = new Array<WasmGlobal>();
             for (let g in this.wasm.globals) {
               if (g != staleGlobal) { keptGlobals.push(g); }
             }
@@ -1782,7 +1782,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
       }
     }
     
-    let keptGlobals = new GrowableArray<WasmGlobal>();
+    let keptGlobals = new Array<WasmGlobal>();
     for (let g in this.wasm.globals) {
       if (g.symbolId == noSymbolId || this.reachedGlobals.has(g.symbolId)) {
         keptGlobals.push(g);
@@ -1832,7 +1832,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
     }
     
     let originalFunctions = this.wasm.functions;
-    let reachedList = new GrowableArray<WasmFunction>();
+    let reachedList = new Array<WasmFunction>();
     for (let f in originalFunctions) {
       let isReached = this.reachedFunctionsSet.has(f);
       if (isReached) {
@@ -1865,7 +1865,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
     // has settled and every nested dispatch exists.
     for (let compT in this.#namedCompositeTypes) {
       if (compT is TupleType) {
-        let tFields = new GrowableArray<WasmField>();
+        let tFields = new Array<WasmField>();
         for (var ti = 0; ti < compT.elementTypes.length; ti += 1) {
           tFields.push(new WasmField(i32ToString(ti), typeToValType(this.wasm, compT.elementTypes[ti]), false));
         }
@@ -1981,13 +1981,13 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
         // permuted layout that type-checks (every slot is funcref)
         // and dispatches the wrong method. Rebuild the order here,
         // super chain root-first, before the global bakes it.
-        let chain = new GrowableArray<ClassType>();
+        let chain = new Array<ClassType>();
         var cc: ClassType | null = cType;
         while (cc != null) {
           chain.push(cc as ClassType);
           cc = (cc as ClassType).superType;
         }
-        let orderedNames = new GrowableArray<String>();
+        let orderedNames = new Array<String>();
         let seenNames = new HashSet<String>();
         var ci = chain.length - 1;
         while (ci >= 0) {
@@ -2006,7 +2006,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
         // Names in ancestor lists whose slots this class does not
         // carry (pruned) are skipped; a field with no list entry
         // would be a bookkeeping bug and keeps its tail position.
-        let orderedFields = new GrowableArray<WasmField>();
+        let orderedFields = new Array<WasmField>();
         for (let n in orderedNames) {
           if (let (true, f) = fieldByName.get(n)) {
             orderedFields.push(f);
@@ -2019,8 +2019,8 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
           }
         }
 
-        let methods = new GrowableArray<WasmFunction>();
-        let newFields = new GrowableArray<WasmField>();
+        let methods = new Array<WasmFunction>();
+        let newFields = new Array<WasmField>();
         for (var i = 0; i < orderedFields.length; i += 1) {
           let field = orderedFields[i];
           var foundFunc: WasmFunction | null = null;
@@ -2262,7 +2262,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
         if (!this.#sameLoweredType(ipf.returnType, cpf.returnType)) {
           throw new Error("generic interface dispatch: callback result adaptation is not supported (" + cType.name + "." + d.methName + ")");
         }
-        let packs = new GrowableArray<ForwarderParamPack>();
+        let packs = new Array<ForwarderParamPack>();
         for (var k = 0; k < ipf.parameters.length; k += 1) {
           let ipk = ipf.parameters[k];
           let cpk = cpf.parameters[k];
@@ -2299,7 +2299,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
         this.noteClosureStruct(sImpl);
         var wraps = trampFunc.trampolineParamWraps;
         if (wraps == null) {
-          let fresh = new GrowableArray<TrampolineParamWrap>();
+          let fresh = new Array<TrampolineParamWrap>();
           trampFunc.trampolineParamWraps = fresh;
           wraps = fresh;
         }
@@ -2425,7 +2425,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
       created = true;
     }
     // Pass 2: Generate class-interface trampoline vtables
-    let classes = new GrowableArray<ClassType>();
+    let classes = new Array<ClassType>();
     let seenClassKeys = new HashMap<ClassKey, boolean>();
     for (let cPair in this.wasm.classInfos) {
       let cStruct = cPair.value.structType;
@@ -2511,7 +2511,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
           }
           let vst = this.wasm.interfaceVTableStructs[iName];
 
-          let methods = new GrowableArray<WasmFunction>();
+          let methods = new Array<WasmFunction>();
           for (var i = 0; i < vst.fields.length; i += 1) {
             let tramp = this.#buildTrampolineForSlot(cType, cName, iface, iName, vst, i);
             methods.push(tramp);
@@ -2553,7 +2553,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
     var round = true;
     while (round) {
       round = false;
-      let pending = new GrowableArray<ClassType>();
+      let pending = new Array<ClassType>();
       for (let cPair in this.wasm.classInfos) {
         let ct = cPair.value.structType.classType;
         if (ct != null && !populated.has(getClassKey(ct))) {
@@ -2980,7 +2980,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
 
           if (targetClassType != null) {
             let {cha} = this;
-            let list = new GrowableArray<ClassType>();
+            let list = new Array<ClassType>();
             if (targetClassType.isExtension) {
               list.push(targetClassType);
             } else {
@@ -3146,9 +3146,9 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
             typeArguments as Array<Type>, funcTypeNode as Type);
       }
       
-      let params = new GrowableArray<ValType>();
+      let params = new Array<ValType>();
       params.push(new ValTypeStructRef()); // ctx
-      let returns = new GrowableArray<ValType>();
+      let returns = new Array<ValType>();
       
       if (funcTypeNode is FunctionType) {
         for (let p in funcTypeNode.parameters) {
@@ -3216,7 +3216,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
         }
       }
 
-      let fields = new GrowableArray<WasmField>();
+      let fields = new Array<WasmField>();
       if (closureDep.capturesThis && enclosingClassType != null) {
         var thisValType: ValType = new ValTypeStructRef();
         if (let (true, info) = this.wasm.classInfos.get(getClassKey(enclosingClassType))) {
@@ -3314,12 +3314,12 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
                 resolvedTargetStruct = paramCs;
                 this.reachablyNamedClosures.add(paramCs);
                 
-                let paramValTypes = new GrowableArray<ValType>();
+                let paramValTypes = new Array<ValType>();
                 paramValTypes.push(new ValTypeStructRef()); // context
                 for (let p in paramType.parameters) {
                   mapParamTypeToWasmParams(this.wasm, p, paramValTypes);
                 }
-                let returnValTypes = new GrowableArray<ValType>();
+                let returnValTypes = new Array<ValType>();
                 if (!isVoidOrNeverType(paramType.returnType)) {
                   returnValTypes.push(typeToValType(this.wasm, paramType.returnType));
                 }
@@ -3333,12 +3333,12 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
       let wrapperSig = if (expectedWasmSig != null) {
         expectedWasmSig
       } else {
-        let pValTypes = new GrowableArray<ValType>();
+        let pValTypes = new Array<ValType>();
         pValTypes.push(new ValTypeStructRef()); // ctx
         for (let p in tgt.parameters) {
           mapParamTypeToWasmParams(this.wasm, p, pValTypes);
         }
-        let rValTypes = new GrowableArray<ValType>();
+        let rValTypes = new Array<ValType>();
         mapReturnTypeToWasmResults(this.wasm, tgt.returnType, rValTypes);
         this.wasm.getSignature(pValTypes, rValTypes)
       };
@@ -3430,7 +3430,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
       if (ifaceId as i32 != -1) {
         let symId = ifaceId;
         if (!this.referencedInterfaceMembersById.has(symId)) {
-          this.referencedInterfaceMembersById[symId] = new GrowableArray<String>();
+          this.referencedInterfaceMembersById[symId] = new Array<String>();
         }
         let list = this.referencedInterfaceMembersById[symId];
         var hasMem = false;

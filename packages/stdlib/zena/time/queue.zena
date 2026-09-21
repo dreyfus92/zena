@@ -72,7 +72,7 @@ final class Timer {
  * same millisecond must always complete in the order they were armed.
  */
 class TimerQueue implements Parker {
-  #timers = new GrowableArray<Timer>();
+  #timers = new Array<Timer>();
   var #nextSeq = 0;
 
   arm(deadline: Instant, completer: Completer<void>): void {

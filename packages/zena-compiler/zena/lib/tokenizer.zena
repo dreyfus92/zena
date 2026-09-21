@@ -261,9 +261,9 @@ export final class Tokenizer {
 
   new(source: String)
     : #reader = new StringReader(source),
-      #tokens = new GrowableArray<Token>(64),
-      #comments = new GrowableArray<Comment>(8),
-      #templateStack = new GrowableArray<i32>(8),
+      #tokens = new Array<Token>(64),
+      #comments = new Array<Comment>(8),
+      #templateStack = new Array<i32>(8),
       #line = 1,
       #column = 1,
       #lineStart = 0

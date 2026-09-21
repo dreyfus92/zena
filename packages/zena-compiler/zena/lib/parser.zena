@@ -161,7 +161,7 @@ export final class Parser {
   #path: String;
 
   new(source: String, path: String, recover: boolean = false)
-    : #source = source, #path = path, #recover = recover, #tokens = new GrowableArray<Token>(0), #comments = new GrowableArray<Comment>(0), #current = 0, #extraGreaters = 0, #destructParamCounter = 0, #combinedTypeAnnotation = null, #errors = new GrowableArray<Diagnostic>(0), #completeness = ParseCompleteness.Complete
+    : #source = source, #path = path, #recover = recover, #tokens = new Array<Token>(0), #comments = new Array<Comment>(0), #current = 0, #extraGreaters = 0, #destructParamCounter = 0, #combinedTypeAnnotation = null, #errors = new Array<Diagnostic>(0), #completeness = ParseCompleteness.Complete
   {
     let tokenizer = new Tokenizer(source);
     this.#tokens = tokenizer.tokenize();
@@ -187,7 +187,7 @@ export final class Parser {
   }
 
   parse(): Module {
-    let body = new GrowableArray<Statement>(16);
+    let body = new Array<Statement>(16);
 
     // Parse imports at the top of the file
     while (this.#check(TokenType.Import) || this.#check(TokenType.From)) {
@@ -217,7 +217,7 @@ export final class Parser {
         this.#consume(TokenType.As, "Expected 'as' after '*'.");
         let local = this.#parseIdentifier();
         let imported = new Identifier("*", this.#makeLocation(starToken));
-        let arr = new GrowableArray<ImportSpecifier>(1);
+        let arr = new Array<ImportSpecifier>(1);
         arr.push(new ImportSpecifier(imported, local, this.#makeLocation(starToken)));
         arr
       } else {
@@ -236,14 +236,14 @@ export final class Parser {
       let moduleSpecifier = this.#parseStringLiteralNode();
       // `from 'zena:map'` with the import clause not typed yet.
       if (!this.#consumeOrRecover(TokenType.Import, "Expected 'import'")) {
-        return new ImportDeclaration(moduleSpecifier, new GrowableArray<ImportSpecifier>(0), this.#makeLocation(startToken));
+        return new ImportDeclaration(moduleSpecifier, new Array<ImportSpecifier>(0), this.#makeLocation(startToken));
       }
       let imports = if (this.#check(TokenType.Star)) {
         let starToken = this.#advance();
         this.#consume(TokenType.As, "Expected 'as' after '*'.");
         let local = this.#parseIdentifier();
         let imported = new Identifier("*", this.#makeLocation(starToken));
-        let arr = new GrowableArray<ImportSpecifier>(1);
+        let arr = new Array<ImportSpecifier>(1);
         arr.push(new ImportSpecifier(imported, local, this.#makeLocation(starToken)));
         arr
       } else {
@@ -257,7 +257,7 @@ export final class Parser {
   }
 
   #parseImportSpecifiers(): GrowableArray<ImportSpecifier> {
-    let imports = new GrowableArray<ImportSpecifier>(4);
+    let imports = new Array<ImportSpecifier>(4);
     // `import` with the specifier list not typed yet.
     if (!this.#consumeOrRecover(TokenType.LBrace, "Expected '{'")) {
       return imports;
@@ -507,7 +507,7 @@ export final class Parser {
     
     // Decorated statement: @decorator ... declare function ...
     if (this.#check(TokenType.At)) {
-      let decorators = new GrowableArray<Decorator>(2);
+      let decorators = new Array<Decorator>(2);
       while (this.#check(TokenType.At)) {
         decorators.push(this.#parseDecorator());
       }
@@ -559,7 +559,7 @@ export final class Parser {
     // Declare function (without decorators)
     if (this.#check(TokenType.Declare) && this.#peek2().kind == TokenType.Function) {
       this.#advance(); // consume 'declare'
-      return this.#parseDeclareFunction(new GrowableArray<Decorator>(0), exported, startToken);
+      return this.#parseDeclareFunction(new Array<Decorator>(0), exported, startToken);
     }
     // Declare type without decorators parses; the checker rejects it
     // (a declared type operator requires its @intrinsic decorator).
@@ -983,7 +983,7 @@ export final class Parser {
   }
 
   #parseBlockStatement(startToken: Token): BlockStatement {
-    let body = new GrowableArray<Statement>(8);
+    let body = new Array<Statement>(8);
     
     while (!this.#check(TokenType.RBrace) && !this.#isAtEnd()) {
       body.push(this.#parseStatement());
@@ -995,7 +995,7 @@ export final class Parser {
   }
   
   #parseBlockAsExpression(startToken: Token): BlockStatement {
-    let body = new GrowableArray<Statement>(8);
+    let body = new Array<Statement>(8);
     
     while (!this.#check(TokenType.RBrace) && !this.#isAtEnd()) {
       // Check for keywords that definitely start statements
@@ -1046,7 +1046,7 @@ export final class Parser {
     this.#consume(TokenType.RParen, "Expected ')' after match discriminant");
     this.#consume(TokenType.LBrace, "Expected '{' before match cases");
     
-    let cases = new GrowableArray<MatchCase>(4);
+    let cases = new Array<MatchCase>(4);
     while (!this.#check(TokenType.RBrace) && !this.#isAtEnd()) {
       cases.push(this.#parseMatchCase());
     }
@@ -1164,7 +1164,7 @@ export final class Parser {
       // Class pattern: ClassName { ... }
       if (this.#check(TokenType.LBrace)) {
         this.#advance();
-        let properties = new GrowableArray<BindingProperty>(4);
+        let properties = new Array<BindingProperty>(4);
         while (!this.#check(TokenType.RBrace) && !this.#isAtEnd()) {
           let propStart = this.#peek();
           // Parsed here so the checker can reject it with a pointed
@@ -1214,7 +1214,7 @@ export final class Parser {
   }
   
   #parseMatchTuplePattern(startToken: Token): Node {
-    let elements = new GrowableArray<Node | null>(4);
+    let elements = new Array<Node | null>(4);
     
     if (!this.#check(TokenType.RParen)) {
       elements.push(this.#parseMatchPattern());
@@ -1231,7 +1231,7 @@ export final class Parser {
   }
 
   #parseMatchArrayPattern(startToken: Token): Node {
-    let elements = new GrowableArray<Node | null>(4);
+    let elements = new Array<Node | null>(4);
     var hasRest = false;
 
     while (!this.#check(TokenType.RBracket) && !this.#isAtEnd()) {
@@ -1440,7 +1440,7 @@ export final class Parser {
       // Class pattern: ClassName { ... }
       if (this.#check(TokenType.LBrace)) {
         this.#advance();
-        let properties = new GrowableArray<BindingProperty>(4);
+        let properties = new Array<BindingProperty>(4);
         while (!this.#check(TokenType.RBrace) && !this.#isAtEnd()) {
           let propStart = this.#peek();
           // Parsed here so the checker can reject it with a pointed
@@ -1488,7 +1488,7 @@ export final class Parser {
   }
   
   #parseRecordPattern(startToken: Token, isUnderLet: boolean, matchContext: boolean): RecordPattern {
-    let properties = new GrowableArray<BindingProperty>(4);
+    let properties = new Array<BindingProperty>(4);
 
     while (!this.#check(TokenType.RBrace) && !this.#isAtEnd()) {
       let propStart = this.#peek();
@@ -1542,8 +1542,8 @@ export final class Parser {
   // In parameter context, : after field name introduces a TypeAnnotation (not a Pattern).
   // Sets this.#combinedTypeAnnotation if any field has a type annotation.
   #parseRecordParamPattern(startToken: Token): RecordPattern {
-    let bindingProps = new GrowableArray<BindingProperty>(4);
-    let typeSigs = new GrowableArray<PropertySignature>(4);
+    let bindingProps = new Array<BindingProperty>(4);
+    let typeSigs = new Array<PropertySignature>(4);
     var hasTypeAnnotations = false;
     
     while (!this.#check(TokenType.RBrace) && !this.#isAtEnd()) {
@@ -1591,7 +1591,7 @@ export final class Parser {
   }
   
   #parseArrayPattern(startToken: Token, isUnderLet: boolean): ArrayPattern {
-    let elements = new GrowableArray<Node | null>(4);
+    let elements = new Array<Node | null>(4);
     var hasRest = false;
     
     while (!this.#check(TokenType.RBracket) && !this.#isAtEnd()) {
@@ -1632,7 +1632,7 @@ export final class Parser {
   }
   
   #parseParenTuplePattern(startToken: Token, isUnderLet: boolean, matchContext: boolean): Pattern {
-    let elements = new GrowableArray<Node | null>(4);
+    let elements = new Array<Node | null>(4);
 
     while (!this.#check(TokenType.RParen) && !this.#isAtEnd()) {
       // Support holes: (a, , c)
@@ -2053,7 +2053,7 @@ export final class Parser {
   }
   
   #finishCall(callee: Expression, typeArguments: GrowableArray<TypeAnnotation> | null, optional: boolean, startToken: Token): CallExpression {
-    let args = new GrowableArray<Expression>(4);
+    let args = new Array<Expression>(4);
     
     if (!this.#check(TokenType.RParen)) {
       if (this.#check(TokenType.Semi) || this.#check(TokenType.RBrace) || this.#isAtEnd()) {
@@ -2115,13 +2115,13 @@ export final class Parser {
     // Template literal (no substitution)
     if (this.#match(TokenType.NoSubstitutionTemplate)) {
       let token = this.#previous();
-      let quasis = new GrowableArray<TemplateElement>(1);
+      let quasis = new Array<TemplateElement>(1);
       var raw = token.rawValue;
       if (raw == null) {
         raw = token.value;
       }
       quasis.push(new TemplateElement(token.value, raw, true, this.#makeLocation(token)));
-      let expressions = new GrowableArray<Expression>(0);
+      let expressions = new Array<Expression>(0);
       return new TemplateLiteral(quasis, expressions, this.#makeLocation(startToken));
     }
     
@@ -2199,7 +2199,7 @@ export final class Parser {
       
       // If comma follows, it's a tuple literal
       if (this.#match(TokenType.Comma)) {
-        let elements = new GrowableArray<Expression>(4);
+        let elements = new Array<Expression>(4);
         elements.push(first);
         if (!this.#check(TokenType.RParen)) {
           elements.push(this.#parseExpression());
@@ -2237,7 +2237,7 @@ export final class Parser {
       let callee = this.#parseIdentifier();
       var typeArguments: GrowableArray<TypeAnnotation> | null = null;
       if (this.#match(TokenType.Less)) {
-        let args = new GrowableArray<TypeAnnotation>(4);
+        let args = new Array<TypeAnnotation>(4);
         args.push(this.#parseTypeAnnotation());
         while (this.#match(TokenType.Comma) && !this.#checkGreater()) {
           args.push(this.#parseTypeAnnotation());
@@ -2265,7 +2265,7 @@ export final class Parser {
         }
       }
       this.#consume(TokenType.LParen, "Expected '(' after class name");
-      let args = new GrowableArray<Expression>(4);
+      let args = new Array<Expression>(4);
       if (!this.#check(TokenType.RParen)) {
         args.push(this.#parseExpression());
         while (this.#match(TokenType.Comma) && !this.#check(TokenType.RParen)) {
@@ -2286,8 +2286,8 @@ export final class Parser {
   
   #parseTemplateLiteral(startToken: Token): TemplateLiteral {
     let headToken = this.#previous();
-    let quasis = new GrowableArray<TemplateElement>(4);
-    let expressions = new GrowableArray<Expression>(4);
+    let quasis = new Array<TemplateElement>(4);
+    let expressions = new Array<Expression>(4);
     
     // Add the head quasi
     var headRaw = headToken.rawValue;
@@ -2466,7 +2466,7 @@ export final class Parser {
 
   #parseTypeArguments(): GrowableArray<TypeAnnotation> {
     this.#consume(TokenType.Less, "Expected '<' before type arguments");
-    let args = new GrowableArray<TypeAnnotation>(4);
+    let args = new Array<TypeAnnotation>(4);
     args.push(this.#parseTypeAnnotation());
     while (this.#match(TokenType.Comma) && !this.#checkGreater()) {
       args.push(this.#parseTypeAnnotation());
@@ -2476,7 +2476,7 @@ export final class Parser {
   }
   
   #parseTypeParameterList(): GrowableArray<TypeParameter> {
-    let params = new GrowableArray<TypeParameter>(4);
+    let params = new Array<TypeParameter>(4);
     
     let startToken = this.#peek();
     // `scoped` is contextual: a modifier only when another identifier
@@ -2560,7 +2560,7 @@ export final class Parser {
   }
   
   #parseParameters(): GrowableArray<Parameter> {
-    let params = new GrowableArray<Parameter>(4);
+    let params = new Array<Parameter>(4);
     
     if (!this.#check(TokenType.RParen)) {
       params.push(this.#parseParameter());
@@ -2681,7 +2681,7 @@ export final class Parser {
   }
   
   #parseArrayLiteral(startToken: Token): ArrayLiteral {
-    let elements = new GrowableArray<Expression>(8);
+    let elements = new Array<Expression>(8);
     
     while (!this.#check(TokenType.RBracket) && !this.#isAtEnd()) {
       elements.push(this.#parseExpression());
@@ -2700,14 +2700,14 @@ export final class Parser {
     if (this.#check(TokenType.RBrace)) {
       this.#advance();
       return new RecordLiteral(
-        new GrowableArray<Node>(0),
+        new Array<Node>(0),
         this.#makeLocation(startToken)
       );
     }
     
     // Spread element: definitely a record
     if (this.#check(TokenType.DotDotDot)) {
-      let properties = new GrowableArray<Node>(4);
+      let properties = new Array<Node>(4);
       return this.#parseRecordProperties(startToken, properties);
     }
     
@@ -2717,7 +2717,7 @@ export final class Parser {
     // If followed by =>, it's a map literal
     if (this.#match(TokenType.Arrow)) {
       let firstValue = this.#parseExpression();
-      let entries = new GrowableArray<MapEntry>(4);
+      let entries = new Array<MapEntry>(4);
       entries.push(new MapEntry(firstExpr, firstValue, this.#makeLocation(startToken)));
       
       while (this.#match(TokenType.Comma)) {
@@ -2742,7 +2742,7 @@ export final class Parser {
       value = this.#parseExpression();
     }
     
-    let properties = new GrowableArray<Node>(4);
+    let properties = new Array<Node>(4);
     properties.push(new PropertyAssignment(name, value, this.#makeLocation(startToken)));
     return this.#parseRecordProperties(startToken, properties);
   }
@@ -2781,7 +2781,7 @@ export final class Parser {
 
     // Check for union type: T | U
     if (this.#check(TokenType.Pipe)) {
-      let types = new GrowableArray<TypeAnnotation>(4);
+      let types = new Array<TypeAnnotation>(4);
       types.push(type);
 
       while (this.#match(TokenType.Pipe)) {
@@ -2854,7 +2854,7 @@ export final class Parser {
     if (this.#check(TokenType.Inline)) {
       this.#advance();
       this.#consume(TokenType.LParen, "Expected '(' after 'inline'");
-      let elementTypes = new GrowableArray<TypeAnnotation>(4);
+      let elementTypes = new Array<TypeAnnotation>(4);
       elementTypes.push(this.#parseTypeAnnotation());
       while (this.#match(TokenType.Comma) && !this.#check(TokenType.RParen)) {
         elementTypes.push(this.#parseTypeAnnotation());
@@ -2888,7 +2888,7 @@ export final class Parser {
           this.#advance();
           elementsMutable = true;
         }
-        let args = new GrowableArray<TypeAnnotation>(4);
+        let args = new Array<TypeAnnotation>(4);
         args.push(this.#parseTypeAnnotation());
         while (this.#match(TokenType.Comma) && !this.#checkGreater()) {
           args.push(this.#parseTypeAnnotation());
@@ -2913,8 +2913,8 @@ export final class Parser {
       this.#consume(TokenType.Arrow, "Expected '=>' after '()'");
       let returnType = this.#parseTypeAnnotation();
       return new FunctionTypeAnnotation(
-        new GrowableArray<String>(0),
-        new GrowableArray<TypeAnnotation>(0),
+        new Array<String>(0),
+        new Array<TypeAnnotation>(0),
         returnType,
         this.#makeLocation(startToken));
     }
@@ -2925,8 +2925,8 @@ export final class Parser {
     // Heuristic: if we see Identifier followed by ':', it's a function type
     if (this.#isIdentifier() && this.#peek2().kind == TokenType.Colon) {
       // Function type
-      let paramNames = new GrowableArray<String>(4);
-      let params = new GrowableArray<TypeAnnotation>(4);
+      let paramNames = new Array<String>(4);
+      let params = new Array<TypeAnnotation>(4);
       
       // Parse first param
       let paramName = this.#advance().value;
@@ -2953,7 +2953,7 @@ export final class Parser {
     
     // Tuple type: (Type1, Type2)
     // Or parenthesized type: (Type)
-    let elementTypes = new GrowableArray<TypeAnnotation>(4);
+    let elementTypes = new Array<TypeAnnotation>(4);
     elementTypes.push(this.#parseTypeAnnotation());
     while (this.#match(TokenType.Comma) && !this.#check(TokenType.RParen)) {
       elementTypes.push(this.#parseTypeAnnotation());
@@ -2970,7 +2970,7 @@ export final class Parser {
   
   #parseRecordType(startToken: Token): TypeAnnotation {
     this.#advance(); // consume '{'
-    let properties = new GrowableArray<PropertySignature>(4);
+    let properties = new Array<PropertySignature>(4);
     
     while (!this.#check(TokenType.RBrace) && !this.#isAtEnd()) {
       let propStartToken = this.#peek();
@@ -3155,7 +3155,7 @@ export final class Parser {
     // Case class parameters: class Point(x: f64, y: f64)
     var caseParams: GrowableArray<CaseClassParam> | null = null;
     if (!isExtension && this.#match(TokenType.LParen)) {
-      let cps = new GrowableArray<CaseClassParam>(4);
+      let cps = new Array<CaseClassParam>(4);
       if (!this.#check(TokenType.RParen)) {
         cps.push(this.#parseCaseClassParam());
         while (this.#match(TokenType.Comma) && !this.#check(TokenType.RParen)) {
@@ -3180,7 +3180,7 @@ export final class Parser {
     // With clause (mixins)
     var mixins: GrowableArray<TypeAnnotation> | null = null;
     if (this.#match(TokenType.With)) {
-      let ms = new GrowableArray<TypeAnnotation>(4);
+      let ms = new Array<TypeAnnotation>(4);
       if (this.#check(TokenType.Implements) || this.#check(TokenType.LBrace) || this.#isAtEnd()) {
         let st = this.#peek();
         ms.push(new NamedTypeAnnotation("", null, false, this.#makeLocation(st)));
@@ -3201,7 +3201,7 @@ export final class Parser {
     // Implements clause
     var implementsList: GrowableArray<TypeAnnotation> | null = null;
     if (this.#match(TokenType.Implements)) {
-      let impls = new GrowableArray<TypeAnnotation>(4);
+      let impls = new Array<TypeAnnotation>(4);
       if (this.#check(TokenType.LBrace) || this.#isAtEnd()) {
         let st = this.#peek();
         impls.push(new NamedTypeAnnotation("", null, false, this.#makeLocation(st)));
@@ -3220,8 +3220,8 @@ export final class Parser {
     }
     
     // Body is optional for case classes
-    let body = new GrowableArray<Node>(8);
-    let sealedVariants = new GrowableArray<SealedVariant>(4);
+    let body = new Array<Node>(8);
+    let sealedVariants = new Array<SealedVariant>(4);
     if (this.#match(TokenType.LBrace)) {
       while (!this.#check(TokenType.RBrace) && !this.#isAtEnd()) {
         if (isSealed && this.#check(TokenType.Case)) {
@@ -3284,7 +3284,7 @@ export final class Parser {
     let variantName = this.#parseIdentifier();
     var params: GrowableArray<CaseClassParam> | null = null;
     if (this.#match(TokenType.LParen)) {
-      let ps = new GrowableArray<CaseClassParam>(4);
+      let ps = new Array<CaseClassParam>(4);
       if (!this.#check(TokenType.RParen)) {
         ps.push(this.#parseCaseClassParam());
         while (this.#match(TokenType.Comma) && !this.#check(TokenType.RParen)) {
@@ -3301,7 +3301,7 @@ export final class Parser {
     let startToken = this.#peek();
     
     // Parse decorators
-    let decorators = new GrowableArray<Decorator>(2);
+    let decorators = new Array<Decorator>(2);
     while (this.#check(TokenType.At)) {
       decorators.push(this.#parseDecorator());
     }
@@ -3704,7 +3704,7 @@ export final class Parser {
     this.#consume(TokenType.RParen, "Expected ')' after parameters");
     
     // Synthesize FieldInitializer entries for this.field params
-    let thisInits = new GrowableArray<Node>(4);
+    let thisInits = new Array<Node>(4);
     var i = 0;
     while (i < params.length) {
       let p = params[i];
@@ -3731,7 +3731,7 @@ export final class Parser {
           (this.#isIdentifier() && this.#peek2().kind == TokenType.Equals);
       if (isConstructor && (!inInterface || looksLikeInitializer)) {
         // Parse initializer list
-        let initList = new GrowableArray<Node>(4);
+        let initList = new Array<Node>(4);
         var superInit: Node | null = null;
         
         // First entry
@@ -3750,7 +3750,7 @@ export final class Parser {
         }
         
         // Prepend this.field initializers before explicit ones
-        let combined = new GrowableArray<Node>(thisInits.length + initList.length);
+        let combined = new Array<Node>(thisInits.length + initList.length);
         var j = 0;
         while (j < thisInits.length) {
           combined.push(thisInits[j]);
@@ -3768,7 +3768,7 @@ export final class Parser {
           let blockStart = this.#advance();
           body = this.#parseBlockStatement(blockStart);
         } else if (this.#match(TokenType.Semi)) {
-          body = new BlockStatement(new GrowableArray<Statement>(0), this.#makeLocation(startToken));
+          body = new BlockStatement(new Array<Statement>(0), this.#makeLocation(startToken));
         }
         
         var initListResult: GrowableArray<Node> | null = null;
@@ -3790,7 +3790,7 @@ export final class Parser {
     } else if (this.#match(TokenType.Semi)) {
       // Abstract/declare method or semicolon body — treated as empty block
       if (!isAbstract && !isDeclare) {
-        body = new BlockStatement(new GrowableArray<Statement>(0), this.#makeLocation(startToken));
+        body = new BlockStatement(new Array<Statement>(0), this.#makeLocation(startToken));
       }
     }
     
@@ -3841,7 +3841,7 @@ export final class Parser {
       }
     }
     this.#consume(TokenType.LParen, "Expected '(' after super");
-    let args = new GrowableArray<Expression>(4);
+    let args = new Array<Expression>(4);
     if (!this.#check(TokenType.RParen)) {
       args.push(this.#parseExpression());
       while (this.#match(TokenType.Comma) && !this.#check(TokenType.RParen)) {
@@ -3860,7 +3860,7 @@ export final class Parser {
     let startToken = this.#peek();
     this.#consume(TokenType.At, "Expected '@'");
     let name = this.#parseIdentifier().name;
-    let args = new GrowableArray<StringLiteral>(2);
+    let args = new Array<StringLiteral>(2);
     if (this.#match(TokenType.LParen)) {
       if (!this.#check(TokenType.RParen)) {
         let arg = this.#parseExpression();
@@ -3951,7 +3951,7 @@ export final class Parser {
     // Extends clause: interface Foo extends Bar, Baz
     var extendsList: GrowableArray<TypeAnnotation> | null = null;
     if (this.#match(TokenType.Extends)) {
-      let exts = new GrowableArray<TypeAnnotation>(4);
+      let exts = new Array<TypeAnnotation>(4);
       exts.push(this.#parseTypeAnnotation());
       while (this.#match(TokenType.Comma)) {
         exts.push(this.#parseTypeAnnotation());
@@ -3961,7 +3961,7 @@ export final class Parser {
     
     this.#consume(TokenType.LBrace, "Expected '{' before interface body");
     
-    let body = new GrowableArray<Node>(8);
+    let body = new Array<Node>(8);
     while (!this.#check(TokenType.RBrace) && !this.#isAtEnd()) {
       body.push(this.#parseInterfaceMember());
     }
@@ -4006,7 +4006,7 @@ export final class Parser {
       if (this.#match(TokenType.Less)) {
         ctorTypeParams = this.#parseTypeParameterList();
       }
-      return this.#parseMethodBody(ctorName, ctorTypeParams, false, false, false, false, false, false, new GrowableArray<Decorator>(0), startToken, true, true);
+      return this.#parseMethodBody(ctorName, ctorTypeParams, false, false, false, false, false, false, new Array<Decorator>(0), startToken, true, true);
     }
 
     // Check for `var` modifier on interface fields
@@ -4128,7 +4128,7 @@ export final class Parser {
     
     this.#consume(TokenType.Semi, "Expected ';' after field declaration");
     
-    return new FieldDefinition(name, typeAnnotation, null, false, false, false, false, if (mutableField) { "var" } else { null }, new GrowableArray<Decorator>(0), null, this.#makeLocation(startToken));
+    return new FieldDefinition(name, typeAnnotation, null, false, false, false, false, if (mutableField) { "var" } else { null }, new Array<Decorator>(0), null, this.#makeLocation(startToken));
   }
   
   // ==========================================================================
@@ -4153,7 +4153,7 @@ export final class Parser {
     // With clause: mixin Foo with A, B
     var mixins: GrowableArray<TypeAnnotation> | null = null;
     if (this.#match(TokenType.With)) {
-      let ms = new GrowableArray<TypeAnnotation>(4);
+      let ms = new Array<TypeAnnotation>(4);
       ms.push(this.#parseTypeAnnotation());
       while (this.#match(TokenType.Comma)) {
         ms.push(this.#parseTypeAnnotation());
@@ -4163,7 +4163,7 @@ export final class Parser {
     
     this.#consume(TokenType.LBrace, "Expected '{' before mixin body");
     
-    let body = new GrowableArray<Node>(8);
+    let body = new Array<Node>(8);
     while (!this.#check(TokenType.RBrace) && !this.#isAtEnd()) {
       body.push(this.#parseClassMember());
     }
@@ -4177,7 +4177,7 @@ export final class Parser {
     let name = this.#parseIdentifier();
     this.#consume(TokenType.LBrace, "Expected '{' after enum name");
     
-    let members = new GrowableArray<EnumMember>(8);
+    let members = new Array<EnumMember>(8);
     while (!this.#check(TokenType.RBrace) && !this.#isAtEnd()) {
       let memberStartToken = this.#peek();
       let memberName = this.#parseIdentifier();
@@ -4219,7 +4219,7 @@ export final class Parser {
     }
     this.#consume(TokenType.Semi, "Expected ';' after type alias declaration");
     
-    return new TypeAliasDeclaration(name, typeParameters, typeAnnotation, exported, isDistinct, isOpaque, decorators ?? new GrowableArray<Decorator>(0), this.#makeLocation(startToken));
+    return new TypeAliasDeclaration(name, typeParameters, typeAnnotation, exported, isDistinct, isOpaque, decorators ?? new Array<Decorator>(0), this.#makeLocation(startToken));
   }
 }
 

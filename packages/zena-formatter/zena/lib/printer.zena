@@ -29,14 +29,14 @@ var currentCommentMap = new CommentMap();
 // ============================================================================
 
 let docs2 = (a: Doc, b: Doc): Array<Doc> => {
-  let arr = new GrowableArray<Doc>();
+  let arr = new Array<Doc>();
   arr.push(a);
   arr.push(b);
   return arr;
 };
 
 let docs3 = (a: Doc, b: Doc, c: Doc): Array<Doc> => {
-  let arr = new GrowableArray<Doc>();
+  let arr = new Array<Doc>();
   arr.push(a);
   arr.push(b);
   arr.push(c);
@@ -70,7 +70,7 @@ let withComments = (node: Node, doc: Doc): Doc => {
     return doc;
   }
 
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
 
   // Leading comments
   if (leading != null) {
@@ -107,14 +107,14 @@ let printEmptyBody = (node: Node, spaceBeforeOpen: boolean): Doc => {
     if (spaceBeforeOpen) { return text(' {}'); }
     return text('{}');
   }
-  let commentDocs = new GrowableArray<Doc>();
+  let commentDocs = new Array<Doc>();
   var i: i32 = 0;
   while (i < inner.length) {
     commentDocs.push(printComment(inner[i]));
     if (i < inner.length - 1) { commentDocs.push(hardline); }
     i += 1;
   }
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   if (spaceBeforeOpen) { parts.push(text(' ')); }
   parts.push(text('{'));
   parts.push(indent(concat(docs2(hardline, concat(commentDocs)))));
@@ -140,7 +140,7 @@ export let format = (source: String): String => {
 // ============================================================================
 
 let printModule = (module: Module): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
 
   // File-level leading comments (attached to Module by blank-line heuristic)
   let fileComments = currentCommentMap.getLeading(module);
@@ -256,7 +256,7 @@ let printStatementInner = (stmt: Statement): Doc => match (stmt) {
   case ExportFromDeclaration {}: printExportFromDeclaration(stmt)
   case DeclareFunction {}: printDeclareFunction(stmt)
   case SymbolDeclaration {name, exported}: {
-    let parts = new GrowableArray<Doc>();
+    let parts = new Array<Doc>();
     if (exported) { parts.push(text('export ')); }
     parts.push(text('symbol '));
     parts.push(text(name.name));
@@ -270,7 +270,7 @@ let printStatementInner = (stmt: Statement): Doc => match (stmt) {
 // ============================================================================
 
 let printVariableDeclaration = (decl: VariableDeclaration): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   if (decl.exported) { parts.push(text('export ')); }
   parts.push(text(decl.kind));
   parts.push(text(' '));
@@ -287,7 +287,7 @@ let printVariableDeclaration = (decl: VariableDeclaration): Doc => {
 
 /** `using name: T = init;`, or the unbound `using init;`. */
 let printUsingStatement = (stmt: UsingStatement): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   parts.push(text('using '));
   if (stmt.pattern != null) {
     parts.push(printPattern(stmt.pattern as Pattern));
@@ -308,7 +308,7 @@ let printUsingStatement = (stmt: UsingStatement): Doc => {
 
 let printFunctionDeclaration = (decl: FunctionDeclaration): Doc => {
   let fn = decl.func;
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   if (decl.exported) { parts.push(text('export ')); }
   if (fn.isGenerator) { parts.push(text('gen ')); }
   if (fn.isAsync) { parts.push(text('async ')); }
@@ -336,7 +336,7 @@ let printFunctionDeclaration = (decl: FunctionDeclaration): Doc => {
 
 let printReturnStatement = (stmt: ReturnStatement): Doc => {
   if (stmt.argument == null) { return text('return;'); }
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   parts.push(text(if (stmt.isTail) 'tail return ' else 'return '));
   parts.push(printExpression(stmt.argument as Expression));
   parts.push(text(';'));
@@ -349,14 +349,14 @@ let printReturnStatement = (stmt: ReturnStatement): Doc => {
 
 let printBlockStatement = (block: BlockStatement): Doc => {
   if (block.body.length == 0) { return printEmptyBody(block, false); }
-  let stmts = new GrowableArray<Doc>();
+  let stmts = new Array<Doc>();
   var i = 0;
   while (i < block.body.length) {
     stmts.push(printStatement(block.body[i]));
     if (i < block.body.length - 1) { stmts.push(hardline); }
     i += 1;
   }
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   parts.push(text('{'));
   parts.push(indent(concat(docs2(hardline, concat(stmts)))));
   parts.push(hardline);
@@ -369,7 +369,7 @@ let printBlockStatement = (block: BlockStatement): Doc => {
 // ============================================================================
 
 let printIfStatement = (stmt: IfStatement): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   parts.push(text('if ('));
   parts.push(printCondition(stmt.test));
   parts.push(text(') '));
@@ -390,7 +390,7 @@ let printIfStatement = (stmt: IfStatement): Doc => {
 // ============================================================================
 
 let printWhileStatement = (stmt: WhileStatement): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   parts.push(text('while ('));
   parts.push(printCondition(stmt.test));
   parts.push(text(') '));
@@ -403,7 +403,7 @@ let printWhileStatement = (stmt: WhileStatement): Doc => {
 // ============================================================================
 
 let printForStatement = (stmt: ForStatement): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   parts.push(text('for ('));
   if (stmt.init != null) { parts.push(printNode(stmt.init as Node)); }
   parts.push(text('; '));
@@ -420,7 +420,7 @@ let printForStatement = (stmt: ForStatement): Doc => {
 // ============================================================================
 
 let printForInStatement = (stmt: ForInStatement): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   parts.push(text('for (let '));
   parts.push(printPattern(stmt.pattern));
   parts.push(text(' in '));
@@ -435,7 +435,7 @@ let printForInStatement = (stmt: ForInStatement): Doc => {
 // ============================================================================
 
 let printClassDeclaration = (decl: ClassDeclaration): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   if (decl.exported) { parts.push(text('export ')); }
   if (decl.isResource) { parts.push(text('resource ')); }
   if (decl.isAbstract) { parts.push(text('abstract ')); }
@@ -452,7 +452,7 @@ let printClassDeclaration = (decl: ClassDeclaration): Doc => {
   if (decl.caseParams != null) {
     let cps = decl.caseParams as GrowableArray<CaseClassParam>;
     parts.push(text('('));
-    let cpDocs = new GrowableArray<Doc>();
+    let cpDocs = new Array<Doc>();
     var i = 0;
     while (i < cps.length) {
       cpDocs.push(printCaseClassParam(cps[i]));
@@ -509,7 +509,7 @@ let printClassDeclaration = (decl: ClassDeclaration): Doc => {
   if (decl.sealedVariants != null) {
     let variants = decl.sealedVariants as GrowableArray<SealedVariant>;
     parts.push(text(' {'));
-    let variantDocs = new GrowableArray<Doc>();
+    let variantDocs = new Array<Doc>();
     var i = 0;
     while (i < variants.length) {
       variantDocs.push(printSealedVariant(variants[i]));
@@ -529,7 +529,7 @@ let printClassDeclaration = (decl: ClassDeclaration): Doc => {
     }
   } else {
     parts.push(text(' '));
-    let members = new GrowableArray<Doc>();
+    let members = new Array<Doc>();
     var i = 0;
     while (i < decl.body.length) {
       members.push(printClassMember(decl.body[i]));
@@ -559,13 +559,13 @@ let printClassDeclaration = (decl: ClassDeclaration): Doc => {
 };
 
 let printSealedVariant = (v: SealedVariant): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   parts.push(text('case '));
   parts.push(text(v.name.name));
   if (v.params != null) {
     let ps = v.params as GrowableArray<CaseClassParam>;
     parts.push(text('('));
-    let pDocs = new GrowableArray<Doc>();
+    let pDocs = new Array<Doc>();
     var i = 0;
     while (i < ps.length) {
       pDocs.push(printCaseClassParam(ps[i]));
@@ -578,7 +578,7 @@ let printSealedVariant = (v: SealedVariant): Doc => {
 };
 
 let printCaseClassParam = (param: CaseClassParam): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   if (param.mutability != null) {
     parts.push(text(param.mutability as String));
     parts.push(text(' '));
@@ -601,7 +601,7 @@ let printClassMember = (member: Node): Doc => {
 };
 
 let printFieldDefinition = (field: FieldDefinition): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   if (field.isStatic) { parts.push(text('static ')); }
   if (field.isAbstract) { parts.push(text('abstract ')); }
   if (field.isFinal) { parts.push(text('final ')); }
@@ -623,7 +623,7 @@ let printFieldDefinition = (field: FieldDefinition): Doc => {
 };
 
 let printMethodDefinition = (method: MethodDefinition): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   if (method.isStatic) { parts.push(text('static ')); }
   if (method.isAbstract) { parts.push(text('abstract ')); }
   if (method.isFinal) { parts.push(text('final ')); }
@@ -669,7 +669,7 @@ let printMethodDefinition = (method: MethodDefinition): Doc => {
     let inits = method.initializerList as GrowableArray<Node>;
     if (inits.length > 0) {
       parts.push(text(' : '));
-      let initDocs = new GrowableArray<Doc>();
+      let initDocs = new Array<Doc>();
       var i = 0;
       while (i < inits.length) {
         initDocs.push(printInitializerEntry(inits[i]));
@@ -689,7 +689,7 @@ let printMethodDefinition = (method: MethodDefinition): Doc => {
           parts.push(text(' : '));
         }
         parts.push(text('super('));
-        let argDocs = new GrowableArray<Doc>();
+        let argDocs = new Array<Doc>();
         var i = 0;
         while (i < args.length) {
           argDocs.push(printExpression(args[i]));
@@ -729,7 +729,7 @@ let printInitializerEntry = (entry: Node): Doc => match (entry) {
 };
 
 let printAccessorDeclaration = (acc: AccessorDeclaration): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   if (acc.isStatic) { parts.push(text('static ')); }
   if (acc.isFinal) { parts.push(text('final ')); }
   parts.push(printNodeName(acc.name));
@@ -758,7 +758,7 @@ let printAccessorDeclaration = (acc: AccessorDeclaration): Doc => {
 // ============================================================================
 
 let printInterfaceDeclaration = (decl: InterfaceDeclaration): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   if (decl.exported) { parts.push(text('export ')); }
   parts.push(text('interface '));
   parts.push(text(decl.name.name));
@@ -776,7 +776,7 @@ let printInterfaceDeclaration = (decl: InterfaceDeclaration): Doc => {
     parts.push(printEmptyBody(decl, true));
   } else {
     parts.push(text(' {'));
-    let memberDocs = new GrowableArray<Doc>();
+    let memberDocs = new Array<Doc>();
     var i = 0;
     while (i < decl.body.length) {
       memberDocs.push(printInterfaceMember(decl.body[i]));
@@ -794,7 +794,7 @@ let printInterfaceMember = (member: Node): Doc => {
     // An interface constructor: the same node a class constructor is.
     case MethodDefinition {}: printMethodDefinition(member)
     case MethodSignature {name, typeParameters, params, returnType}: {
-      let parts = new GrowableArray<Doc>();
+      let parts = new Array<Doc>();
       parts.push(text((name as Identifier).name));
       if (typeParameters != null) {
         parts.push(printTypeParams(typeParameters));
@@ -810,7 +810,7 @@ let printInterfaceMember = (member: Node): Doc => {
       concat(parts)
     }
     case AccessorSignature {name, typeAnnotation}: {
-      let parts = new GrowableArray<Doc>();
+      let parts = new Array<Doc>();
       parts.push(text(name.name));
       parts.push(text(': '));
       parts.push(printTypeAnnotation(typeAnnotation));
@@ -818,7 +818,7 @@ let printInterfaceMember = (member: Node): Doc => {
       concat(parts)
     }
     case PropertySignature {name, typeAnnotation}: {
-      let parts = new GrowableArray<Doc>();
+      let parts = new Array<Doc>();
       parts.push(text(name.name));
       parts.push(text(': '));
       parts.push(printTypeAnnotation(typeAnnotation));
@@ -835,7 +835,7 @@ let printInterfaceMember = (member: Node): Doc => {
 // ============================================================================
 
 let printEnumDeclaration = (decl: EnumDeclaration): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   if (decl.exported) { parts.push(text('export ')); }
   parts.push(text('enum '));
   parts.push(text(decl.name.name));
@@ -844,7 +844,7 @@ let printEnumDeclaration = (decl: EnumDeclaration): Doc => {
     return concat(parts);
   }
   parts.push(text(' {'));
-  let memberDocs = new GrowableArray<Doc>();
+  let memberDocs = new Array<Doc>();
   var i = 0;
   while (i < decl.members.length) {
     let m = decl.members[i];
@@ -867,7 +867,7 @@ let printEnumDeclaration = (decl: EnumDeclaration): Doc => {
 // ============================================================================
 
 let printMixinDeclaration = (decl: MixinDeclaration): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   if (decl.exported) { parts.push(text('export ')); }
   parts.push(text('mixin '));
   parts.push(text(decl.name.name));
@@ -882,7 +882,7 @@ let printMixinDeclaration = (decl: MixinDeclaration): Doc => {
     parts.push(printEmptyBody(decl, true));
   } else {
     parts.push(text(' {'));
-    let memberDocs = new GrowableArray<Doc>();
+    let memberDocs = new Array<Doc>();
     var i = 0;
     while (i < decl.body.length) {
       memberDocs.push(printClassMember(decl.body[i]));
@@ -900,7 +900,7 @@ let printMixinDeclaration = (decl: MixinDeclaration): Doc => {
 // ============================================================================
 
 let printTypeAliasDeclaration = (decl: TypeAliasDeclaration): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   printDecorators(decl.decorators, parts);
   if (decl.exported) { parts.push(text('export ')); }
   // `opaque` implies `isDistinct`, so it has to win — printing both would
@@ -932,9 +932,9 @@ let printTypeAliasDeclaration = (decl: TypeAliasDeclaration): Doc => {
 // ============================================================================
 
 let printImportDeclaration = (decl: ImportDeclaration): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   parts.push(text('import {'));
-  let specDocs = new GrowableArray<Doc>();
+  let specDocs = new Array<Doc>();
   var i = 0;
   while (i < decl.imports.length) {
     let spec = decl.imports[i];
@@ -957,9 +957,9 @@ let printImportDeclaration = (decl: ImportDeclaration): Doc => {
 // ============================================================================
 
 let printExportFromDeclaration = (decl: ExportFromDeclaration): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   parts.push(text('export {'));
-  let specDocs = new GrowableArray<Doc>();
+  let specDocs = new Array<Doc>();
   var i = 0;
   while (i < decl.specifiers.length) {
     let spec = decl.specifiers[i];
@@ -1000,7 +1000,7 @@ let printDecorators = (decorators: GrowableArray<Decorator>, parts: GrowableArra
 };
 
 let printDeclareFunction = (decl: DeclareFunction): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   printDecorators(decl.decorators, parts);
   if (decl.exported) { parts.push(text('export ')); }
   parts.push(text('declare '));
@@ -1127,7 +1127,7 @@ let escapeForSingleQuote = (value: String): String => {
 };
 
 let printStringLiteral = (lit: StringLiteral): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   parts.push(text("'"));
   parts.push(text(escapeForSingleQuote(lit.value)));
   parts.push(text("'"));
@@ -1151,7 +1151,7 @@ let isSameOpChain = (expr: Expression, op: String): boolean => match (expr) {
  * ((a + b) + c) + d → [a, b, c, d] with operator "+"
  */
 let flattenBinaryChain = (expr: BinaryExpression): Array<Expression> => {
-  let parts = new GrowableArray<Expression>();
+  let parts = new Array<Expression>();
   let op = expr.operator;
 
   // Walk left spine collecting operands
@@ -1165,7 +1165,7 @@ let flattenBinaryChain = (expr: BinaryExpression): Array<Expression> => {
   parts.push(current);
 
   // Reverse to get left-to-right order
-  let result = new GrowableArray<Expression>(parts.length);
+  let result = new Array<Expression>(parts.length);
   var i = parts.length - 1;
   while (i >= 0) {
     result.push(parts[i]);
@@ -1179,7 +1179,7 @@ let printBinaryExpression = (expr: BinaryExpression): Doc => {
 
   // Short chain (single binary op) — simple flat output
   if (operands.length <= 2) {
-    let parts = new GrowableArray<Doc>();
+    let parts = new Array<Doc>();
     parts.push(printExpression(expr.left));
     parts.push(text(' '));
     parts.push(text(expr.operator));
@@ -1195,10 +1195,10 @@ let printBinaryExpression = (expr: BinaryExpression): Doc => {
   //           + c
   //           + d
   let op = expr.operator;
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   parts.push(printExpression(operands[0]));
 
-  let rest = new GrowableArray<Doc>(operands.length * 3);
+  let rest = new Array<Doc>(operands.length * 3);
   var j: i32 = 1;
   while (j < operands.length) {
     rest.push(line);
@@ -1227,7 +1227,7 @@ let printUnaryExpression = (expr: UnaryExpression): Doc => {
 // ============================================================================
 
 let printAssignmentExpression = (expr: AssignmentExpression): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   parts.push(printExpression(expr.left));
   parts.push(text(' = '));
   parts.push(printExpression(expr.value));
@@ -1286,7 +1286,7 @@ class ChainSegment {
  */
 let printMethodChain = (expr: CallExpression): Doc => {
   // Collect chain segments in reverse order (innermost first)
-  let segments = new GrowableArray<ChainSegment>();
+  let segments = new Array<ChainSegment>();
   var current: Expression = expr;
   var collecting = true;
 
@@ -1300,7 +1300,7 @@ let printMethodChain = (expr: CallExpression): Doc => {
       let prop = text(memberExpr.property.name);
 
       // Build args doc
-      let argParts = new GrowableArray<Doc>();
+      let argParts = new Array<Doc>();
       if (callExpr.typeArguments != null) {
         let tas = callExpr.typeArguments as GrowableArray<TypeAnnotation>;
         if (tas.length > 0) {
@@ -1321,7 +1321,7 @@ let printMethodChain = (expr: CallExpression): Doc => {
   let head = printExpression(current);
 
   // Reverse segments to get correct order (outermost first)
-  let ordered = new GrowableArray<Doc>(segments.length);
+  let ordered = new Array<Doc>(segments.length);
   var i = segments.length - 1;
   while (i >= 0) {
     let seg = segments[i];
@@ -1330,7 +1330,7 @@ let printMethodChain = (expr: CallExpression): Doc => {
   }
 
   // Build: group(head, indent(softline, .a(), softline, .b(), ...))
-  let chainParts = new GrowableArray<Doc>(ordered.length * 2);
+  let chainParts = new Array<Doc>(ordered.length * 2);
   var j: i32 = 0;
   while (j < ordered.length) {
     chainParts.push(softline);
@@ -1342,7 +1342,7 @@ let printMethodChain = (expr: CallExpression): Doc => {
 };
 
 let printMemberExpression = (expr: MemberExpression): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   parts.push(printExpression(expr.object));
   if (expr.optional) { parts.push(text('?.')); } else { parts.push(text('.')); }
   parts.push(text(expr.property.name));
@@ -1350,7 +1350,7 @@ let printMemberExpression = (expr: MemberExpression): Doc => {
 };
 
 let printIndexExpression = (expr: IndexExpression): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   parts.push(printExpression(expr.object));
   if (expr.optional) { parts.push(text('?.[')); } else { parts.push(text('[')); }
   parts.push(printExpression(expr.index));
@@ -1368,7 +1368,7 @@ let printCallExpression = (expr: CallExpression): Doc => {
     return printMethodChain(expr);
   }
 
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   parts.push(printExpression(expr.callee));
   if (expr.typeArguments != null) {
     let tas = expr.typeArguments as GrowableArray<TypeAnnotation>;
@@ -1387,7 +1387,7 @@ let printCallExpression = (expr: CallExpression): Doc => {
 // ============================================================================
 
 let printNewExpression = (expr: NewExpression): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   parts.push(text('new '));
   parts.push(text(expr.callee.name));
   if (expr.typeArguments != null) {
@@ -1403,13 +1403,13 @@ let printNewExpression = (expr: NewExpression): Doc => {
 };
 
 let printArgList = (args: Array<Expression>): Array<Doc> => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   if (args.length == 0) {
     parts.push(text('('));
     parts.push(text(')'));
     return parts;
   }
-  let argDocs = new GrowableArray<Doc>();
+  let argDocs = new Array<Doc>();
   var i = 0;
   while (i < args.length) {
     argDocs.push(printExpression(args[i]));
@@ -1427,7 +1427,7 @@ let printArgList = (args: Array<Expression>): Array<Doc> => {
 // ============================================================================
 
 let printFunctionExpression = (fn: FunctionExpression): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
 
   if (fn.isGenerator) { parts.push(text('gen ')); }
   if (fn.isAsync) { parts.push(text('async ')); }
@@ -1457,7 +1457,7 @@ let printFunctionExpression = (fn: FunctionExpression): Doc => {
 
 let printParams = (params: Array<Parameter>): Doc => {
   if (params.length == 0) { return text(''); }
-  let paramDocs = new GrowableArray<Doc>();
+  let paramDocs = new Array<Doc>();
   var i = 0;
   while (i < params.length) {
     paramDocs.push(printParam(params[i]));
@@ -1467,7 +1467,7 @@ let printParams = (params: Array<Parameter>): Doc => {
 };
 
 let printParam = (param: Parameter): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   parts.push(text(param.name.name));
   if (param.optional) { parts.push(text('?')); }
   if (param.typeAnnotation != null) {
@@ -1487,13 +1487,13 @@ let printParam = (param: Parameter): Doc => {
 
 let printArrayLiteral = (expr: ArrayLiteral): Doc => {
   if (expr.elements.length == 0) { return text('[]'); }
-  let elemDocs = new GrowableArray<Doc>();
+  let elemDocs = new Array<Doc>();
   var i = 0;
   while (i < expr.elements.length) {
     elemDocs.push(printExpression(expr.elements[i]));
     i += 1;
   }
-  let inner = new GrowableArray<Doc>();
+  let inner = new Array<Doc>();
   inner.push(text('['));
   inner.push(indent(concat(docs2(softline, join(concat(docs2(text(','), line)), elemDocs)))));
   inner.push(softline);
@@ -1503,7 +1503,7 @@ let printArrayLiteral = (expr: ArrayLiteral): Doc => {
 
 let printRecordLiteral = (expr: RecordLiteral): Doc => {
   if (expr.properties.length == 0) { return text('{}'); }
-  let propDocs = new GrowableArray<Doc>();
+  let propDocs = new Array<Doc>();
   var i = 0;
   while (i < expr.properties.length) {
     let prop = expr.properties[i];
@@ -1518,7 +1518,7 @@ let printRecordLiteral = (expr: RecordLiteral): Doc => {
     }
     i += 1;
   }
-  let inner = new GrowableArray<Doc>();
+  let inner = new Array<Doc>();
   inner.push(text('{'));
   inner.push(indent(concat(docs2(line, join(concat(docs2(text(','), line)), propDocs)))));
   inner.push(line);
@@ -1527,7 +1527,7 @@ let printRecordLiteral = (expr: RecordLiteral): Doc => {
 };
 
 let printTupleLiteral = (expr: TupleLiteral): Doc => {
-  let elemDocs = new GrowableArray<Doc>();
+  let elemDocs = new Array<Doc>();
   var i = 0;
   while (i < expr.elements.length) {
     elemDocs.push(printExpression(expr.elements[i]));
@@ -1538,14 +1538,14 @@ let printTupleLiteral = (expr: TupleLiteral): Doc => {
 
 let printMapLiteral = (expr: MapLiteral): Doc => {
   if (expr.entries.length == 0) { return text('#{}'); }
-  let entryDocs = new GrowableArray<Doc>();
+  let entryDocs = new Array<Doc>();
   var i = 0;
   while (i < expr.entries.length) {
     let entry = expr.entries[i];
     entryDocs.push(concat(docs3(printExpression(entry.key), text(': '), printExpression(entry.value))));
     i += 1;
   }
-  let inner = new GrowableArray<Doc>();
+  let inner = new Array<Doc>();
   inner.push(text('#{'));
   inner.push(indent(concat(docs2(line, join(concat(docs2(text(','), line)), entryDocs)))));
   inner.push(line);
@@ -1558,7 +1558,7 @@ let printMapLiteral = (expr: MapLiteral): Doc => {
 // ============================================================================
 
 let printRangeExpression = (expr: RangeExpression): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   if (expr.start != null) { parts.push(printExpression(expr.start as Expression)); }
   parts.push(text('..'));
   if (expr.end != null) { parts.push(printExpression(expr.end as Expression)); }
@@ -1566,7 +1566,7 @@ let printRangeExpression = (expr: RangeExpression): Doc => {
 };
 
 let printPipelineExpression = (expr: PipelineExpression): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   parts.push(printExpression(expr.left));
   parts.push(indent(concat(docs3(line, text('|> '), printExpression(expr.right)))));
   return group(concat(parts));
@@ -1577,7 +1577,7 @@ let printPipelineExpression = (expr: PipelineExpression): Doc => {
 // ============================================================================
 
 let printTemplateLiteral = (expr: TemplateLiteral): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   parts.push(text('`'));
   var i = 0;
   while (i < expr.quasis.length) {
@@ -1598,14 +1598,14 @@ let printTemplateLiteral = (expr: TemplateLiteral): Doc => {
 // ============================================================================
 
 let printMatchExpression = (expr: MatchExpression): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   parts.push(text('match ('));
   parts.push(printExpression(expr.discriminant));
   parts.push(text(') {'));
   var i = 0;
   while (i < expr.cases.length) {
     let c = expr.cases[i];
-    let caseParts = new GrowableArray<Doc>();
+    let caseParts = new Array<Doc>();
     caseParts.push(text('case '));
     caseParts.push(printNode(c.pattern));
     if (c.guard != null) {
@@ -1627,7 +1627,7 @@ let printMatchExpression = (expr: MatchExpression): Doc => {
 // ============================================================================
 
 let printIfExpression = (expr: IfExpression): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   parts.push(text('if ('));
   parts.push(printCondition(expr.test));
   parts.push(text(') '));
@@ -1644,7 +1644,7 @@ let printIfExpression = (expr: IfExpression): Doc => {
 // ============================================================================
 
 let printTryExpression = (expr: TryExpression): Doc => {
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   parts.push(text('try '));
   parts.push(printBlockStatement(expr.body));
   if (expr.cancelBlock != null) {
@@ -1684,11 +1684,11 @@ let printPattern = (pat: Pattern): Doc => match (pat) {
     concat(docs3(printNode(pattern), text(' as '), text(name.name)))
   }
   case ClassPattern {name, properties}: {
-    let parts = new GrowableArray<Doc>();
+    let parts = new Array<Doc>();
     parts.push(text(name.name));
     if (properties.length > 0) {
       parts.push(text(' {'));
-      let propDocs = new GrowableArray<Doc>();
+      let propDocs = new Array<Doc>();
       var i = 0;
       while (i < properties.length) {
         propDocs.push(printBindingProperty(properties[i]));
@@ -1713,7 +1713,7 @@ let printPattern = (pat: Pattern): Doc => match (pat) {
 
 let printRecordPattern = (pattern: RecordPattern): Doc => {
   if (pattern.properties.length == 0) { return text('{}'); }
-  let propDocs = new GrowableArray<Doc>();
+  let propDocs = new Array<Doc>();
   var i = 0;
   while (i < pattern.properties.length) {
     propDocs.push(printBindingProperty(pattern.properties[i]));
@@ -1736,7 +1736,7 @@ let printBindingProperty = (bp: BindingProperty): Doc => {
 };
 
 let printTuplePattern = (pattern: TuplePattern): Doc => {
-  let elemDocs = new GrowableArray<Doc>();
+  let elemDocs = new Array<Doc>();
   var i = 0;
   while (i < pattern.elements.length) {
     let elem = pattern.elements[i];
@@ -1751,7 +1751,7 @@ let printTuplePattern = (pattern: TuplePattern): Doc => {
 };
 
 let printArrayPattern = (pattern: ArrayPattern): Doc => {
-  let elemDocs = new GrowableArray<Doc>();
+  let elemDocs = new Array<Doc>();
   var i = 0;
   while (i < pattern.elements.length) {
     let elem = pattern.elements[i];
@@ -1771,7 +1771,7 @@ let printArrayPattern = (pattern: ArrayPattern): Doc => {
 
 let printTypeAnnotation = (ann: TypeAnnotation): Doc => match (ann) {
   case NamedTypeAnnotation {name, typeArguments, elementsMutable}: {
-    let parts = new GrowableArray<Doc>();
+    let parts = new Array<Doc>();
     parts.push(text(name));
     if (typeArguments != null) {
       if (typeArguments.length > 0) {
@@ -1786,7 +1786,7 @@ let printTypeAnnotation = (ann: TypeAnnotation): Doc => match (ann) {
     concat(parts)
   }
   case UnionTypeAnnotation {types}: {
-    let typeDocs = new GrowableArray<Doc>();
+    let typeDocs = new Array<Doc>();
     var i = 0;
     while (i < types.length) {
       typeDocs.push(printTypeAnnotation(types[i]));
@@ -1805,9 +1805,9 @@ let printTypeAnnotation = (ann: TypeAnnotation): Doc => match (ann) {
     }
   }
   case FunctionTypeAnnotation {params, returnType}: {
-    let parts = new GrowableArray<Doc>();
+    let parts = new Array<Doc>();
     parts.push(text('('));
-    let pDocs = new GrowableArray<Doc>();
+    let pDocs = new Array<Doc>();
     var i = 0;
     while (i < params.length) {
       pDocs.push(printTypeAnnotation(params[i]));
@@ -1820,7 +1820,7 @@ let printTypeAnnotation = (ann: TypeAnnotation): Doc => match (ann) {
   }
   case LiteralTypeAnnotation {value}: printNode(value)
   case RecordTypeAnnotation {properties}: {
-    let propDocs = new GrowableArray<Doc>();
+    let propDocs = new Array<Doc>();
     var i = 0;
     while (i < properties.length) {
       let p = properties[i];
@@ -1831,7 +1831,7 @@ let printTypeAnnotation = (ann: TypeAnnotation): Doc => match (ann) {
     concat(docs3(text('{'), join(text(', '), propDocs), text('}')))
   }
   case TupleTypeAnnotation {elementTypes}: {
-    let eDocs = new GrowableArray<Doc>();
+    let eDocs = new Array<Doc>();
     var i = 0;
     while (i < elementTypes.length) {
       eDocs.push(printTypeAnnotation(elementTypes[i]));
@@ -1840,7 +1840,7 @@ let printTypeAnnotation = (ann: TypeAnnotation): Doc => match (ann) {
     concat(docs3(text('('), join(text(', '), eDocs), text(')')))
   }
   case InlineTupleTypeAnnotation {elementTypes}: {
-    let eDocs = new GrowableArray<Doc>();
+    let eDocs = new Array<Doc>();
     var i = 0;
     while (i < elementTypes.length) {
       eDocs.push(printTypeAnnotation(elementTypes[i]));
@@ -1857,13 +1857,13 @@ let printTypeAnnotation = (ann: TypeAnnotation): Doc => match (ann) {
 
 let printTypeParams = (tps: Array<TypeParameter>): Doc => {
   if (tps.length == 0) { return text(''); }
-  let parts = new GrowableArray<Doc>();
+  let parts = new Array<Doc>();
   parts.push(text('<'));
-  let tpDocs = new GrowableArray<Doc>();
+  let tpDocs = new Array<Doc>();
   var i = 0;
   while (i < tps.length) {
     let tp = tps[i];
-    let tpParts = new GrowableArray<Doc>();
+    let tpParts = new Array<Doc>();
     if (tp.isScoped) {
       tpParts.push(text('scoped '));
     }
@@ -1885,7 +1885,7 @@ let printTypeParams = (tps: Array<TypeParameter>): Doc => {
 };
 
 let mapTypeAnnotations = (anns: Array<TypeAnnotation>): Array<Doc> => {
-  let docs = new GrowableArray<Doc>();
+  let docs = new Array<Doc>();
   var i = 0;
   while (i < anns.length) {
     docs.push(printTypeAnnotation(anns[i]));

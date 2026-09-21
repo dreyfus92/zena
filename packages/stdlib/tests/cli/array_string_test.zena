@@ -5,7 +5,7 @@
 export let main = (): i32 => {
   console.log("Creating GrowableArray<String>...");
   
-  let arr = new GrowableArray<String>();
+  let arr = new Array<String>();
   arr.push("hello");
   arr.push("world");
   

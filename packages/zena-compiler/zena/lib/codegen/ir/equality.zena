@@ -331,7 +331,7 @@ export let lowerCaseClassEq = (cx: LoweringContext): IrBody => {
   let st = cx.func.structType as WasmStruct;
   let i32vt = new ValTypeI32() as ValType;
   let entry = cx.b.newBlock();
-  let params = new GrowableArray<i32>();
+  let params = new Array<i32>();
   for (let vt in sig.params) {
     params.push(cx.b.blockParam(entry, vt));
   }
@@ -396,7 +396,7 @@ export let lowerCaseClassHash = (cx: LoweringContext): IrBody => {
   let st = cx.func.structType as WasmStruct;
   let i32vt = new ValTypeI32() as ValType;
   let entry = cx.b.newBlock();
-  let params = new GrowableArray<i32>();
+  let params = new Array<i32>();
   for (let vt in sig.params) {
     params.push(cx.b.blockParam(entry, vt));
   }

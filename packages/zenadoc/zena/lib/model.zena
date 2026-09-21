@@ -93,8 +93,8 @@ export final class DocMember {
   /** `let`, `var`, or null for members that are not fields. */
   var mutability: String | null = null;
 
-  var typeParameters = new GrowableArray<DocTypeParam>(0);
-  var parameters = new GrowableArray<DocParam>(0);
+  var typeParameters = new Array<DocTypeParam>(0);
+  var parameters = new Array<DocParam>(0);
   var type: TypeRef | null = null;
   var doc: DocComment | null = null;
   var loc: DocLoc | null = null;
@@ -149,21 +149,21 @@ export final class DocDeclaration {
   var exported: boolean = true;
 
   /** Declaration keywords: `final`, `sealed`, `abstract`, `resource`, … */
-  var modifiers = new GrowableArray<String>(0);
+  var modifiers = new Array<String>(0);
 
-  var typeParameters = new GrowableArray<DocTypeParam>(0);
+  var typeParameters = new Array<DocTypeParam>(0);
 
   /** Parameters, for functions and variables holding a function. */
-  var parameters = new GrowableArray<DocParam>(0);
+  var parameters = new Array<DocParam>(0);
 
   /** A function's return type, a variable's type, an alias's target. */
   var type: TypeRef | null = null;
 
   var superClass: TypeRef | null = null;
-  var interfaces = new GrowableArray<TypeRef>(0);
-  var mixins = new GrowableArray<TypeRef>(0);
+  var interfaces = new Array<TypeRef>(0);
+  var mixins = new Array<TypeRef>(0);
 
-  var members = new GrowableArray<DocMember>(0);
+  var members = new Array<DocMember>(0);
   var doc: DocComment | null = null;
   var loc: DocLoc | null = null;
 
@@ -255,8 +255,8 @@ export final class DocModule {
   var canonicalId: String | null = null;
 
   var doc: DocComment | null = null;
-  var declarations = new GrowableArray<DocDeclaration>(0);
-  var reexports = new GrowableArray<DocReexport>(0);
+  var declarations = new Array<DocDeclaration>(0);
+  var reexports = new Array<DocReexport>(0);
 
   /**
    * Anchors handed out in this module. Kept on the module because
@@ -286,7 +286,7 @@ export final class DocPackage {
   root: String;
 
   var version: String | null = null;
-  var modules = new GrowableArray<DocModule>(0);
+  var modules = new Array<DocModule>(0);
 
   new(this.name, this.root);
 }

@@ -31,7 +31,7 @@ import { SymbolId } from '../lib/scope/symbol.zena';
 /** A generic `interface Box<T>`, standing in for `Iterable<T>`. */
 let genericInterface = (id: i32, symId: i32, name: String): InterfaceType => {
   let it = new InterfaceType(id as TypeId, symId as SymbolId, name);
-  let params = new GrowableArray<TypeParameterType>();
+  let params = new Array<TypeParameterType>();
   params.push(new TypeParameterType('T', null, null));
   it.typeParameters = params;
   return it;
@@ -40,14 +40,14 @@ let genericInterface = (id: i32, symId: i32, name: String): InterfaceType => {
 /** A generic `class Holder<T>`. */
 let genericClass = (id: i32, symId: i32, name: String): ClassType => {
   let ct = new ClassType(id as TypeId, symId as SymbolId, name);
-  let params = new GrowableArray<TypeParameterType>();
+  let params = new Array<TypeParameterType>();
   params.push(new TypeParameterType('T', null, null));
   ct.typeParameters = params;
   return ct;
 };
 
 let args = (t: Type): Array<Type> => {
-  let a = new GrowableArray<Type>();
+  let a = new Array<Type>();
   a.push(t);
   return a;
 };

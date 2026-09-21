@@ -193,7 +193,7 @@ export let prepareComponentEntry = (
     }
   }
 
-  let entrySig = wasm.getSignature(new GrowableArray<ValType>(0), i32Results());
+  let entrySig = wasm.getSignature(new Array<ValType>(0), i32Results());
   let entry = new WasmFunction(entrySig, null, main.model);
   entry.name = 'main$componentRun';
   entry.isComponentAdapter = true;
@@ -205,18 +205,18 @@ export let prepareComponentEntry = (
   b.switchTo(block);
   // This call is a task of its own, before anything the program does
   // can wait or return.
-  b.callFunc(b.addRef(new IrRefFunc(begin)), new GrowableArray<i32>(0),
+  b.callFunc(b.addRef(new IrRefFunc(begin)), new Array<i32>(0),
       null);
   if (calleeReturnsFuture) {
     // The frame future, deliberately unobserved (see above).
-    b.callFunc(b.addRef(new IrRefFunc(callee)), new GrowableArray<i32>(0),
+    b.callFunc(b.addRef(new IrRefFunc(callee)), new Array<i32>(0),
         callee.signature.returns[0]);
   } else {
-    b.callFunc(b.addRef(new IrRefFunc(callee)), new GrowableArray<i32>(0),
+    b.callFunc(b.addRef(new IrRefFunc(callee)), new Array<i32>(0),
         null);
   }
   let code = b.callFunc(b.addRef(new IrRefFunc(poll)),
-      new GrowableArray<i32>(0), new ValTypeI32());
+      new Array<i32>(0), new ValTypeI32());
   b.ret(code);
   entryBodies[entry.uid] = b.finish();
 
@@ -283,16 +283,16 @@ let prepareAsyncExports = (
 
         let b = new IrBuilder();
         let block = b.newBlock();
-        let args = new GrowableArray<i32>();
+        let args = new Array<i32>();
         for (let vt in target.signature.params) {
           args.push(b.blockParam(block, vt));
         }
         b.switchTo(block);
-        b.callFunc(b.addRef(new IrRefFunc(begin)), new GrowableArray<i32>(0),
+        b.callFunc(b.addRef(new IrRefFunc(begin)), new Array<i32>(0),
             null);
         b.callFunc(b.addRef(new IrRefFunc(target)), args, null);
         let code = b.callFunc(b.addRef(new IrRefFunc(poll)),
-            new GrowableArray<i32>(0), new ValTypeI32());
+            new Array<i32>(0), new ValTypeI32());
         b.ret(code);
         entryBodies[adapter.uid] = b.finish();
         wasm.componentAsyncExports.push(
@@ -359,7 +359,7 @@ export let prepareSyncExports = (
 };
 
 let i32Results = (): GrowableArray<ValType> => {
-  let results = new GrowableArray<ValType>();
+  let results = new Array<ValType>();
   results.push(new ValTypeI32());
   return results;
 };
@@ -442,8 +442,8 @@ export let prepareComponentExports = (
     // becomes a pointer and a length, everything else stays as the core
     // module already has it, and a string result becomes the address of
     // the return area.
-    let params = new GrowableArray<ValType>();
-    let stringAt = new GrowableArray<boolean>();
+    let params = new Array<ValType>();
+    let stringAt = new Array<boolean>();
     for (var i = 0; i < declared.parameters.length; i += 1) {
       if (componentTypeOf(wasm, declared.parameters[i]) ==
           (ComponentValType.String as i32)) {
@@ -470,7 +470,7 @@ export let prepareComponentExports = (
 
     let b = new IrBuilder();
     let entry = b.newBlock();
-    let core = new GrowableArray<i32>();
+    let core = new Array<i32>();
     for (let vt in params) {
       core.push(b.blockParam(entry, vt));
     }
@@ -485,16 +485,16 @@ export let prepareComponentExports = (
     // Released here rather than after the call so that a program that
     // throws does not leak them: the wrapper is straight-line, and an
     // exception leaves it without running anything below.
-    let args = new GrowableArray<i32>();
+    let args = new Array<i32>();
     var at = 0;
     for (var i = 0; i < stringAt.length; i += 1) {
       if (stringAt[i]) {
-        let pair = new GrowableArray<i32>();
+        let pair = new Array<i32>();
         pair.push(core[at]);
         pair.push(core[at + 1]);
         args.push(b.callFunc(b.addRef(new IrRefFunc(fromMemory)),
             pair, f.signature.params[i]));
-        let toRelease = new GrowableArray<i32>();
+        let toRelease = new Array<i32>();
         toRelease.push(core[at]);
         toRelease.push(core[at + 1]);
         b.callFunc(b.addRef(new IrRefFunc(release)),
@@ -513,7 +513,7 @@ export let prepareComponentExports = (
     };
     let called = b.callFunc(b.addRef(new IrRefFunc(f)), args, callResult);
     if (resultIsString) {
-      let one = new GrowableArray<i32>();
+      let one = new Array<i32>();
       one.push(called);
       b.ret(b.callFunc(b.addRef(new IrRefFunc(resultArea)),
           one, new ValTypeI32()));

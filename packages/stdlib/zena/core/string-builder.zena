@@ -1,3 +1,4 @@
+import { Array } from './array.zena';
 import { GrowableArray } from './growable-array.zena';
 import { Iterable } from './iterator.zena';
 import { String, Encoding } from './string.zena';
@@ -11,7 +12,7 @@ export final class StringBuilder {
    * Historical fully-written chunks. Once a chunk is pushed here, it is never
    * modified again.
    */
-  var #chunks: GrowableArray<ByteArray> = new GrowableArray<ByteArray>();
+  var #chunks: GrowableArray<ByteArray> = new Array<ByteArray>();
 
   /**
    * The active buffer currently being written to.
@@ -268,7 +269,7 @@ export final class StringBuilder {
    * Clears the builder.
    */
   clear(): void {
-    this.#chunks = new GrowableArray<ByteArray>();
+    this.#chunks = new Array<ByteArray>();
     this.#currentChunk = __byte_array_new(16);
     this.#currentChunkLen = 16;
     this.#currentPos = 0;

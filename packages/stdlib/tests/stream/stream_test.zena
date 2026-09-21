@@ -32,7 +32,7 @@ let sumAll = async (s: Stream<Item>, buf: FixedArray<Item>): Future<i32> => {
 export let tests = suite('Stream', (): void => {
   test('a write with no reader parks; a read drains it', (ctx: TestContext): void => {
     let w = new StreamWriter<String>();
-    let buf = new FixedArray<String>(4, '');
+    let buf = new Array<String>.fixed(4, '');
 
     let wa = w.write('a');
     drainMicrotasks();
@@ -46,7 +46,7 @@ export let tests = suite('Stream', (): void => {
 
   test('a pending read completes on the first write, count 1', (ctx: TestContext): void => {
     let w = new StreamWriter<String>();
-    let buf = new FixedArray<String>(4, '');
+    let buf = new Array<String>.fixed(4, '');
 
     let r = w.stream.read(buf);
     drainMicrotasks();
@@ -60,13 +60,13 @@ export let tests = suite('Stream', (): void => {
 
   test('a batch write drains across reads, up to read capacity', (ctx: TestContext): void => {
     let w = new StreamWriter<String>();
-    let src = new FixedArray<String>(5, '');
+    let src = new Array<String>.fixed(5, '');
     src[0] = 'a';
     src[1] = 'b';
     src[2] = 'c';
     src[3] = 'd';
     src[4] = 'e';
-    let buf = new FixedArray<String>(3, '');
+    let buf = new Array<String>.fixed(3, '');
 
     let wa = w.writeAll(src, 5);
     let r1 = w.stream.read(buf);
@@ -85,10 +85,10 @@ export let tests = suite('Stream', (): void => {
 
   test('writeAll without a count writes the whole buffer', (ctx: TestContext): void => {
     let w = new StreamWriter<String>();
-    let src = new FixedArray<String>(2, '');
+    let src = new Array<String>.fixed(2, '');
     src[0] = 'a';
     src[1] = 'b';
-    let buf = new FixedArray<String>(4, '');
+    let buf = new Array<String>.fixed(4, '');
 
     let wa = w.writeAll(src);
     let r = w.stream.read(buf);
@@ -100,13 +100,13 @@ export let tests = suite('Stream', (): void => {
 
   test('a batch write rendezvouses with a blocked reader, remainder parks', (ctx: TestContext): void => {
     let w = new StreamWriter<String>();
-    let src = new FixedArray<String>(5, '');
+    let src = new Array<String>.fixed(5, '');
     src[0] = 'a';
     src[1] = 'b';
     src[2] = 'c';
     src[3] = 'd';
     src[4] = 'e';
-    let buf = new FixedArray<String>(3, '');
+    let buf = new Array<String>.fixed(3, '');
 
     let r1 = w.stream.read(buf);
     let wa = w.writeAll(src, 5);
@@ -122,7 +122,7 @@ export let tests = suite('Stream', (): void => {
 
   test('a second write while one pends throws', (ctx: TestContext): void => {
     let w = new StreamWriter<String>();
-    let buf = new FixedArray<String>(2, '');
+    let buf = new Array<String>.fixed(2, '');
 
     let first = w.write('a');
     var wroteTwice = false;
@@ -141,7 +141,7 @@ export let tests = suite('Stream', (): void => {
 
   test('close completes a pending read with 0, and every read after', (ctx: TestContext): void => {
     let w = new StreamWriter<String>();
-    let buf = new FixedArray<String>(2, '');
+    let buf = new Array<String>.fixed(2, '');
 
     let r = w.stream.read(buf);
     w.close();
@@ -151,7 +151,7 @@ export let tests = suite('Stream', (): void => {
 
   test('a pending write still delivers after close', (ctx: TestContext): void => {
     let w = new StreamWriter<String>();
-    let buf = new FixedArray<String>(2, '');
+    let buf = new Array<String>.fixed(2, '');
 
     let last = w.write('tail');
     w.close();
@@ -164,7 +164,7 @@ export let tests = suite('Stream', (): void => {
 
   test('a stopped reader refuses the pending and later writes', (ctx: TestContext): void => {
     let w = new StreamWriter<String>();
-    let buf = new FixedArray<String>(2, '');
+    let buf = new Array<String>.fixed(2, '');
 
     let parked = w.write('never');
     w.stream.stop();
@@ -188,8 +188,8 @@ export let tests = suite('Stream', (): void => {
   test('an async consumer drains an object stream in batches', (ctx: TestContext): void => {
     let w = new StreamWriter<Item>();
     let placeholder = new Item(0);
-    let buf = new FixedArray<Item>(3, placeholder);
-    let src = new FixedArray<Item>(5, placeholder);
+    let buf = new Array<Item>.fixed(3, placeholder);
+    let src = new Array<Item>.fixed(5, placeholder);
     src[0] = new Item(100);
     src[1] = new Item(200);
     src[2] = new Item(120);

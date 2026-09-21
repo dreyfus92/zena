@@ -69,7 +69,7 @@ let compileFresh = (path: String): ByteArray => {
     }
   }
   let entryAst = result.entry.ast;
-  let units = new GrowableArray<CompilationUnit>();
+  let units = new Array<CompilationUnit>();
   var entryUnit: CompilationUnit | null = null;
   for (let file in result.files) {
     let res = checked.results[file.path];
@@ -116,7 +116,7 @@ let repeats = 8;
 export let tests = suite('Codegen determinism', (): void => {
   test('emits the same module whatever was compiled before it', (ctx: TestContext): void => {
     let first = compileFresh(target);
-    let differing = new GrowableArray<i32>();
+    let differing = new Array<i32>();
     var i = 1;
     while (i < repeats) {
       let again = compileFresh(target);

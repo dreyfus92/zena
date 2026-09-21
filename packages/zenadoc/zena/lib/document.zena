@@ -55,7 +55,7 @@ export final class DocumentResult {
   docs: DocPackage;
 
   /** Every diagnostic the checker reported, across all modules. */
-  var diagnostics = new GrowableArray<Diagnostic>(0);
+  var diagnostics = new Array<Diagnostic>(0);
 
   /**
    * Modules that could not be compiled at all, as `<module>: <reason>`.
@@ -63,7 +63,7 @@ export final class DocumentResult {
    * package the compiler does not know, fails here rather than
    * producing diagnostics.
    */
-  var failures = new GrowableArray<String>(0);
+  var failures = new Array<String>(0);
 
   new(this.docs);
 

@@ -38,7 +38,7 @@ export interface TypeLinker {
 /** Accumulates the rendered text and the link spans within it. */
 final class Render {
   sb = new StringBuilder(48);
-  links = new GrowableArray<TypeLink>(0);
+  links = new Array<TypeLink>(0);
   linker: TypeLinker | null;
 
   new(this.linker);
@@ -226,7 +226,7 @@ export let refForOrType = (
     return annotationRef(annotation, linker);
   }
   if (type != null) {
-    return new TypeRef(typeToString(type), new GrowableArray<TypeLink>(0));
+    return new TypeRef(typeToString(type), new Array<TypeLink>(0));
   }
   return null;
 };

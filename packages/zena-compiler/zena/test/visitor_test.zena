@@ -16,7 +16,7 @@ export let tests = suite('AST Visitor', (): void => {
 
   test('visits all identifiers in simple expression', (ctx: TestContext): void => {
     let ast = parse('let x = a + b;', 'test.zena');
-    let identifiers = new GrowableArray<String>();
+    let identifiers = new Array<String>();
 
     walkEnter(ast, (node) => {
       match (node) {
@@ -33,7 +33,7 @@ export let tests = suite('AST Visitor', (): void => {
 
   test('visits function parameters', (ctx: TestContext): void => {
     let ast = parse('let f = (x: i32, y: i32) => x + y;', 'test.zena');
-    let paramNames = new GrowableArray<String>();
+    let paramNames = new Array<String>();
 
     walkEnter(ast, (node) => {
       match (node) {
@@ -68,7 +68,7 @@ export let tests = suite('AST Visitor', (): void => {
 
   test('visits type annotations', (ctx: TestContext): void => {
     let ast = parse('let x: Map<String, i32> = null;', 'test.zena');
-    let typeNames = new GrowableArray<String>();
+    let typeNames = new Array<String>();
 
     walkEnter(ast, (node) => {
       match (node) {
@@ -86,7 +86,7 @@ export let tests = suite('AST Visitor', (): void => {
 
   test('visits string literals', (ctx: TestContext): void => {
     let ast = parse("let s = 'hello';", 'test.zena');
-    let strings = new GrowableArray<String>();
+    let strings = new Array<String>();
 
     walkEnter(ast, (node) => {
       match (node) {
@@ -120,7 +120,7 @@ export let tests = suite('AST Visitor', (): void => {
   test('enter returning false skips children', (ctx: TestContext): void => {
     // Two declarations — skip the second one's subtree
     let ast = parse('let x = 1; let y = 2;', 'test.zena');
-    let numbers = new GrowableArray<String>();
+    let numbers = new Array<String>();
     var declCount = 0;
 
     walk(ast, (node) => {
@@ -143,7 +143,7 @@ export let tests = suite('AST Visitor', (): void => {
 
   test('leave is called after children', (ctx: TestContext): void => {
     let ast = parse('let x = a + b;', 'test.zena');
-    let order = new GrowableArray<String>();
+    let order = new Array<String>();
 
     walk(ast, (node) => {
       match (node) {
@@ -225,7 +225,7 @@ export let tests = suite('AST Visitor', (): void => {
   test('visits onType in class declarations', (ctx: TestContext): void => {
     let source = "extension class MyExtension on array<i32> {}";
     let ast = parse(source, 'test.zena');
-    let typeNames = new GrowableArray<String>();
+    let typeNames = new Array<String>();
 
     walkEnter(ast, (node) => {
       match (node) {

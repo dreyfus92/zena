@@ -32,7 +32,7 @@ import { WasmModule, WasmFunction } from '../wasm-module.zena';
 
 export final class EscapeSummaries {
   /** escapes[f][k]: function f's k-th parameter escapes. */
-  escapes = new GrowableArray<GrowableArray<boolean>>();
+  escapes = new Array<GrowableArray<boolean>>();
   #bodyIndex = new HashMap<WasmFunction, i32>();
 
   new(wasm: WasmModule, bodies: GrowableArray<IrBody>) {
@@ -40,7 +40,7 @@ export final class EscapeSummaries {
       this.#bodyIndex[wasm.functions[i]] = i;
     }
     for (let body in bodies) {
-      let row = new GrowableArray<boolean>();
+      let row = new Array<boolean>();
       let n = if (body.blocks.length > 0) body.blocks[0].params.length else 0;
       for (var k = 0; k < n; k += 1) {
         row.push(false);
@@ -91,11 +91,11 @@ export final class EscapeSummaries {
   #paramEscapes(body: IrBody, users: GrowableArray<GrowableArray<i32>>,
       k: i32): boolean {
     let count = body.instCount();
-    let alias = new GrowableArray<boolean>();
+    let alias = new Array<boolean>();
     for (var i = 0; i < count; i += 1) {
       alias.push(false);
     }
-    let work = new GrowableArray<i32>();
+    let work = new Array<i32>();
     let start = body.blocks[0].params[k];
     alias[start] = true;
     work.push(start);
@@ -185,11 +185,11 @@ export final class EscapeSummaries {
 /** users[v]: the instructions reading value v, in id order. */
 let buildUsers = (body: IrBody): GrowableArray<GrowableArray<i32>> => {
   let count = body.instCount();
-  let users = new GrowableArray<GrowableArray<i32>>();
+  let users = new Array<GrowableArray<i32>>();
   for (var i = 0; i < count; i += 1) {
-    users.push(new GrowableArray<i32>());
+    users.push(new Array<i32>());
   }
-  let operands = new GrowableArray<i32>();
+  let operands = new Array<i32>();
   for (var i = 0; i < count; i += 1) {
     if (body.op(i) == IrOp.nop) {
       continue;
