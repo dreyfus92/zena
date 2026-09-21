@@ -36,7 +36,7 @@ export let tests = suite("Package Manifest", () => {
 
       // Exports present.
       isTrue(config.exports != null);
-      let exports = config.exports as HashMap<String, ModuleExport>;
+      let exports = config.exports as Map<String, ModuleExport>;
       isTrue(exports.has("utils"));
       isFalse(exports.has("impl"));
     });
@@ -47,7 +47,7 @@ export let tests = suite("Package Manifest", () => {
 
       let packages = loadPackageMap(host, "/project/zena-packages.json");
       let config = packages["mylib"];
-      let exports = config.exports as HashMap<String, ModuleExport>;
+      let exports = config.exports as Map<String, ModuleExport>;
       equal(exports["widgets"].path as String, "widgets/index.zena");
       equal(exports["utils"].path == null, true);
     });
@@ -58,9 +58,9 @@ export let tests = suite("Package Manifest", () => {
 
       let packages = loadPackageMap(host, "/project/zena-packages.json");
       let config = packages["mylib"];
-      let exports = config.exports as HashMap<String, ModuleExport>;
+      let exports = config.exports as Map<String, ModuleExport>;
       let consoleExport = exports["console"];
-      let virtual = consoleExport.virtual as HashMap<String, String>;
+      let virtual = consoleExport.virtual as Map<String, String>;
       equal(virtual["host"], "console/js.zena");
       equal(virtual["wasi"], "console/wasi.zena");
     });
@@ -75,7 +75,7 @@ export let tests = suite("Package Manifest", () => {
           '"open": {}}}}}');
 
       let packages = loadPackageMap(host, "/project/zena-packages.json");
-      let exports = packages["mylib"].exports as HashMap<String, ModuleExport>;
+      let exports = packages["mylib"].exports as Map<String, ModuleExport>;
       isTrue(exports["plain"].internal);
       isTrue(exports["withPath"].internal);
       isTrue(exports["virt"].internal);
@@ -111,7 +111,7 @@ export let tests = suite("Package Manifest", () => {
 
     test("includes public modules", () => {
       let config = buildStdlibConfig("/stdlib");
-      let exports = config.exports as HashMap<String, ModuleExport>;
+      let exports = config.exports as Map<String, ModuleExport>;
       isTrue(exports.has("core"));
       isTrue(exports.has("collections"));
       isTrue(exports.has("json"));
@@ -120,16 +120,16 @@ export let tests = suite("Package Manifest", () => {
 
     test("includes console as virtual module", () => {
       let config = buildStdlibConfig("/stdlib");
-      let exports = config.exports as HashMap<String, ModuleExport>;
+      let exports = config.exports as Map<String, ModuleExport>;
       let consoleExport = exports["console"];
-      let virtual = consoleExport.virtual as HashMap<String, String>;
+      let virtual = consoleExport.virtual as Map<String, String>;
       equal(virtual["host"], "console/host.zena");
       equal(virtual["wasi"], "console/wasi.zena");
     });
 
     test("does not export console implementation files by name", () => {
       let config = buildStdlibConfig("/stdlib");
-      let exports = config.exports as HashMap<String, ModuleExport>;
+      let exports = config.exports as Map<String, ModuleExport>;
       isFalse(exports.has("console-host"));
       isFalse(exports.has("console-wasi"));
       isFalse(exports.has("console-interface"));

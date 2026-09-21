@@ -315,7 +315,7 @@ export let tests = suite('WatGenerator', (): void => {
     host.addFile("zena:async", "export class Future<T> {}");
     host.addFile("test.zena", "export let main = (): void => { console.log('hello'); };");
 
-    let packages = new HashMap<String, PackageConfig>();
+    let packages = new Map<String, PackageConfig>();
     let options = new CompilerOptions("host", "/stdlib", packages);
     let compiler = createCompiler(host, options);
 
@@ -368,7 +368,7 @@ export let tests = suite('WatGenerator', (): void => {
     host.addFile("zena:async", "export class Future<T> {}");
     host.addFile("test.zena", "export let main = (): void => { console.log('hello'); };");
 
-    let packages = new HashMap<String, PackageConfig>();
+    let packages = new Map<String, PackageConfig>();
     let options = new CompilerOptions("zena-cli", "/stdlib", packages);
     let compiler = createCompiler(host, options);
 

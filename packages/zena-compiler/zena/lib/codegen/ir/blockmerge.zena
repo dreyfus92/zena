@@ -398,7 +398,7 @@ let removeUnreachable = (body: IrBody): i32 => {
       body.extra[s.argStart - 2] = map[s.target];
     }
   }
-  let newJoin = new HashMap<i32, i32>();
+  let newJoin = new Map<i32, i32>();
   for (var i = 0; i < instCount; i += 1) {
     if (body.op(i) == IrOp.try_br) {
       if (let (true, join) = body.tryJoin.get(i)) {

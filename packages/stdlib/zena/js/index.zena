@@ -69,7 +69,7 @@ import { AnyCompleter, Completer } from 'zena:async';
  * hand to Zena code. */
 export class Pending<T>(handle: i32, future: Future<T>)
 
-let slots = new HashMap<i32, AnyCompleter>();
+let slots = new Map<i32, AnyCompleter>();
 
 // Starts at 1 so 0 is never a live handle: hosts routinely use 0 as
 // "none", and a handle that doubles as a falsy value is a bug that only

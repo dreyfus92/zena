@@ -46,7 +46,7 @@ export let noSymbolId: SymbolId = -1 as SymbolId;
 export final class Symbol {
   /**
    * Unique identity for this binding.
-   * Enables identity-keyed maps (HashMap<SymbolId, T>) without requiring object-identity hashing.
+   * Enables identity-keyed maps (Map<SymbolId, T>) without requiring object-identity hashing.
    */
   id: SymbolId;
 

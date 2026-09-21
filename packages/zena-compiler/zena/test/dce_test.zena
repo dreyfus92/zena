@@ -18,7 +18,7 @@ let compileToBinary = (source: String): ByteBuffer => {
   host.addFile("zena:console", "export let console = null;");
   host.addFile("test.zena", source);
 
-  let packages = new HashMap<String, PackageConfig>();
+  let packages = new Map<String, PackageConfig>();
   let options = new CompilerOptions("host", "/stdlib", packages);
   let compiler = createCompiler(host, options);
 

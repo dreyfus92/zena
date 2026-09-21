@@ -44,7 +44,7 @@ let MAX_DEPTH = 8;
  * walk stays correct across the compiler replacements batching does.
  */
 export final class WalkCache {
-  #modules = new HashMap<String, DocModule>();
+  #modules = new Map<String, DocModule>();
 
   has(canonical: String): boolean {
     return this.#modules.has(canonical);

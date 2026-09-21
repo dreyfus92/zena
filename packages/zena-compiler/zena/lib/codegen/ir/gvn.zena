@@ -44,7 +44,7 @@ export let runGvn = (body: IrBody, cfg: IrCfg): void => {
     return c;
   };
 
-  let table = new HashMap<String, i32>();
+  let table = new Map<String, i32>();
   let scopeKeys = new Array<String>();
 
   // Iterative dominator-tree DFS: negative entries mark subtree exits

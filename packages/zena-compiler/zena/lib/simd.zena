@@ -69,17 +69,17 @@ export final class SimdInstruction {
   new(this.name, this.opcode, this.shape, this.result, this.align);
 }
 
-var table: HashMap<String, SimdInstruction> | null = null;
-var byOpcode: HashMap<i32, SimdInstruction> | null = null;
+var table: Map<String, SimdInstruction> | null = null;
+var byOpcode: Map<i32, SimdInstruction> | null = null;
 
 /**
  * Fills both indexes on first use. They are built together so a row can
  * only ever be in both or neither — the opcode index is the same rows
  * read the other way, not a second list to keep in step.
  */
-let buildTable = (): HashMap<String, SimdInstruction> => {
-  let t = new HashMap<String, SimdInstruction>();
-  let byOp = new HashMap<i32, SimdInstruction>();
+let buildTable = (): Map<String, SimdInstruction> => {
+  let t = new Map<String, SimdInstruction>();
+  let byOp = new Map<i32, SimdInstruction>();
   let add = (name: String, opcode: i32, shape: SimdShape, result: SimdResult,
       align: i32): void => {
     let instr = new SimdInstruction(name, opcode, shape, result, align);
@@ -327,7 +327,7 @@ let buildTable = (): HashMap<String, SimdInstruction> => {
 };
 
 /** The name index, built on first use. */
-let nameIndex = (): HashMap<String, SimdInstruction> => {
+let nameIndex = (): Map<String, SimdInstruction> => {
   var t = table;
   if (t == null) {
     t = buildTable();

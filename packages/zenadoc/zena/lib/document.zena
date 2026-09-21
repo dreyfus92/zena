@@ -144,13 +144,13 @@ let documentBatch = (
   cache: WalkCache
 ): void => {
   let host = new FsHost(options.stdlibRoot);
-  let packages = new HashMap<String, PackageConfig>();
+  let packages = new Map<String, PackageConfig>();
   if (pkg.name != STDLIB_PACKAGE) {
     // The compiler must resolve `pkg:module` to the same entry file
     // zenadoc chose, so it gets the module list zenadoc computed rather
     // than re-deriving one — otherwise a module whose manifest entry is
     // `nested/widgets.zena` resolves to `widgets.zena` and is missing.
-    let exports = new HashMap<String, ModuleExport>();
+    let exports = new Map<String, ModuleExport>();
     for (let module in pkg.modules) {
       exports[module.name] = new ModuleExport(null, module.file);
     }

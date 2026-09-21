@@ -1,3 +1,4 @@
+import { Set } from 'zena:collections';
 import {
   Node, Expression, NodeId, ImportSpecifier, FunctionExpression, MethodDefinition, DeclareFunction, VariableDeclaration, FunctionDeclaration, IdentifierPattern,
 } from '../ast.zena';
@@ -9,7 +10,6 @@ import {
   ValTypeAnyRef, ValTypeI8, WasmType, valTypeEquals, ValTypeExternRef, ValTypeI32,
   valTypeToOpcode, nextWasmTypeUid, refTargetOf, sameHeapType
 } from './wasm.zena';
-import { HashSet } from 'zena:collections';
 import { NodeMap } from '../node-map.zena';
 import {
   ClassType, FunctionType, Type, TypeParameterType,
@@ -244,7 +244,7 @@ export final class WasmStruct extends WasmType {
   name: String | null;
   fields: GrowableArray<WasmField>;
   /** Lazy name→index cache; sized-guarded because RTA appends fields. */
-  var #fieldIndexCache: HashMap<String, i32> | null = null;
+  var #fieldIndexCache: Map<String, i32> | null = null;
   var #fieldIndexCacheSize = -1;
   new(this.name, this.fields) : super();
 
@@ -309,7 +309,7 @@ export final class WasmStruct extends WasmType {
   fieldIndexByName(fieldName: String): i32 {
     if (this.#fieldIndexCache == null ||
         this.#fieldIndexCacheSize != this.fields.length) {
-      let cache = new HashMap<String, i32>();
+      let cache = new Map<String, i32>();
       for (var i = 0; i < this.fields.length; i += 1) {
         let n = this.fields[i].name;
         if (n != null) {
@@ -319,7 +319,7 @@ export final class WasmStruct extends WasmType {
       this.#fieldIndexCache = cache;
       this.#fieldIndexCacheSize = this.fields.length;
     }
-    let cache = this.#fieldIndexCache as HashMap<String, i32>;
+    let cache = this.#fieldIndexCache as Map<String, i32>;
     return if (let (true, idx) = cache.get(fieldName)) idx else -1;
   }
 }
@@ -600,7 +600,7 @@ export final class WasmFunction implements Hashable {
   var isReferenceTaken: boolean = false;
   var contextStruct: WasmStruct | null = null;
   var captures = new Array<SymbolId>();
-  var mutableCaptures = new HashSet<SymbolId>();
+  var mutableCaptures = new Set<SymbolId>();
   var capturesThis: boolean = false;
   var isFunctionAdaptation: boolean = false;
   var functionAdaptationSource: FunctionType | null = null;
@@ -615,7 +615,7 @@ export final class WasmFunction implements Hashable {
    * Memoized results of substituteTypeParamsInFunctionContext for this
    * function, keyed by input type identity (codegen/type-mapping.zena).
    */
-  var codegenSubstCache: HashMap<Type, Type> | null = null;
+  var codegenSubstCache: Map<Type, Type> | null = null;
 
   var closureTrampoline: WasmFunction | null = null;
   var isClosureTrampoline: boolean = false;
@@ -815,9 +815,9 @@ export final class ClassSubstitutions {
   var params: Array<TypeParameterType> | null = null;
   var args: Array<Type> | null = null;
   /** substituteTypeParamsInClassContext results, by input type identity. */
-  substCache = new HashMap<Type, Type>();
+  substCache = new Map<Type, Type>();
   /** Instantiations of this class, keyed by substituted argument uids. */
-  instantiations = new HashMap<String, ClassType>();
+  instantiations = new Map<String, ClassType>();
 
   new();
 }
@@ -852,7 +852,7 @@ export final class WasmModule {
    * to hash on. The uid is the identity these tables want ("type identity
    * is equality", types.zena).
    */
-  classSubstitutions = new HashMap<i32, ClassSubstitutions>();
+  classSubstitutions = new Map<i32, ClassSubstitutions>();
 
   /** The memo tables for `ct`, created on first use. */
   substitutionsFor(ct: ClassType): ClassSubstitutions {
@@ -879,7 +879,7 @@ export final class WasmModule {
 
   var types = new Array<WasmType>();
   tags = new Array<WasmTag>();
-  exportTagMap = new HashMap<String, WasmTag>();
+  exportTagMap = new Map<String, WasmTag>();
   var exceptionTag: WasmTag | null = null;
   var exceptionPayload: WasmGlobal | null = null;
   var cancellationTag: WasmTag | null = null;
@@ -928,22 +928,22 @@ export final class WasmModule {
    * Maps a Zena symbol ID to its compiled WebAssembly function.
    * Used to resolve call targets. Anonymous functions will not be in this map.
    */
-  functionMap = new HashMap<SymbolId, WasmFunction>();
+  functionMap = new Map<SymbolId, WasmFunction>();
   
   /**
    * Maps a Zena AST Node ID to its compiler intrinsic name (e.g. `memory.size`).
    */
-  intrinsics = new HashMap<NodeId, String>();
+  intrinsics = new Map<NodeId, String>();
 
-  globalMap = new HashMap<SymbolId, WasmGlobal>();
+  globalMap = new Map<SymbolId, WasmGlobal>();
 
   var program: Program | null = null;
   var stringClass: ClassType | null = null;
   var templateStringsArrayClass: ClassType | null = null;
   var errorClass: ClassType | null = null;
-  exportMap = new HashMap<ExportKey, WasmFunction>();
-  exportGlobalMap = new HashMap<ExportGlobalKey, WasmGlobal>();
-  classInfos = new HashMap<ClassKey, ClassCodegenInfo>();
+  exportMap = new Map<ExportKey, WasmFunction>();
+  exportGlobalMap = new Map<ExportGlobalKey, WasmGlobal>();
+  classInfos = new Map<ClassKey, ClassCodegenInfo>();
   /**
    * Vtable method-name lists for specialized classes, keyed by class key.
    * The vtable belongs to the specialized class itself, not to whichever
@@ -951,15 +951,15 @@ export final class WasmModule {
    * keeping this state per key (instead of mutating ClassType.vtable on
    * instances) lets substitution share instantiation objects safely.
    */
-  vtables = new HashMap<ClassKey, GrowableArray<String>>();
-  interfaceStructs = new HashMap<InterfaceKey, WasmStruct>();
-  interfaceVTableStructs = new HashMap<InterfaceKey, WasmStruct>();
+  vtables = new Map<ClassKey, GrowableArray<String>>();
+  interfaceStructs = new Map<InterfaceKey, WasmStruct>();
+  interfaceVTableStructs = new Map<InterfaceKey, WasmStruct>();
   /** One entry per emitted rec group, in emission order; a size of 1
    * emits the bare (header-free) form. Set by layout(). */
   var typeRecGroupSizes = new Array<i32>();
-  classInterfaceVTables = new HashMap<ClassInterfaceKey, WasmGlobal>();
-  #signatureCache = new HashMap<SignatureKey, WasmSignature>();
-  #structCache = new HashMap<StructKey, WasmStruct>();
+  classInterfaceVTables = new Map<ClassInterfaceKey, WasmGlobal>();
+  #signatureCache = new Map<SignatureKey, WasmSignature>();
+  #structCache = new Map<StructKey, WasmStruct>();
   /**
    * Interned structs with no name — boxed tuples and records. Lowered
    * bodies reference them directly and run after layout, so nothing in
@@ -967,14 +967,14 @@ export final class WasmModule {
    * closure structs.
    */
   anonymousStructs = new Array<WasmStruct>();
-  #arrayCache = new HashMap<ArrayKey, WasmArray>();
-  usedInterfaceAdaptations = new HashMap<ClassInterfaceKey, boolean>();
-  usedInterfaceMembers = new HashMap<InterfaceMemberKey, boolean>();
-  classMethodMap = new HashMap<ClassMethodKey, WasmFunction>();
-  classMethods = new HashMap<String, GrowableArray<WasmFunction>>();
+  #arrayCache = new Map<ArrayKey, WasmArray>();
+  usedInterfaceAdaptations = new Map<ClassInterfaceKey, boolean>();
+  usedInterfaceMembers = new Map<InterfaceMemberKey, boolean>();
+  classMethodMap = new Map<ClassMethodKey, WasmFunction>();
+  classMethods = new Map<String, GrowableArray<WasmFunction>>();
   var wasiWriteStringHelper: WasmFunction | null = null;
   var stringHashHelper: WasmFunction | null = null;
-  functionAdaptations = new HashMap<FunctionAdaptationKey, WasmFunction>();
+  functionAdaptations = new Map<FunctionAdaptationKey, WasmFunction>();
   var arrayMethods = new Array<WasmFunction>();
   
   /**
@@ -994,7 +994,7 @@ export final class WasmModule {
     return null;
   }
 
-  #stdlibFuncCache = new HashMap<String, WasmFunction>();
+  #stdlibFuncCache = new Map<String, WasmFunction>();
 
   /**
    * The emitted function a standard library export lowers to, or null.
@@ -1089,13 +1089,13 @@ export final class WasmModule {
     return null;
   }
 
-  mutableCapturedSymbols = new HashSet<SymbolId>();
+  mutableCapturedSymbols = new Set<SymbolId>();
   
   datas = new Array<ByteBuffer>();
   rawDatas = new Array<ByteBuffer>();
-  stringLiterals = new HashMap<String, i32>();
-  stringLiteralIds = new HashMap<String, i32>();
-  stringLiteralLocations = new HashMap<String, StringLiteralLocation>();
+  stringLiterals = new Map<String, i32>();
+  stringLiteralIds = new Map<String, i32>();
+  stringLiteralLocations = new Map<String, StringLiteralLocation>();
   var sharedStringsGlobal: WasmGlobal | null = null;
   var stringFromSharedFunc: WasmFunction | null = null;
   var stringLiteralsArrayGlobal: WasmGlobal | null = null;
@@ -1179,7 +1179,7 @@ export final class WasmModule {
    * only flat scalars has none and is lifted directly; the map is empty
    * for every other target.
    */
-  var componentExportWrappers = new HashMap<ExportKey, WasmFunction>();
+  var componentExportWrappers = new Map<ExportKey, WasmFunction>();
   /**
    * `zena:wasi`'s allocator and its `post-return`, exported
    * from the core module under the names the canonical options use.
@@ -1192,20 +1192,20 @@ export final class WasmModule {
   recordDispatchInfos = new Array<RecordDispatchInfo>();
   adaptedDispatchInfos = new Array<RecordDispatchInfo>();
   
-  cellStructs = new HashMap<CellKey, WasmStruct>();
-  closureStructs = new HashMap<ClosureKey, WasmStruct>();
+  cellStructs = new Map<CellKey, WasmStruct>();
+  closureStructs = new Map<ClosureKey, WasmStruct>();
   closureFunctions = new NodeMap<WasmFunction>();
-  specializedClosures = new HashMap<ClosureSpecializationKey, WasmFunction>();
-  functionValueWrappers = new HashMap<FunctionValueWrapperKey, WasmFunction>();
+  specializedClosures = new Map<ClosureSpecializationKey, WasmFunction>();
+  functionValueWrappers = new Map<FunctionValueWrapperKey, WasmFunction>();
   templateLiteralGlobals = new NodeMap<WasmGlobal>();
-  genericFunctions = new HashMap<SymbolId, FunctionExpression>();
-  genericFunctionModels = new HashMap<SymbolId, SemanticModel>();
-  genericMethods = new HashMap<ClassMethodKey, MethodDefinition>();
-  genericMethodModels = new HashMap<ClassMethodKey, SemanticModel>();
-  specializedFunctions = new HashMap<SpecializedFunctionKey, WasmFunction>();
+  genericFunctions = new Map<SymbolId, FunctionExpression>();
+  genericFunctionModels = new Map<SymbolId, SemanticModel>();
+  genericMethods = new Map<ClassMethodKey, MethodDefinition>();
+  genericMethodModels = new Map<ClassMethodKey, SemanticModel>();
+  specializedFunctions = new Map<SpecializedFunctionKey, WasmFunction>();
   
   functionAdaptationWrappers = new NodeMap<WasmFunction>();
-  symbolNames = new HashMap<SymbolId, String>();
+  symbolNames = new Map<SymbolId, String>();
   
   findRecordDispatch(fields: Array<WasmField>, optionalNames: Array<String>): RecordDispatchInfo | null {
     for (var k = 0; k < this.recordDispatchInfos.length; k += 1) {
@@ -1921,7 +1921,7 @@ export final class WasmModule {
     // header — a self-reference included, since the bare form IS a
     // one-member rec group.
     let uniqueTypes = new Array<WasmType>();
-    let seenTypes = new HashSet<WasmType>();
+    let seenTypes = new Set<WasmType>();
     // `types` can contain duplicate entries (the generator/async split
     // passes push types the reachability pass already emitted).
     for (let t in this.types) {
@@ -1931,7 +1931,7 @@ export final class WasmModule {
       }
     }
     let typeCount = uniqueTypes.length;
-    let posOf = new HashMap<WasmType, i32>();
+    let posOf = new Map<WasmType, i32>();
     for (var i = 0; i < typeCount; i += 1) {
       posOf[uniqueTypes[i]] = i;
     }
@@ -2054,7 +2054,7 @@ export final class WasmModule {
       memberIndexOfType.push(-1);
     }
     let mergedMembers = new Array<GrowableArray<i32>>();
-    let groupByKey = new HashMap<String, i32>();
+    let groupByKey = new Map<String, i32>();
     for (let members in componentMembers) {
       // Ascending first-seen order inside a group: deterministic, and
       // independent of DFS pop order.
@@ -2069,7 +2069,7 @@ export final class WasmModule {
         members[mj + 1] = mkey;
         mi += 1;
       }
-      let intraIndex = new HashMap<i32, i32>();
+      let intraIndex = new Map<i32, i32>();
       for (var i = 0; i < members.length; i += 1) {
         intraIndex[members[i]] = i;
       }

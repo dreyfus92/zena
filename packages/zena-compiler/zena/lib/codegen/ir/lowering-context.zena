@@ -7,7 +7,7 @@
  * closures rather than minting its own context (ir/intrinsics.zena
  * predates this and keeps its narrower IntrinsicCx).
  */
-import { HashSet } from 'zena:collections';
+import { Set } from 'zena:collections';
 import {
   AssignmentExpression, BindingPattern, CallExpression, Expression, FunctionExpression, Identifier, IdentifierPattern, IndexExpression, MemberExpression, Node, Statement, VariableDeclaration,
 } from '../../ast.zena';
@@ -141,9 +141,9 @@ export final class LoweringContext {
   // coordinator and every split module read and write the same
   // instance). SSA construction is the structured-AST form: `env`
   // maps each variable symbol to its current value.
-  var env = new HashMap<SymbolId, i32>();
+  var env = new Map<SymbolId, i32>();
   /** Symbols behind env entries, for binding-type lookups at merges. */
-  symbols = new HashMap<SymbolId, Symbol>();
+  symbols = new Map<SymbolId, Symbol>();
   loops = new Array<LoopCtx>();
   /** Values piped by enclosing |> expressions; $ reads the top. */
   pipelineValues = new Array<i32>();
@@ -155,7 +155,7 @@ export final class LoweringContext {
    * Merges, cells, and casts produce new ids, so exactness is
    * conservatively local.
    */
-  exactValues = new HashSet<i32>();
+  exactValues = new Set<i32>();
   var reachable = true;
   /** The receiver value for instance methods; -1 elsewhere. */
   var thisValue = -1;
@@ -897,7 +897,7 @@ export final class LoweringContext {
   }
 
   appendAssignedEnvSyms(node: Node, out: GrowableArray<SymbolId>): void {
-    let seen = new HashSet<SymbolId>();
+    let seen = new Set<SymbolId>();
     for (let existing in out) {
       seen.add(existing);
     }
@@ -1040,7 +1040,7 @@ export final class LoweringContext {
    * declaration's write-through. Consumed there, so a re-lowered
    * declaration (none today) or later shadowing allocates fresh.
    */
-  precelledBindings = new HashSet<SymbolId>();
+  precelledBindings = new Set<SymbolId>();
 
   /**
    * Enclosing locals assigned inside an ACTIVE `try` body, mapped to
@@ -1057,7 +1057,7 @@ export final class LoweringContext {
    * Nested tries share one variable per symbol: the innermost handler
    * wants the same "last value written" the outer one does.
    */
-  tryVars = new HashMap<SymbolId, i32>();
+  tryVars = new Map<SymbolId, i32>();
 
   /**
    * The `finally` regions enclosing the statement being lowered,
@@ -1076,7 +1076,7 @@ export final class LoweringContext {
    * releases its value twice on unwind (control-flow.zena
    * `lowerStatementRange`).
    */
-  openVarDrops = new HashSet<i32>();
+  openVarDrops = new Set<i32>();
 
   /**
    * Mirrors a newly stored value into the symbol's try variable, when
@@ -1214,7 +1214,7 @@ export final class LoweringContext {
    * the result param, or -1 when no arm reached the merge (the
    * expression is unreachable past this point).
    */
-  finishMerge(m: MergeState, saved: HashMap<SymbolId, i32>): i32 {
+  finishMerge(m: MergeState, saved: Map<SymbolId, i32>): i32 {
     if (m.block < 0) {
       this.reachable = false;
       return -1;
@@ -1271,12 +1271,12 @@ export final class LoweringContext {
     return values;
   }
 
-  copyEnv(): HashMap<SymbolId, i32> {
+  copyEnv(): Map<SymbolId, i32> {
     return this.copyOf(this.env);
   }
 
-  copyOf(source: HashMap<SymbolId, i32>): HashMap<SymbolId, i32> {
-    let copy = new HashMap<SymbolId, i32>();
+  copyOf(source: Map<SymbolId, i32>): Map<SymbolId, i32> {
+    let copy = new Map<SymbolId, i32>();
     for (let pair in source) {
       copy[pair.key] = pair.value;
     }

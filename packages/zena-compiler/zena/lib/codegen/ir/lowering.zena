@@ -1,3 +1,4 @@
+import { Set } from 'zena:collections';
 import { findDeclaration, collectValueExports, isArrayIntrinsic } from '../lookup.zena';
 /**
  * AST → ZIR lowering (docs/design/ir.md §6).
@@ -12,7 +13,6 @@ import { findDeclaration, collectValueExports, isArrayIntrinsic } from '../looku
  * (computed by a pre-scan), and loop headers carry parameters for every
  * variable assigned anywhere in the loop.
  */
-import { HashSet } from 'zena:collections';
 import {
   Node, Statement, Expression, FunctionExpression, BlockStatement, UsingStatement, ShieldedStatement, ReturnStatement, YieldStatement, BreakStatement, ContinueStatement, IfStatement, WhileStatement, ExpressionStatement, VariableDeclaration, BinaryExpression, UnaryExpression, AssignmentExpression, Identifier, NumberLiteral, BooleanLiteral, IdentifierPattern, BindingPattern, CallExpression, IfExpression, AsExpression, ForStatement, ForInStatement, IndexExpression, TemplateLiteral, NullLiteral, StringLiteral, NewExpression, MemberExpression, MethodDefinition, ThisExpression, Parameter, ClassDeclaration, MixinDeclaration, FieldDefinition, FieldInitializer, SuperInitializer, TypeAnnotation, AccessorDeclaration, SetterInfo, MatchExpression, LiteralPattern, TupleLiteral, EnumDeclaration, getMemberPropertyName, IsExpression, RangeExpression, PipelineExpression, PipePlaceholder, SuperExpression, ArrayLiteral, RecordLiteral, MapLiteral, ThrowExpression, TryExpression, TaggedTemplateExpression, ImportDeclaration, ImportSpecifier, Module, SpreadElement, LetPatternCondition, TuplePattern, ArrayPattern, RestPattern, PropertyAssignment, SealedVariant, RecordPattern, BindingProperty, AwaitExpression, SymbolPropertyName,
 } from '../../ast.zena';
@@ -100,7 +100,7 @@ export let NO_VALUE = -1;
  * field values keyed by resolved struct field name, and the evaluated
  * super() arguments.
  */
-type CtorLevel = {values: HashMap<String, i32>, superArgs: GrowableArray<i32>};
+type CtorLevel = {values: Map<String, i32>, superArgs: GrowableArray<i32>};
 
 /** Bail-reason tag for expression kinds without a dispatch arm. */
 
@@ -1033,7 +1033,7 @@ export final class FunctionLowerer {
    * inside the coalesce; packing the merged value again here would
    * wrap the fat pointer in a second fat pointer.
    */
-  #coalesceArmsAdapted = new HashSet<i32>();
+  #coalesceArmsAdapted = new Set<i32>();
 
   /**
    * Presplit-generator mode (generators.md §4): yield statements lower
@@ -1065,7 +1065,7 @@ export final class FunctionLowerer {
    * field values, so `this.f` inside it reads the value instead of a
    * not-yet-existing object; the mixin scope mangles private names.
    */
-  var #ctorLevelFields: HashMap<String, i32> | null = null;
+  var #ctorLevelFields: Map<String, i32> | null = null;
   var #ctorLevelScope = '';
 
   /**
@@ -1090,7 +1090,7 @@ export final class FunctionLowerer {
    * derive this from the frame — it is recorded here, where the
    * operand's semantic type is still in hand.
    */
-  awaitSubscribeTargets = new HashMap<i32, WasmFunction>();
+  awaitSubscribeTargets = new Map<i32, WasmFunction>();
   /**
    * Await sites whose `subscribe` a subclass overrides, keyed like
    * `awaitSubscribeTargets`: the receiver's vtable slot, loaded and
@@ -1098,16 +1098,16 @@ export final class FunctionLowerer {
    * devirt-safety rule ordinary method calls follow — a direct call
    * would skip the override for every subclass of `Future`.
    */
-  awaitSubscribeCallees = new HashMap<i32, i32>();
+  awaitSubscribeCallees = new Map<i32, i32>();
   /** Await terminators that are a union await's bare-arm hop: the
    * split pass schedules the frame directly instead of subscribing
    * to a future (async.md §1, the always-async rule). */
-  awaitHopTerms = new HashSet<i32>();
+  awaitHopTerms = new Set<i32>();
   /** Await terminators lexically inside a `shielded { }` region: the
    * split pass emits no checkpoint for them, and their resumes
    * re-install the shield scope as the current scope instead
    * (docs/design/cancellation.md §Shields). */
-  shieldedAwaits = new HashSet<i32>();
+  shieldedAwaits = new Set<i32>();
   /** Nesting depth of `shielded` regions during presplit lowering;
    * the await sites read it to fill `shieldedAwaits`. */
   var shieldDepth = 0;
@@ -1636,7 +1636,7 @@ export final class FunctionLowerer {
       this.#bail('namespace import module');
     }
     let targetUnit = prog.unitsByPath[canonicalPath];
-    let exports = new HashMap<String, Symbol>();
+    let exports = new Map<String, Symbol>();
     collectValueExports(prog, targetUnit, exports);
 
     let rt = moduleModel.getNodeType(spec as Node);
@@ -1843,7 +1843,7 @@ export final class FunctionLowerer {
 
   #synthDefaultLevel(ct: ClassType, structType: WasmStruct,
       cd: ClassDeclaration | null, params: Array<i32>): CtorLevel {
-    let values = new HashMap<String, i32>();
+    let values = new Map<String, i32>();
     if (cd != null) {
       for (let member in cd.body) {
         if (member is FieldDefinition) {
@@ -1894,7 +1894,7 @@ export final class FunctionLowerer {
    * the class's own defaults (streaming's order). Private mixin field
    * names mangle with the MIXIN's scope key via #computeCtorField.
    */
-  #mixinFieldValues(values: HashMap<String, i32>, ct: ClassType,
+  #mixinFieldValues(values: Map<String, i32>, ct: ClassType,
       structType: WasmStruct, cd: ClassDeclaration,
       mapSetterNames: boolean): void {
     if (cd.mixins == null ||
@@ -1903,7 +1903,7 @@ export final class FunctionLowerer {
     }
     let mixinFields = new Array<FieldDefinition>();
     let mixinFieldScopes = new Array<String>();
-    let seenMixins = new HashMap<MixinKey, boolean>();
+    let seenMixins = new Map<MixinKey, boolean>();
     collectMixinFields(this.wasm.program as Program, this.func.model,
         cd.mixins, mixinFields, mixinFieldScopes, seenMixins);
     for (var i = 0; i < mixinFields.length; i += 1) {
@@ -1937,7 +1937,7 @@ export final class FunctionLowerer {
         }
       }
     }
-    let values = new HashMap<String, i32>();
+    let values = new Map<String, i32>();
     let {constructorType} = ct;
     if (constructorType != null) {
       let ctorType = constructorType;
@@ -2057,7 +2057,7 @@ export final class FunctionLowerer {
     if (classDecl == null || !(classDecl is ClassDeclaration)) {
       this.#bail('constructor declaration shape');
     }
-    let values = new HashMap<String, i32>();
+    let values = new Map<String, i32>();
     for (let member in classDecl.body) {
       if (member is FieldDefinition) {
         if (member.value != null && !member.isStatic) {
@@ -2129,13 +2129,13 @@ export final class FunctionLowerer {
    * skipped WITHOUT evaluating the value, matching the streaming
    * backend.
    */
-  #computeCtorField(values: HashMap<String, i32>, ct: ClassType, structType: WasmStruct, fieldName: String, value: Expression, mapSetterNames: boolean = true, mixinScope: String = ''): void {
+  #computeCtorField(values: Map<String, i32>, ct: ClassType, structType: WasmStruct, fieldName: String, value: Expression, mapSetterNames: boolean = true, mixinScope: String = ''): void {
     var actualName = fieldName;
     // Streaming's DEFAULT-constructor path stores by the raw field name;
     // the written-constructor and case-class paths apply the accessor
     // rename first. Mirror whichever the caller mirrors.
     if (mapSetterNames && ct.fieldSetterNames != null) {
-      let mapping = ct.fieldSetterNames as HashMap<String, String>;
+      let mapping = ct.fieldSetterNames as Map<String, String>;
       if (let (true, mapped) = mapping.get(fieldName)) {
         actualName = mapped;
       }
@@ -2180,7 +2180,7 @@ export final class FunctionLowerer {
    * not a plain field — a getter, a method — has no value yet and
    * bails.
    */
-  #ctorLevelFieldRead(values: HashMap<String, i32>,
+  #ctorLevelFieldRead(values: Map<String, i32>,
       member: MemberExpression): i32 {
     let ct = this.func.classType as ClassType;
     let structType = this.func.structType as WasmStruct;
@@ -2191,7 +2191,7 @@ export final class FunctionLowerer {
         member.isSymbolAccess, member.property.name);
     var actualName = propName;
     if (ct.fieldSetterNames != null) {
-      let mapping = ct.fieldSetterNames as HashMap<String, String>;
+      let mapping = ct.fieldSetterNames as Map<String, String>;
       if (let (true, mapped) = mapping.get(propName)) {
         actualName = mapped;
       }
@@ -2234,7 +2234,7 @@ export final class FunctionLowerer {
    * default — the same contents struct.new_default gave it.
    */
   #ctorOwnFieldValues(structType: WasmStruct,
-      values: HashMap<String, i32>): GrowableArray<i32> {
+      values: Map<String, i32>): GrowableArray<i32> {
     var ownStart = 1;
     var s: WasmStruct | null = structType.superStruct;
     while (s != null) {
@@ -8220,7 +8220,7 @@ export final class FunctionLowerer {
     this.#cx().mergeArm(m, value, armKind);
   }
 
-  #finishMerge(m: MergeState, saved: HashMap<SymbolId, i32>): i32 {
+  #finishMerge(m: MergeState, saved: Map<SymbolId, i32>): i32 {
     return this.#cx().finishMerge(m, saved);
   }
 
@@ -8236,11 +8236,11 @@ export final class FunctionLowerer {
     return this.#cx().envValues(syms);
   }
 
-  #copyEnv(): HashMap<SymbolId, i32> {
+  #copyEnv(): Map<SymbolId, i32> {
     return this.#cx().copyEnv();
   }
 
-  #copyOf(source: HashMap<SymbolId, i32>): HashMap<SymbolId, i32> {
+  #copyOf(source: Map<SymbolId, i32>): Map<SymbolId, i32> {
     return this.#cx().copyOf(source);
   }
 

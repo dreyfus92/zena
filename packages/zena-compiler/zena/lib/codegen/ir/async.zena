@@ -54,7 +54,7 @@
  * and layout through RTA; the extra allocation buys that complexity
  * back, and the observable semantics are identical.
  */
-import { HashSet } from 'zena:collections';
+import { Set } from 'zena:collections';
 import {
   ValType, ValTypeI32, ValTypeRef, ValTypeRefNull, WasmType, refTargetOf,
 } from '../wasm.zena';
@@ -122,14 +122,14 @@ final class ScopeMachinery(
  * the start of every prepare so repeated compiles in one process stay
  * independent.
  */
-var rampBodies = new HashMap<i32, AsyncArtifacts>();
-var stepBodies = new HashMap<i32, AsyncArtifacts>();
+var rampBodies = new Map<i32, AsyncArtifacts>();
+var stepBodies = new Map<i32, AsyncArtifacts>();
 /** Bodies of the per-frame run() interposer that swaps the current scope
  * scope around an executor-driven step (docs/design/cancellation.md),
  * by uid. */
-var stepOuterBodies = new HashMap<i32, IrBody>();
+var stepOuterBodies = new Map<i32, IrBody>();
 /** Bodies of synthesized async-`main` export wrappers, by uid. */
-var mainWrapperBodies = new HashMap<i32, IrBody>();
+var mainWrapperBodies = new Map<i32, IrBody>();
 
 /** True if this WasmFunction carries an `async` AST node. */
 export let isAsyncFunction = (func: WasmFunction): boolean => {
@@ -272,10 +272,10 @@ export let prepareAsyncFunctions = (
   wasm: WasmModule,
   pass: ReachabilityAnalysis
 ): void => {
-  rampBodies = new HashMap<i32, AsyncArtifacts>();
-  stepBodies = new HashMap<i32, AsyncArtifacts>();
-  stepOuterBodies = new HashMap<i32, IrBody>();
-  mainWrapperBodies = new HashMap<i32, IrBody>();
+  rampBodies = new Map<i32, AsyncArtifacts>();
+  stepBodies = new Map<i32, AsyncArtifacts>();
+  stepOuterBodies = new Map<i32, IrBody>();
+  mainWrapperBodies = new Map<i32, IrBody>();
   // Index loop: prepareOne appends step/trampoline functions.
   var i = 0;
   while (i < wasm.functions.length) {
@@ -578,13 +578,13 @@ let prepareOne = (
   // Suspension analysis on the pristine CFG.
   let awaitBlocks = new Array<i32>();
   let resumeOf = new Array<i32>();
-  let shieldedResumes = new HashSet<i32>();
+  let shieldedResumes = new Set<i32>();
   // For a shielded resume, the awaited future's value id: a cancel
   // WAKES parked frames, and with the checkpoint masked the resume
   // must re-park when the wake was spurious (the future still
   // pending) rather than read a result that is not there. Hop
   // resumes carry a plain value and need no guard.
-  let shieldedResumeFuture = new HashMap<i32, i32>();
+  let shieldedResumeFuture = new Map<i32, i32>();
   var bi = 0;
   while (bi < presplit.blocks.length) {
     let insts = presplit.blocks[bi].insts;
@@ -618,7 +618,7 @@ let prepareOne = (
 
   // pc assignment: resume blocks get their suspend-state value;
   // await-containing loop headers get values above the suspend range.
-  let pcOfBlock = new HashMap<i32, i32>();
+  let pcOfBlock = new Map<i32, i32>();
   var ai = 0;
   while (ai < resumeOf.length) {
     pcOfBlock[resumeOf[ai]] = STATE_FIRST_SUSPEND + ai;
@@ -642,7 +642,7 @@ let prepareOne = (
 
   // Spill set: everything live into a dispatch target, every dispatch
   // target's block params, and every function parameter.
-  let spilled = new HashSet<i32>();
+  let spilled = new Set<i32>();
   let entryParamIds = new Array<i32>();
   for (let p in presplit.blocks[0].params) {
     entryParamIds.push(p);
@@ -902,28 +902,28 @@ let buildStepBody = (
   cfg: IrCfg,
   frame: WasmStruct,
   futureStruct: WasmStruct,
-  spilled: HashSet<i32>,
-  pcOfBlockIn: HashMap<i32, i32>,
+  spilled: Set<i32>,
+  pcOfBlockIn: Map<i32, i32>,
   dTargetsIn: Array<i32>,
-  subscribeOf: HashMap<i32, WasmFunction>,
-  subscribeCalleeOf: HashMap<i32, i32>,
-  hopTerms: HashSet<i32>,
+  subscribeOf: Map<i32, WasmFunction>,
+  subscribeCalleeOf: Map<i32, i32>,
+  hopTerms: Set<i32>,
   scheduleFn: WasmFunction | null,
   completeFn: WasmFunction,
   adoptFn: WasmFunction,
   failFn: WasmFunction,
   sm: ScopeMachinery | null,
   resumeTargets: Array<i32>,
-  shieldedAwaits: HashSet<i32>,
-  shieldedResumes: HashSet<i32>,
-  shieldedResumeFuture: HashMap<i32, i32>,
+  shieldedAwaits: Set<i32>,
+  shieldedResumes: Set<i32>,
+  shieldedResumeFuture: Map<i32, i32>,
   shieldFn: WasmFunction | null,
   valueVt: ValType | null,
   fatPtr: WasmStruct,
   vtableGlobal: WasmGlobal,
   exceptionTag: WasmTag,
   exceptionPayload: WasmGlobal,
-  dispatchRegions: HashMap<i32, GrowableArray<TryRegion>>
+  dispatchRegions: Map<i32, GrowableArray<TryRegion>>
 ): IrBody => {
   let origCount = body.blocks.length;
   let stateRef = addRawRef(body, new IrRefField(frame, '$state'));
@@ -937,7 +937,7 @@ let buildStepBody = (
 
   // Snapshot the dispatch targets' params (cleared below; edges into
   // them turn into frame stores).
-  let dParams = new HashMap<i32, Array<i32>>();
+  let dParams = new Map<i32, Array<i32>>();
   for (let d in dTargetsIn) {
     let copy = new Array<i32>();
     for (let p in body.blocks[d].params) {
@@ -963,7 +963,7 @@ let buildStepBody = (
   body.blocks[0] = new IrBlock();
 
   // Dispatch-target bookkeeping with entry remapped to its new id.
-  let pcOfBlock = new HashMap<i32, i32>();
+  let pcOfBlock = new Map<i32, i32>();
   pcOfBlock[entryCopyId] = 0;
   for (let d in dTargetsIn) {
     if (d == 0) {
@@ -971,7 +971,7 @@ let buildStepBody = (
     }
     pcOfBlock[d] = pcOfBlockIn[d];
   }
-  let dParamsById = new HashMap<i32, Array<i32>>();
+  let dParamsById = new Map<i32, Array<i32>>();
   for (let d in dTargetsIn) {
     let mapped = if (d == 0) { entryCopyId } else { d };
     dParamsById[mapped] = dParams[d];
@@ -1285,7 +1285,7 @@ let buildStepBody = (
   }
 
   // 4. Store every spilled definition to its frame field.
-  let skipRemap = new HashSet<i32>();
+  let skipRemap = new Set<i32>();
   for (let blockId in bodyBlocks) {
     let block = body.blocks[blockId];
     let rebuilt = new Array<i32>();
@@ -1330,7 +1330,7 @@ let buildStepBody = (
       }
       truncate(ops);
       body.appendValueOperands(inst, ops);
-      let loadOf = new HashMap<i32, i32>();
+      let loadOf = new Map<i32, i32>();
       for (let v in ops) {
         if (spilled.has(v) && !loadOf.has(v)) {
           let vt = body.resultType(v) as ValType;

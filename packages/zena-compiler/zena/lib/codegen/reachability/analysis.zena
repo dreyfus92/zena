@@ -9,7 +9,8 @@ import {
 import {
   Node, ClassDeclaration, InterfaceDeclaration, MixinDeclaration, MethodDefinition, AccessorDeclaration, FieldDefinition, VariableDeclaration, FunctionDeclaration, DeclareFunction, ImportDeclaration, IdentifierPattern, FunctionExpression, SealedVariant, SourceLocation, Module, Identifier, SymbolPropertyName, MemberExpression, CallExpression, ExportAllDeclaration, ExportFromDeclaration, IdGenerator, ShieldedStatement, TryExpression,
 } from '../../ast.zena';
-import { HashSet, OrderedHashMap } from 'zena:collections';
+import { Set } from 'zena:collections';
+
 import { StringBuilder } from 'zena:core';
 import {
   getClassKey, getInterfaceKey, getClassMethodKey, getInterfaceMemberKey, getClassInterfaceKey, getClassInterfaceVTableName, getClassVTableName, getClassSingletonName, getInterfaceTrampolineName, getSignatureKey, collectMixinMembers, mixinScopeOfMember, mixinModelOfMember, getClassPrivateFieldKey, MixinKey, getFunctionAdaptationKey, ClassKey, ClassMethodKey, getTypeUniqueKey, getClosureSpecializationKey, isConcrete, getSpecializedName, containsErasedType, InterfaceKey,
@@ -52,7 +53,7 @@ final class ParsedAdaptationRef {
   new(this.classSymId, this.ifaceSymId);
 }
 
-let findDeclaringMixinIntermediate = (ct: ClassType, classDecls: HashMap<SymbolId, Node>, node: Node): ClassType | null => {
+let findDeclaringMixinIntermediate = (ct: ClassType, classDecls: Map<SymbolId, Node>, node: Node): ClassType | null => {
   var scWalk: ClassType | null = ct.superType;
   while (scWalk != null && scWalk.isMixinIntermediate) {
     let sc = scWalk;
@@ -104,21 +105,21 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
   }
 
   // Global lookups
-  classDecls = new HashMap<SymbolId, Node>();
-  classModels = new HashMap<SymbolId, SemanticModel>();
-  interfaceDecls = new HashMap<SymbolId, InterfaceDeclaration>();
-  interfaceModels = new HashMap<SymbolId, SemanticModel>();
+  classDecls = new Map<SymbolId, Node>();
+  classModels = new Map<SymbolId, SemanticModel>();
+  interfaceDecls = new Map<SymbolId, InterfaceDeclaration>();
+  interfaceModels = new Map<SymbolId, SemanticModel>();
   
-  symbolIdToModel = new HashMap<SymbolId, SemanticModel>();
-  symbolIdToDecl = new HashMap<SymbolId, Node>();
-  symbolIdToTargetId = new HashMap<SymbolId, SymbolId>();
+  symbolIdToModel = new Map<SymbolId, SemanticModel>();
+  symbolIdToDecl = new Map<SymbolId, Node>();
+  symbolIdToTargetId = new Map<SymbolId, SymbolId>();
 
-  nodeIdToNode = new HashMap<i32, Node>();
-  nodeIdToModel = new HashMap<i32, SemanticModel>();
+  nodeIdToNode = new Map<i32, Node>();
+  nodeIdToModel = new Map<i32, SemanticModel>();
   
   // RTA Reachability tracking state
-  reachedGlobals = new HashSet<SymbolId>();
-  reachedMembers = new HashSet<String>();
+  reachedGlobals = new Set<SymbolId>();
+  reachedMembers = new Set<String>();
   /**
    * Members traversed with `currentReachable` set, tracked apart from
    * `reachedMembers` for the same reason `queueReferrer` keeps
@@ -126,10 +127,10 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
    * discovers a member's dependencies without marking them reached, so
    * it must not satisfy a later reachable traversal of the same member.
    */
-  reachedReachableMembers = new HashSet<String>();
-  instantiatedClasses = new HashSet<SymbolId>();
-  instantiatedSpecializedClasses = new HashSet<String>();
-  reachablyNamedClasses = new HashSet<String>();
+  reachedReachableMembers = new Set<String>();
+  instantiatedClasses = new Set<SymbolId>();
+  instantiatedSpecializedClasses = new Set<String>();
+  reachablyNamedClasses = new Set<String>();
   /** See ReachabilityVisitor.noteEqualityUse. */
   var equalityDispatchUsed = false;
   /** Classes whose ==/hashCode slots were dropped while the equality
@@ -147,9 +148,9 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
    * HashMap and generic equality dispatch through the class vtable
    * even on hierarchy-less classes).
    */
-  extendedClassSymbols = new HashSet<SymbolId>();
+  extendedClassSymbols = new Set<SymbolId>();
   /** Generic-source symbols with at least one `new` site; see queueExplicitCtor. */
-  ctorDemandedGenerics = new HashSet<SymbolId>();
+  ctorDemandedGenerics = new Set<SymbolId>();
   /**
    * Members to reach BY MAP KEY at the settle point, once every
    * registration has happened: field accessors named before populate
@@ -159,8 +160,8 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
    * this timing hole was invisible.
    */
   #pendingMemberReaches = new Array<ClassMethodKey>();
-  reachablyNamedClosures = new HashSet<WasmStruct>();
-  reachablyNamedAnonStructs = new HashSet<WasmStruct>();
+  reachablyNamedClosures = new Set<WasmStruct>();
+  reachablyNamedAnonStructs = new Set<WasmStruct>();
   /**
    * Record/tuple SEMANTIC types named in-queue, resolved to their
    * dispatch/struct at the settle point — resolving eagerly would call
@@ -169,7 +170,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
    * which is a process-global uid (the batch-nondeterminism bug).
    */
   #namedCompositeTypes = new Array<Type>();
-  #namedCompositeKeys = new HashSet<String>();
+  #namedCompositeKeys = new Set<String>();
 
   /**
    * True only while a queue referrer is being processed —
@@ -187,36 +188,36 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
   /** See ReachabilityContext.walkingTemplateOf. */
   var walkingTemplateOf: ClassType | null = null;
   var isRtaActive = true;
-  referencedInterfaceMembers = new HashSet<String>();
-  referencedReachableInterfaceMembers = new HashSet<String>();
-  discoveredTypes = new HashSet<String>();
-  reachedSemanticTypes = new HashSet<String>();
+  referencedInterfaceMembers = new Set<String>();
+  referencedReachableInterfaceMembers = new Set<String>();
+  discoveredTypes = new Set<String>();
+  reachedSemanticTypes = new Set<String>();
   specializedInterfaces = new Array<InterfaceType>();
   genericInterfaceMethodDemands = new Array<GenericInterfaceMethodDemand>();
   /** Demands keyed "<interfaceKey>.<slotName>" for dedup and slot lookup. */
-  #genericInterfaceDemandsByKey = new HashMap<String, GenericInterfaceMethodDemand>();
-  specializedClassTypes = new HashMap<SymbolId, GrowableArray<ClassType>>();
-  reachedClassMembers = new HashMap<SymbolId, OrderedHashMap<i32, boolean>>();
-  reachedReachableClassMembers = new HashMap<SymbolId, OrderedHashMap<i32, boolean>>();
+  #genericInterfaceDemandsByKey = new Map<String, GenericInterfaceMethodDemand>();
+  specializedClassTypes = new Map<SymbolId, GrowableArray<ClassType>>();
+  reachedClassMembers = new Map<SymbolId, Map<i32, boolean>>();
+  reachedReachableClassMembers = new Map<SymbolId, Map<i32, boolean>>();
 
   // Tracks for interface dispatches: which instantiated classes implement an interface
-  instantiatedClassesByInterface = new HashMap<SymbolId, GrowableArray<ClassInterfacePair>>();
-  referencedInterfaceMembersById = new HashMap<SymbolId, GrowableArray<String>>();
+  instantiatedClassesByInterface = new Map<SymbolId, GrowableArray<ClassInterfacePair>>();
+  referencedInterfaceMembersById = new Map<SymbolId, GrowableArray<String>>();
 
-  var mixinToClasses = new HashMap<MixinKey, GrowableArray<ClassType>>();
-  #preludeClassCache = new HashMap<String, ClassType>();
-  #preludeInterfaceCache = new HashMap<String, InterfaceType>();
+  var mixinToClasses = new Map<MixinKey, GrowableArray<ClassType>>();
+  #preludeClassCache = new Map<String, ClassType>();
+  #preludeInterfaceCache = new Map<String, InterfaceType>();
 
   reachableQueue = new Array<Referrer>();
   checkableQueue = new Array<Referrer>();
   var reachHead = 0;
   var checkHead = 0;
   var globalsHead = 0;
-  visited = new HashSet<String>();
-  reached = new HashSet<String>();
+  visited = new Set<String>();
+  reached = new Set<String>();
 
-  reachedFunctionsSet = new HashSet<WasmFunction>();
-  reachedTypesSet = new HashSet<WasmType>();
+  reachedFunctionsSet = new Set<WasmFunction>();
+  reachedTypesSet = new Set<WasmType>();
   emittedTypes = new Array<WasmType>();
 
   /**
@@ -317,9 +318,9 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
   }
 
 
-  parsedClassMethodRefs = new HashMap<String, ParsedMethodRef>();
-  parsedInterfaceMemberRefs = new HashMap<String, ParsedInterfaceMemberRef>();
-  parsedAdaptationRefs = new HashMap<String, ParsedAdaptationRef>();
+  parsedClassMethodRefs = new Map<String, ParsedMethodRef>();
+  parsedInterfaceMemberRefs = new Map<String, ParsedInterfaceMemberRef>();
+  parsedAdaptationRefs = new Map<String, ParsedAdaptationRef>();
 
   var typeIdGenerator = makeTypeIdGenerator(1);
 
@@ -344,7 +345,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
   recordReachedClassMember(classSymId: SymbolId, nodeId: i32, model: SemanticModel, isReachable: boolean): void {
     if (isReachable) {
       if (!this.reachedReachableClassMembers.has(classSymId)) {
-        this.reachedReachableClassMembers[classSymId] = new OrderedHashMap<i32, boolean>();
+        this.reachedReachableClassMembers[classSymId] = new Map<i32, boolean>.ordered();
       }
       let set = this.reachedReachableClassMembers[classSymId];
       if (!set.has(nodeId)) {
@@ -357,7 +358,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
       }
     } else {
       if (!this.reachedClassMembers.has(classSymId)) {
-        this.reachedClassMembers[classSymId] = new OrderedHashMap<i32, boolean>();
+        this.reachedClassMembers[classSymId] = new Map<i32, boolean>.ordered();
       }
       let set = this.reachedClassMembers[classSymId];
       if (!set.has(nodeId)) {
@@ -709,7 +710,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
     this.processQueues();
   }
 
-  #linkSuperAndVT(ct: ClassType, model: SemanticModel, linkedClasses: HashMap<ClassKey, boolean>): void {
+  #linkSuperAndVT(ct: ClassType, model: SemanticModel, linkedClasses: Map<ClassKey, boolean>): void {
     let ctKey = getClassKey(ct);
     if (linkedClasses.has(ctKey)) { return; }
     linkedClasses[ctKey] = true;
@@ -740,7 +741,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
       let superVtable = this.wasm.classVtable(superKey);
       if (superVtable.length > 0 || ctVtable.length > 0) {
         let newVTable = new Array<String>();
-        let seen = new HashSet<String>();
+        let seen = new Set<String>();
         for (let methName in superVtable) {
           newVTable.push(methName);
           seen.add(methName);
@@ -777,7 +778,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
         this.reachablyNamedClasses.has(cKeyStr);
   }
 
-  #populateClassStruct(ct: ClassType, populated: HashMap<ClassKey, boolean>): void {
+  #populateClassStruct(ct: ClassType, populated: Map<ClassKey, boolean>): void {
     let key = getClassKey(ct);
     if (populated.has(key)) { return; }
     let {superType} = ct;
@@ -1060,7 +1061,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
     }
 
     // Populate mixinToClasses mapping
-    this.mixinToClasses = new HashMap<MixinKey, GrowableArray<ClassType>>();
+    this.mixinToClasses = new Map<MixinKey, GrowableArray<ClassType>>();
     for (let unit in this.program.units) {
       let {model} = unit;
       let classKeys = model.classDeclarations.keys();
@@ -1069,7 +1070,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
         let rawClassType = this.getClassDeclType(classDecl, model);
         if (rawClassType != null) {
           let mixinMembers = new Array<Node>();
-          let seenMixins = new HashMap<MixinKey, boolean>();
+          let seenMixins = new Map<MixinKey, boolean>();
           collectMixinMembers(this.program, model, classDecl.mixins, mixinMembers, seenMixins);
           let mKeys = seenMixins.keys();
           while (let (true, mixKey) = mKeys.next()) {
@@ -1239,7 +1240,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
     let tLayout = performance.start("codegen-discovery-layout");
 
     // Pass 0.6: Link superStruct for inheritance and inherit vtable slots recursively
-    let linkedClasses = new HashMap<ClassKey, boolean>();
+    let linkedClasses = new Map<ClassKey, boolean>();
 
     // Pre-discover implemented interfaces of all reached/specialized and declared classes.
     let classesToDiscover = new Array<ClassType>();
@@ -1350,7 +1351,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
     // would carry an empty layout and fail much further downstream
     // (`$stringCreate layout`, `operator dispatch`) with nothing
     // pointing back here.
-    let populated = new HashMap<ClassKey, boolean>();
+    let populated = new Map<ClassKey, boolean>();
     this.#layoutClassStructs(populated);
 
     // Pass 1.1: Synthesize physical field getters/setters for virtual/inherited slots
@@ -1912,7 +1913,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
     // evidence for; a lowering-time lookup of an unrecorded one is a
     // loud index -1, not a silent miscompile.
     // Membership comes from the evidence set, but ITERATION follows
-    // the interned map — a HashSet<WasmStruct> iterates in uid order,
+    // the interned map — a Set<WasmStruct> iterates in uid order,
     // which is process-global state (the batch-nondeterminism bug).
     for (let pair in this.wasm.closureStructs) {
       if (this.reachablyNamedClosures.has(pair.value)) {
@@ -1988,7 +1989,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
           cc = (cc as ClassType).superType;
         }
         let orderedNames = new Array<String>();
-        let seenNames = new HashSet<String>();
+        let seenNames = new Set<String>();
         var ci = chain.length - 1;
         while (ci >= 0) {
           for (let n in this.wasm.classVtable(getClassKey(chain[ci]))) {
@@ -1999,7 +2000,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
           }
           ci -= 1;
         }
-        let fieldByName = new HashMap<String, WasmField>();
+        let fieldByName = new Map<String, WasmField>();
         for (let field in vstVal.fields) {
           fieldByName[field.name as String] = field;
         }
@@ -2426,7 +2427,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
     }
     // Pass 2: Generate class-interface trampoline vtables
     let classes = new Array<ClassType>();
-    let seenClassKeys = new HashMap<ClassKey, boolean>();
+    let seenClassKeys = new Map<ClassKey, boolean>();
     for (let cPair in this.wasm.classInfos) {
       let cStruct = cPair.value.structType;
       let {classType} = cStruct;
@@ -2549,7 +2550,7 @@ export final class ReachabilityAnalysis implements ReachabilityContext {
    * class-interface vtable pass or the final queue drain still has to
    * get a layout, and before this ran twice it silently did not.
    */
-  #layoutClassStructs(populated: HashMap<ClassKey, boolean>): void {
+  #layoutClassStructs(populated: Map<ClassKey, boolean>): void {
     var round = true;
     while (round) {
       round = false;

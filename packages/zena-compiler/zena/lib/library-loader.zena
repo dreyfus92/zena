@@ -10,7 +10,7 @@
  * for file I/O.
  */
 
-import { HashSet } from 'zena:collections';
+import { Set } from 'zena:collections';
 import {
   Module, ImportDeclaration, ExportAllDeclaration, ExportFromDeclaration, makeNodeIdGenerator,
 } from './ast.zena';
@@ -83,7 +83,7 @@ export class SourceFile {
    * Key: import specifier as written in source (e.g., "./utils", "zena:string")
    * Value: canonical resolved path
    */
-  imports = new HashMap<String, String>();
+  imports = new Map<String, String>();
 
   /**
    * Scope analysis result (populated after scope building).
@@ -149,7 +149,7 @@ export class SourceFileGraph(
 export class LibraryLoader {
   #host: CompilerHost;
   #resolver: ModuleResolver;
-  #cache: HashMap<String, SourceFile>;
+  #cache: Map<String, SourceFile>;
 
   /**
    * Node ids must be unique across every file this loader has parsed —
@@ -177,7 +177,7 @@ export class LibraryLoader {
   #recover: boolean;
 
   new(host: CompilerHost, resolver: ModuleResolver, recover: boolean = false)
-    : #host = host, #resolver = resolver, #recover = recover, #cache = new HashMap<String, SourceFile>();
+    : #host = host, #resolver = resolver, #recover = recover, #cache = new Map<String, SourceFile>();
 
   /**
    * Load a library by its canonical path.
@@ -217,7 +217,7 @@ export class LibraryLoader {
   loadSynthesized(
     path: String,
     source: String,
-    pinned: HashMap<String, String>
+    pinned: Map<String, String>
   ): SourceFile {
     if (this.#cache.has(path)) {
       return this.#cache[path];
@@ -230,7 +230,7 @@ export class LibraryLoader {
     path: String,
     source: String,
     version: String | null,
-    pinned: HashMap<String, String> | null
+    pinned: Map<String, String> | null
   ): SourceFile {
     let isStdlib = path.startsWith("zena:") || path.contains("stdlib");
     let packageName = this.#resolver.findPackageForPath(path);
@@ -357,7 +357,7 @@ export class LibraryLoader {
     }
 
     // Phase 1: Detect changed files and remove from cache.
-    let changedPaths = new HashSet<String>();
+    let changedPaths = new Set<String>();
     for (let path in paths) {
       let cached = this.#cache[path];
       if (!cached.isStdlib) {
@@ -403,8 +403,8 @@ export class LibraryLoader {
    * dependencies must be checked before the module itself).
    */
   computeGraph(entries: GrowableArray<SourceFile>): SourceFileGraph {
-    let visited = new HashMap<String, i32>();
-    let stack = new HashMap<String, i32>();
+    let visited = new Map<String, i32>();
+    let stack = new Map<String, i32>();
     let sorted = new Array<SourceFile>();
     var hasCycle = false;
     for (let entry in entries) {
@@ -417,8 +417,8 @@ export class LibraryLoader {
 
   #topoVisit(
     lib: SourceFile,
-    visited: HashMap<String, i32>,
-    stack: HashMap<String, i32>,
+    visited: Map<String, i32>,
+    stack: Map<String, i32>,
     sorted: GrowableArray<SourceFile>
   ): boolean {
     if (visited.has(lib.path)) {

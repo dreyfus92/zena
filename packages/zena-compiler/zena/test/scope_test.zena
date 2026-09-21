@@ -147,7 +147,7 @@ export let tests = suite('Scope', (): void => {
 
   suite('Module exports', (): void => {
     test('set and get value export', (ctx: TestContext): void => {
-      let exports = new HashMap<String, Symbol>();
+      let exports = new Map<String, Symbol>();
       let mod = parse('export let x = 1;', 'test.zena');
       let decl = mod.body[0];
       let info = new Symbol("x", decl, "test.zena");
@@ -160,7 +160,7 @@ export let tests = suite('Scope', (): void => {
     });
 
     test('set and get type export', (ctx: TestContext): void => {
-      let exports = new HashMap<String, Symbol>();
+      let exports = new Map<String, Symbol>();
       let mod = parse('class Foo {}', 'test.zena');
       let decl = mod.body[0];
       let info = new Symbol("foo", decl, "test.zena");
@@ -172,7 +172,7 @@ export let tests = suite('Scope', (): void => {
     });
 
     test('hasValue and hasType equivalent', (ctx: TestContext): void => {
-      let exports = new HashMap<String, Symbol>();
+      let exports = new Map<String, Symbol>();
       let mod = parse('export class Foo {}', 'test.zena');
       let decl = mod.body[0];
       let info = new Symbol("Foo", decl, "test.zena");

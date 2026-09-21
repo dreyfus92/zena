@@ -38,7 +38,7 @@ let stdlibRoot = 'packages/stdlib/zena';
 
 /** A file whose contents the test can change under the compiler. */
 class MutableHost implements CompilerHost {
-  overrides = new HashMap<String, String>();
+  overrides = new Map<String, String>();
   new();
 
   readFile(path: String): String {
@@ -63,7 +63,7 @@ let idsOf = (result: CompilationResult): Array<NodeId> => {
 
 /** How many node ids are claimed by more than one file. */
 let collisionCount = (result: CompilationResult): i32 => {
-  let owner = new HashMap<NodeId, String>();
+  let owner = new Map<NodeId, String>();
   var collisions = 0;
   for (let file in result.files) {
     walkEnter(file.ast, (n: Node): void => {

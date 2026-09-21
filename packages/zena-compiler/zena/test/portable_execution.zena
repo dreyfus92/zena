@@ -44,8 +44,8 @@
  *   portable_execution --invoke compileSlice <index> <count> [filter]
  */
 
+import { Set } from 'zena:collections';
 import { getArguments } from 'zena:cli';
-import { HashSet } from 'zena:collections';
 import { StringBuilder } from 'zena:core';
 import { Process, ProcessResult, spawn } from 'zena:process';
 import { readFile, readFileBytes, writeFile, writeFileBytes, mkdir, exists, unlink } from 'zena:fs';
@@ -279,7 +279,7 @@ let report = (running: RunningTest): boolean => {
  * import, and anything left over is reported as an error.
  */
 let orphanedSupportModules = (d: Discovery): Array<TestFile> => {
-  let imported = new HashSet<String>();
+  let imported = new Set<String>();
   for (let f in d.all()) {
     for (let path in siblingImports(f)) {
       imported.add(path);

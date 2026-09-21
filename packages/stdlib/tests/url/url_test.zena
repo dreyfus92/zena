@@ -283,7 +283,7 @@ export let tests = suite('URL API', (): void => {
     });
 
     test('works as a HashMap key, matching on canonical form', (ctx: TestContext): void => {
-      let m = new HashMap<URL, String>();
+      let m = new Map<URL, String>();
       m[mustParse('https://example.com/a')] = 'first';
       // A different spelling of the same URL must hit the same entry.
       m[mustParse('https://EXAMPLE.com:443/a')] = 'second';
@@ -292,7 +292,7 @@ export let tests = suite('URL API', (): void => {
     });
 
     test('distinct URLs occupy distinct HashMap entries', (ctx: TestContext): void => {
-      let m = new HashMap<URL, String>();
+      let m = new Map<URL, String>();
       m[mustParse('https://example.com/a')] = 'a';
       m[mustParse('https://example.com/b')] = 'b';
       equal(m.size, 2);

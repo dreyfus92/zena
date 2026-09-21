@@ -69,7 +69,7 @@ let packagesWit = (): String =>
     readWitSource(`${stdlibRoot}/wit`);
 
 /** Package map: the repo's, plus the WIT-backed `fixture` package. */
-let testPackages = (host: CompilerHost): HashMap<String, PackageConfig> => {
+let testPackages = (host: CompilerHost): Map<String, PackageConfig> => {
   let packages = loadPackageMap(host, 'zena-packages.json');
   let fixture = new PackageConfig('', null);
   fixture.witRoot = `${fixtures}/wit-pkg`;
@@ -422,14 +422,14 @@ export let tests = suite('Component emission', (): void => {
     // `zena:fetch` — imports `wasi:http/client` with no manifest. A
     // manifest that declares `wasi` keeps its own: the tests here
     // point it at their fixture package.
-    let none = new HashMap<String, PackageConfig>();
+    let none = new Map<String, PackageConfig>();
     let builtin = withBuiltinPackages(stdlibRoot, none);
     isTrue(builtin.has('wasi'), 'no built-in wasi package');
     equal(builtin['wasi'].witRoot as String, `${stdlibRoot}/wit`,
       'the built-in wasi package is not rooted at the stdlib\'s WIT');
     let own = new PackageConfig('', null);
     own.witRoot = `${fixtures}/wit-pkg`;
-    let declared = new HashMap<String, PackageConfig>();
+    let declared = new Map<String, PackageConfig>();
     declared['wasi'] = own;
     let kept = withBuiltinPackages(stdlibRoot, declared);
     equal(kept['wasi'].witRoot as String, `${fixtures}/wit-pkg`,

@@ -76,11 +76,11 @@ final class Location {
   new(this.library, this.name, this.movingTo = null);
 }
 
-var locations: HashMap<i32, Location> | null = null;
+var locations: Map<i32, Location> | null = null;
 var ordered: GrowableArray<WellKnown> | null = null;
 
-let buildLocations = (): HashMap<i32, Location> => {
-  let t = new HashMap<i32, Location>();
+let buildLocations = (): Map<i32, Location> => {
+  let t = new Map<i32, Location>();
   let order = new Array<WellKnown>();
   let add = (w: WellKnown, library: String, name: String): void => {
     t[w as i32] = new Location(library, name);
@@ -132,7 +132,7 @@ export let allWellKnown = (): GrowableArray<WellKnown> => {
 
 let locationOf = (w: WellKnown): Location => {
   let t = if (locations != null) {
-    locations as HashMap<i32, Location>
+    locations as Map<i32, Location>
   } else {
     buildLocations()
   };

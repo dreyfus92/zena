@@ -126,7 +126,7 @@ export let findDeclaration = (wasm: WasmModule, sym: Symbol, expectedType: Type 
 };
 
 
-export let collectValueExports = (program: Program, unit: CompilationUnit, result: HashMap<String, Symbol>): void => {
+export let collectValueExports = (program: Program, unit: CompilationUnit, result: Map<String, Symbol>): void => {
   for (let stmt in unit.ast.body) {
     match (stmt) {
       case VariableDeclaration {pattern, exported}: {
@@ -181,7 +181,7 @@ export let collectValueExports = (program: Program, unit: CompilationUnit, resul
           for (let spec in specifiers) {
             let importedName = spec.imported.name;
             let localName = spec.local.name;
-            let targetExports = new HashMap<String, Symbol>();
+            let targetExports = new Map<String, Symbol>();
             collectValueExports(program, targetUnit, targetExports);
             if (targetExports.has(importedName)) {
               result[localName] = targetExports[importedName];

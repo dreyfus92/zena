@@ -809,7 +809,7 @@ export let collectMixinMembers = (
   model: SemanticModel,
   mixinAnns: GrowableArray<TypeAnnotation> | null,
   methods: GrowableArray<Node>,
-  seen: HashMap<MixinKey, boolean>,
+  seen: Map<MixinKey, boolean>,
   scopes: GrowableArray<String> | null = null,
   models: GrowableArray<SemanticModel> | null = null
 ): void => {
@@ -877,7 +877,7 @@ export let mixinScopeOfMember = (
       if (cdd.mixins == null) { return null; }
       let members = new Array<Node>();
       let scopes = new Array<String>();
-      let seen = new HashMap<MixinKey, boolean>();
+      let seen = new Map<MixinKey, boolean>();
       collectMixinMembers(program, model, cdd.mixins, members, seen, scopes);
       for (var i = 0; i < members.length; i += 1) {
         if (members[i] == member) {
@@ -900,7 +900,7 @@ export let mixinModelOfMember = (
     case ClassDeclaration as cdd: {
       if (cdd.mixins == null) { return null; }
       let members = new Array<Node>();
-      let seen = new HashMap<MixinKey, boolean>();
+      let seen = new Map<MixinKey, boolean>();
       let models = new Array<SemanticModel>();
       collectMixinMembers(program, model, cdd.mixins, members, seen, null, models);
       for (var i = 0; i < members.length; i += 1) {
@@ -960,7 +960,7 @@ export let collectMixinFields = (
   mixinAnns: GrowableArray<TypeAnnotation> | null,
   fields: GrowableArray<FieldDefinition>,
   scopes: GrowableArray<String>,
-  seen: HashMap<MixinKey, boolean>
+  seen: Map<MixinKey, boolean>
 ): void => {
   if (mixinAnns == null) { return; }
   for (let ann in mixinAnns) {
@@ -1042,7 +1042,7 @@ export let substituteTypeParams = (
       new InlineTupleType(subElems)
     }
     case RecordType as rec: {
-      let subProps = new HashMap<String, Type>();
+      let subProps = new Map<String, Type>();
       for (let pair in rec.properties) {
         subProps[pair.key] = substituteTypeParams(typeParams, typeArgs, pair.value);
       }

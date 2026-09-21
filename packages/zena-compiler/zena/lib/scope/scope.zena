@@ -21,10 +21,10 @@ export enum ScopeKind {
 export final class Scope {
   scopeKind: ScopeKind;
   parent: Scope | null;
-  #bindings = new HashMap<String, Symbol>();
+  #bindings = new Map<String, Symbol>();
   var #symbolIdGenerator = makeSymbolIdGenerator();
 
-  bindings: HashMap<String, Symbol> {
+  bindings: Map<String, Symbol> {
     get { return this.#bindings; }
   }
 

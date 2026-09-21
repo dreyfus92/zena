@@ -12,7 +12,7 @@ import {
 
 // Create a minimal stdlib package config for testing.
 let makeStdlibConfig = (): PackageConfig => {
-  let exports = new HashMap<String, ModuleExport>();
+  let exports = new Map<String, ModuleExport>();
   exports["string"] = new ModuleExport(null);
   exports["array"] = new ModuleExport(null);
   exports["map"] = new ModuleExport(null);
@@ -22,11 +22,11 @@ let makeStdlibConfig = (): PackageConfig => {
 
   // An internal module: the manifest entry is what picks its file, and
   // only the package's own modules may name it.
-  let stackVirtual = new HashMap<String, String>();
+  let stackVirtual = new Map<String, String>();
   stackVirtual["host"] = "core/error/stack-host.zena";
   exports["error-stack"] = new ModuleExport(stackVirtual, null, true);
 
-  let consoleVirtual = new HashMap<String, String>();
+  let consoleVirtual = new Map<String, String>();
   consoleVirtual["host"] = "console/host.zena";
   consoleVirtual["wasi"] = "console/wasi.zena";
   exports["console"] = new ModuleExport(consoleVirtual);
@@ -41,7 +41,7 @@ let makeUserPackageConfig = (): PackageConfig => {
 
 // Create a resolver with stdlib + user package.
 let makeResolver = (target: String): ModuleResolver => {
-  let packages = new HashMap<String, PackageConfig>();
+  let packages = new Map<String, PackageConfig>();
   packages["zena"] = makeStdlibConfig();
   packages["mylib"] = makeUserPackageConfig();
   return new ModuleResolver(packages, target);

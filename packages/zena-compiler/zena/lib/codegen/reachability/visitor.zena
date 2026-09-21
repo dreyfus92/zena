@@ -1,3 +1,4 @@
+import { Set } from 'zena:collections';
 import { collectValueExports } from '../lookup.zena';
 import {
   Referrer, ReachabilityContext, TypeLowererInterface, ReachabilityVisitorInterface,
@@ -17,7 +18,6 @@ import {
   ValType, ValTypeRefNull, ValTypeAnyRef, ValTypeEqRef, ValTypeStructRef, ValTypeRef, ValTypeI32, ValTypeI64, ValTypeF32, ValTypeF64, ValTypeExternRef, isRefValType,
 } from '../wasm.zena';
 import { SymbolId, Symbol, noSymbolId } from '../../scope/symbol.zena';
-import { HashSet } from 'zena:collections';
 import {
   getClassKey, getClassMethodKey, getInterfaceKey, getClassInterfaceKey, getInterfaceMemberKey, getMixinKeyFromSymbol, getSpecializedFunctionKey, getSpecializedName, getFunctionValueWrapperKey, getSignatureKey, collectMixinMembers, mixinScopeOfNode, MixinKey, isConcrete, ExportKey, ExportGlobalKey, getTypeUniqueKey, templateConvertHelperName, containsErasedType,
 } from '../codegen-utils.zena';
@@ -469,7 +469,7 @@ export final class TypeLowerer implements TypeLowererInterface {
  */
 export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
   pass: ReachabilityContext;
-  #discoveringOnDemand = new HashSet<SymbolId>();
+  #discoveringOnDemand = new Set<SymbolId>();
 
   new(this.pass);
 
@@ -1631,7 +1631,7 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
     let cdModel = this.pass.classModels[declId];
     let members = new Array<Node>();
     let scopes = new Array<String>();
-    let seen = new HashMap<MixinKey, boolean>();
+    let seen = new Map<MixinKey, boolean>();
     collectMixinMembers(this.pass.program, cdModel,
         cdNode.mixins, members, seen, scopes);
     for (var i = 0; i < members.length; i += 1) {
@@ -2668,7 +2668,7 @@ export final class ReachabilityVisitor implements ReachabilityVisitorInterface {
 
               if (prog.unitsByPath.has(canonicalPath)) {
                 let targetUnit = prog.unitsByPath[canonicalPath];
-                let exports = new HashMap<String, Symbol>();
+                let exports = new Map<String, Symbol>();
                 collectValueExports(prog, targetUnit, exports);
                 
                 for (let key in exports.keys()) {

@@ -21,7 +21,7 @@ export final class Program {
   // the order dynamically, doing the topological sort once up front and storing
   // it prevents redundant walks during code generation.
   units: Array<CompilationUnit>;
-  unitsByPath = new HashMap<String, CompilationUnit>();
+  unitsByPath = new Map<String, CompilationUnit>();
   entryPoint: CompilationUnit | null;
 
   /**
@@ -33,9 +33,9 @@ export final class Program {
    */
   var modelIndex = new ModelIndex();
 
-  mixinDeclarations = new HashMap<String, MixinDeclaration>();
-  exportedSymbols = new HashMap<String, GrowableArray<Symbol>>();
-  exportedFunctions = new HashMap<String, GrowableArray<DeclareFunction>>();
+  mixinDeclarations = new Map<String, MixinDeclaration>();
+  exportedSymbols = new Map<String, GrowableArray<Symbol>>();
+  exportedFunctions = new Map<String, GrowableArray<DeclareFunction>>();
 
   new(this.units, this.entryPoint = null) {
     // Adopted from the check, never built here. The empty index the

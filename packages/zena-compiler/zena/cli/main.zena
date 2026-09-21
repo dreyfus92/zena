@@ -62,9 +62,9 @@ class WasiHost implements CompilerHost {
 // shapes did not lower here. They do now — see
 // tests/language/execution/exceptions/try-tail-assignment.zena — so this
 // could be a try/catch.)
-let loadPackages = (host: CompilerHost): HashMap<String, PackageConfig> => {
+let loadPackages = (host: CompilerHost): Map<String, PackageConfig> => {
   if (!exists("zena-packages.json")) {
-    return new HashMap<String, PackageConfig>();
+    return new Map<String, PackageConfig>();
   }
   return loadPackageMap(host, "zena-packages.json");
 };

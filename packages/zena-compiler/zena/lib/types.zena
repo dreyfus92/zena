@@ -12,7 +12,8 @@
  * - The AST is never mutated — types live in the SemanticModel side table.
  */
 import { StringBuilder } from 'zena:core';
-import { HashSet, OrderedHashMap } from 'zena:collections';
+import { Set } from 'zena:collections';
+
 
 
 import { Expression, Statement, IdGenerator } from './ast.zena';
@@ -242,8 +243,8 @@ export final class MethodInfo extends MemberInfo {
 }
 
 export final class RecordType(
-  properties: HashMap<String, Type>,
-  optionalProperties: HashSet<String> | null
+  properties: Map<String, Type>,
+  optionalProperties: Set<String> | null
 ) extends Type {
   // If this RecordType represents the constant namespace for an enum (e.g.
   // `Color`), this points back to the original AST node (`EnumDeclaration`).
@@ -332,10 +333,10 @@ export final class ClassType extends Type {
    * This map is mutated incrementally by the checker during class resolution,
    * but is treated as immutable during codegen to emit `WasmStruct`s.
    */
-  var members: OrderedHashMap<String, MemberInfo> = new OrderedHashMap<String, MemberInfo>();
+  var members: Map<String, MemberInfo> = new Map<String, MemberInfo>.ordered();
   var constructorType: FunctionType | null = null;
-  var constructors: HashMap<String, FunctionType> = new HashMap<String, FunctionType>();
-  var fieldSetterNames: HashMap<String, String> | null = null;
+  var constructors: Map<String, FunctionType> = new Map<String, FunctionType>();
+  var fieldSetterNames: Map<String, String> | null = null;
   var isFinal = false;
   var isCaseClass = false;
   var isAbstract = false;
@@ -344,10 +345,10 @@ export final class ClassType extends Type {
   var isMixinIntermediate = false;
   var onType: Type | null = null;
   var genericSource: ClassType | null = null;
-  var declaredFields: HashSet<String> | null = null;
+  var declaredFields: Set<String> | null = null;
   var sealedVariants: GrowableArray<ClassType> | null = null;
-  var forwardVariantNames: HashSet<String> | null = null;
-  instantiations = new HashMap<String, ClassType>();
+  var forwardVariantNames: Set<String> | null = null;
+  instantiations = new Map<String, ClassType>();
 
   /** The file path where this class was declared (set by the checker). */
   var sourcePath: String = "";
@@ -450,7 +451,7 @@ let substituteInType = (
       new UnionType(newTypes)
     }
     case RecordType as rec: {
-      let newProps = new HashMap<String, Type>();
+      let newProps = new Map<String, Type>();
       let keys = rec.properties.keys();
       while (let (true, key) = keys.next()) {
         let sub = substituteInType(rec.properties[key], typeParameters, typeArguments);
@@ -568,7 +569,7 @@ let substituteInType = (
         } else {
           null
         };
-        inst.constructors = new HashMap<String, FunctionType>();
+        inst.constructors = new Map<String, FunctionType>();
         for (let entry in ct.constructors) {
           let ctorName = entry.key;
           let ctor = entry.value;
@@ -1011,7 +1012,7 @@ export let instantiateClassType = (
   } else {
     null
   };
-  result.constructors = new HashMap<String, FunctionType>();
+  result.constructors = new Map<String, FunctionType>();
   for (let entry in source.constructors) {
     let ctorName = entry.key;
     let ctor = entry.value;
@@ -1083,18 +1084,18 @@ export final class InterfaceType extends Type {
   var typeParameters: Array<TypeParameterType> | null = null;
   var typeArguments: Array<Type> | null = null;
   var extendsList: GrowableArray<InterfaceType> = new Array<InterfaceType>();
-  var members: OrderedHashMap<String, MemberInfo> = new OrderedHashMap<String, MemberInfo>();
+  var members: Map<String, MemberInfo> = new Map<String, MemberInfo>.ordered();
   var genericSource: InterfaceType | null = null;
   var interfaceKey: String | null = null;
   var sourcePath: String = "";
-  instantiations = new HashMap<String, InterfaceType>();
+  instantiations = new Map<String, InterfaceType>();
   /**
    * The interface's constructors, keyed like a class's: "<constructor>"
    * for `new(...)`, the bare name for `new name(...)`. Each is a factory
    * function whose return type is the interface at its own type
    * parameters; an instantiation shares the map and substitutes.
    */
-  var constructors: HashMap<String, FunctionType> = new HashMap<String, FunctionType>();
+  var constructors: Map<String, FunctionType> = new Map<String, FunctionType>();
 
   new(id: TypeId, symbolId: SymbolId, name: String) : id = id, symbolId = symbolId, name = name, super();
 }
@@ -1154,7 +1155,7 @@ export final class MixinType extends Type {
   var typeParameters: Array<TypeParameterType> | null = null;
   var typeArguments: Array<Type> | null = null;
   var onType: Type | null = null;
-  var members: OrderedHashMap<String, MemberInfo> = new OrderedHashMap<String, MemberInfo>();
+  var members: Map<String, MemberInfo> = new Map<String, MemberInfo>.ordered();
   var genericSource: MixinType | null = null;
   var sourcePath: String = "";
   var mixins: GrowableArray<MixinType> = new Array<MixinType>();
@@ -1166,7 +1167,7 @@ export final class MixinType extends Type {
    * reach it through genericSource.
    */
   var privateScopeKey: String | null = null;
-  instantiations = new HashMap<String, MixinType>();
+  instantiations = new Map<String, MixinType>();
 
   new(name: String) : name = name, super();
 }

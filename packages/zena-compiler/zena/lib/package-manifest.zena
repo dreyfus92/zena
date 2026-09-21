@@ -40,13 +40,13 @@ import { dirName, normalizePath } from './module-resolver.zena';
 export let loadPackageMap = (
   host: CompilerHost,
   manifestPath: String
-): HashMap<String, PackageConfig> => {
+): Map<String, PackageConfig> => {
   let source = host.readFile(manifestPath);
   let json = parseJson(source);
   let root = json as JsonObject;
   let packages = root["packages"] as JsonObject;
   let manifestDir = dirName(manifestPath);
-  let result = new HashMap<String, PackageConfig>();
+  let result = new Map<String, PackageConfig>();
 
   packages.forEach((name: String, value: JsonValue): void => {
     // Skip "zena" — stdlib is handled by the compiler.
@@ -88,9 +88,9 @@ let parsePackageEntry = (value: JsonValue, manifestDir: String): PackageConfig =
   let root = normalizePath(manifestDir + "/" + rootValue);
 
   // Parse exports (optional).
-  var exports: HashMap<String, ModuleExport> | null = null;
+  var exports: Map<String, ModuleExport> | null = null;
   if (obj.has("exports")) {
-    let exportsMap = new HashMap<String, ModuleExport>();
+    let exportsMap = new Map<String, ModuleExport>();
     let exportsObj = obj["exports"] as JsonObject;
     exportsObj.forEach((moduleName: String, moduleValue: JsonValue): void => {
       let moduleExport = parseModuleExport(moduleValue);
@@ -112,7 +112,7 @@ let parseModuleExport = (value: JsonValue): ModuleExport => {
 
   if (obj.has("virtual")) {
     let virtualObj = obj["virtual"] as JsonObject;
-    let virtual = new HashMap<String, String>();
+    let virtual = new Map<String, String>();
     virtualObj.forEach((target: String, entryPath: JsonValue): void => {
       virtual[target] = entryPath as String;
     });

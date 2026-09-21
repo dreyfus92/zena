@@ -1,4 +1,4 @@
-import { HashSet } from 'zena:collections';
+import { Set } from 'zena:collections';
 import { Type } from '../types.zena';
 import { SymbolId } from '../scope/symbol.zena';
 import { Node, SourceLocation } from '../ast.zena';
@@ -101,8 +101,8 @@ export final class FlowMove extends FlowNode {
  */
 export final class FlowNarrowings extends FlowNode {
   antecedent: FlowNode;
-  bindings: HashMap<SymbolId, Type>;
-  paths: HashMap<String, Type>;
+  bindings: Map<SymbolId, Type>;
+  paths: Map<String, Type>;
   new(this.antecedent, this.bindings, this.paths) : super();
 }
 
@@ -192,7 +192,7 @@ export final class FlowBodyState {
   loopExits: GrowableArray<FlowJoin>;
   exceptionTargets: GrowableArray<FlowJoin>;
   loopMoves: GrowableArray<GrowableArray<FlowMove>>;
-  loopDeclared: GrowableArray<HashSet<i32>>;
+  loopDeclared: GrowableArray<Set<i32>>;
   pendingEdgeIfs: GrowableArray<PendingEdgeIf>;
   var borrowUses = new Array<BorrowUseRec>();
   var pendingEdgeMatches = new Array<PendingEdgeMatch>();

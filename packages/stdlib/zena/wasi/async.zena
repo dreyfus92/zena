@@ -31,7 +31,7 @@
  * resolves this module.
  */
 
-import { HashMap } from 'zena:collections';
+import { Set } from 'zena:collections';
 import { Error } from 'zena:core';
 import { Completer, Future, drainMicrotasks } from 'zena:async';
 
@@ -213,10 +213,10 @@ final class TaskContext {
 var currentTask: TaskContext | null = null;
 
 /** Which task each in-flight waitable was joined for, by handle. */
-let owners = new HashMap<Waitable, TaskContext>();
+let owners = new Map<Waitable, TaskContext>();
 
 /** In-flight subtasks, each owed one completion. */
-let pending = new HashMap<Waitable, Completer<void>>();
+let pending = new Map<Waitable, Completer<void>>();
 
 /**
  * In-flight stream and future copies, by end handle, each owed one
@@ -224,7 +224,7 @@ let pending = new HashMap<Waitable, Completer<void>>();
  * ends are distinct handle indices, and an end has at most one copy
  * in flight, so the handle is the whole key.
  */
-let pendingCopies = new HashMap<Waitable, Completer<i32>>();
+let pendingCopies = new Map<Waitable, Completer<i32>>();
 
 /**
  * Start a task. Called by the synthesized adapter at the top of every

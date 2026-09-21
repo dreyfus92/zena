@@ -1,7 +1,7 @@
 import { Node, NodeId } from './ast.zena';
 
 export final class NodeMap<V> {
-  #map = new HashMap<NodeId, V>();
+  #map = new Map<NodeId, V>();
 
   operator []=(node: Node, value: V): void {
     this.#map[node.id] = value;
@@ -23,7 +23,7 @@ export final class NodeMap<V> {
     get { return this.#map.size; }
   }
 
-  map: HashMap<NodeId, V> {
+  map: Map<NodeId, V> {
     get { return this.#map; }
   }
 }

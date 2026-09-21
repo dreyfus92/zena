@@ -1,9 +1,9 @@
+import { Set } from 'zena:collections';
 import { Program } from '../../program.zena';
 import { ClassType, FunctionType, MixinType, InterfaceType, TypeId } from '../../types.zena';
 import {
   Node, NodeId, ClassDeclaration, MethodDefinition, FieldDefinition, AccessorDeclaration, TypeAnnotation, Identifier, SymbolPropertyName, MemberExpression,
 } from '../../ast.zena';
-import { HashSet } from 'zena:collections';
 import { SymbolId } from '../../scope/symbol.zena';
 import { SemanticModel } from '../../semantic-model.zena';
 import {
@@ -18,29 +18,29 @@ import { WasmModule } from '../wasm-module.zena';
  */
 export final class ClassHierarchyAnalysis {
   program: Program;
-  instantiatedSpecializedClasses: HashSet<String>;
+  instantiatedSpecializedClasses: Set<String>;
   wasm: WasmModule;
 
-  implementingMethodCache = new HashMap<TypeId, HashMap<String, MethodDefinition>>();
-  implementingMethodNulls = new HashMap<TypeId, HashSet<String>>();
-  implementingMethodsCache = new HashMap<TypeId, HashMap<String, Array<MethodDefinition>>>();
-  implementingFieldCache = new HashMap<TypeId, HashMap<String, FieldDefinition>>();
-  implementingFieldNulls = new HashMap<TypeId, HashSet<String>>();
-  implementingAccessorCache = new HashMap<TypeId, HashMap<String, AccessorDeclaration>>();
-  implementingAccessorNulls = new HashMap<TypeId, HashSet<String>>();
-  subclassRelationCache = new HashMap<i32, boolean>();
-  subclassesByBaseId = new HashMap<SymbolId, GrowableArray<ClassType>>();
-  classDeclTypeCache = new HashMap<NodeId, ClassType>();
-  classMixinIdsCache = new HashMap<SymbolId, HashMap<SymbolId, boolean>>();
-  classModels: HashMap<SymbolId, SemanticModel>;
+  implementingMethodCache = new Map<TypeId, Map<String, MethodDefinition>>();
+  implementingMethodNulls = new Map<TypeId, Set<String>>();
+  implementingMethodsCache = new Map<TypeId, Map<String, Array<MethodDefinition>>>();
+  implementingFieldCache = new Map<TypeId, Map<String, FieldDefinition>>();
+  implementingFieldNulls = new Map<TypeId, Set<String>>();
+  implementingAccessorCache = new Map<TypeId, Map<String, AccessorDeclaration>>();
+  implementingAccessorNulls = new Map<TypeId, Set<String>>();
+  subclassRelationCache = new Map<i32, boolean>();
+  subclassesByBaseId = new Map<SymbolId, GrowableArray<ClassType>>();
+  classDeclTypeCache = new Map<NodeId, ClassType>();
+  classMixinIdsCache = new Map<SymbolId, Map<SymbolId, boolean>>();
+  classModels: Map<SymbolId, SemanticModel>;
 
   new(this.program, this.instantiatedSpecializedClasses, this.wasm, this.classModels);
 
-  getClassMixinIds(cd: ClassDeclaration, symId: SymbolId, model: SemanticModel): HashMap<SymbolId, boolean> {
+  getClassMixinIds(cd: ClassDeclaration, symId: SymbolId, model: SemanticModel): Map<SymbolId, boolean> {
     if (let (true, cached) = this.classMixinIdsCache.get(symId)) {
       return cached;
     }
-    let seenIds = new HashMap<SymbolId, boolean>();
+    let seenIds = new Map<SymbolId, boolean>();
     collectMixinSymbolIds(this.program, model, cd.mixins, seenIds);
     this.classMixinIdsCache[symId] = seenIds;
     return seenIds;
@@ -88,7 +88,7 @@ export final class ClassHierarchyAnalysis {
               let name = getMethodName(member);
               if (matchMemberName(name, mName)) {
                 if (!this.implementingMethodCache.has(startClassId)) {
-                  this.implementingMethodCache[startClassId] = new HashMap<String, MethodDefinition>();
+                  this.implementingMethodCache[startClassId] = new Map<String, MethodDefinition>();
                 }
                 this.implementingMethodCache[startClassId][mName] = member;
                 return member;
@@ -100,7 +100,7 @@ export final class ClassHierarchyAnalysis {
       curr = ct.superType;
     }
     if (!this.implementingMethodNulls.has(startClassId)) {
-      this.implementingMethodNulls[startClassId] = new HashSet<String>();
+      this.implementingMethodNulls[startClassId] = new Set<String>();
     }
     this.implementingMethodNulls[startClassId].add(mName);
     return null;
@@ -115,7 +115,7 @@ export final class ClassHierarchyAnalysis {
     }
 
     let methods = new Array<MethodDefinition>();
-    let seenSigs = new HashSet<String>();
+    let seenSigs = new Set<String>();
     var curr: ClassType | null = cType;
     while (curr != null) {
       let ct = curr;
@@ -160,7 +160,7 @@ export final class ClassHierarchyAnalysis {
       curr = ct.superType;
     }
     if (!this.implementingMethodsCache.has(startClassId)) {
-      this.implementingMethodsCache[startClassId] = new HashMap<String, Array<MethodDefinition>>();
+      this.implementingMethodsCache[startClassId] = new Map<String, Array<MethodDefinition>>();
     }
     this.implementingMethodsCache[startClassId][mName] = methods;
     return methods;
@@ -216,7 +216,7 @@ export final class ClassHierarchyAnalysis {
               };
               if (matchMemberName(name, fName)) {
                 if (!this.implementingFieldCache.has(startClassId)) {
-                  this.implementingFieldCache[startClassId] = new HashMap<String, FieldDefinition>();
+                  this.implementingFieldCache[startClassId] = new Map<String, FieldDefinition>();
                 }
                 this.implementingFieldCache[startClassId][fName] = member;
                 return member;
@@ -228,7 +228,7 @@ export final class ClassHierarchyAnalysis {
       curr = ct.superType;
     }
     if (!this.implementingFieldNulls.has(startClassId)) {
-      this.implementingFieldNulls[startClassId] = new HashSet<String>();
+      this.implementingFieldNulls[startClassId] = new Set<String>();
     }
     this.implementingFieldNulls[startClassId].add(fName);
     return null;
@@ -277,7 +277,7 @@ export final class ClassHierarchyAnalysis {
                 let targetProp = accName.sliceBytes(4, accName.length);
                 if (matchMemberName(name, targetProp)) {
                   if (!this.implementingAccessorCache.has(startClassId)) {
-                    this.implementingAccessorCache[startClassId] = new HashMap<String, AccessorDeclaration>();
+                    this.implementingAccessorCache[startClassId] = new Map<String, AccessorDeclaration>();
                   }
                   this.implementingAccessorCache[startClassId][accName] = member;
                   return member;
@@ -287,7 +287,7 @@ export final class ClassHierarchyAnalysis {
                 let targetProp = accName.sliceBytes(4, accName.length);
                 if (matchMemberName(name, targetProp)) {
                   if (!this.implementingAccessorCache.has(startClassId)) {
-                    this.implementingAccessorCache[startClassId] = new HashMap<String, AccessorDeclaration>();
+                    this.implementingAccessorCache[startClassId] = new Map<String, AccessorDeclaration>();
                   }
                   this.implementingAccessorCache[startClassId][accName] = member;
                   return member;
@@ -300,7 +300,7 @@ export final class ClassHierarchyAnalysis {
       curr = ct.superType;
     }
     if (!this.implementingAccessorNulls.has(startClassId)) {
-      this.implementingAccessorNulls[startClassId] = new HashSet<String>();
+      this.implementingAccessorNulls[startClassId] = new Set<String>();
     }
     this.implementingAccessorNulls[startClassId].add(accName);
     return null;
@@ -330,7 +330,7 @@ export final class ClassHierarchyAnalysis {
     return false;
   }
 
-  collectAllBaseClassIds(ct: ClassType, list: HashSet<SymbolId>): void {
+  collectAllBaseClassIds(ct: ClassType, list: Set<SymbolId>): void {
     var curr: ClassType | null = ct;
     while (curr != null) {
       let currVal = curr;
@@ -344,7 +344,7 @@ export final class ClassHierarchyAnalysis {
   }
 
   registerInstantiatedClass(ct: ClassType): void {
-    let baseIds = new HashSet<SymbolId>();
+    let baseIds = new Set<SymbolId>();
     this.collectAllBaseClassIds(ct, baseIds);
     for (let baseId in baseIds) {
       if (!this.subclassesByBaseId.has(baseId)) {
@@ -364,7 +364,7 @@ export final class ClassHierarchyAnalysis {
 
   collectAllImplementedInterfaces(ct: ClassType): Array<InterfaceType> {
     let list = new Array<InterfaceType>();
-    let seen = new HashMap<InterfaceKey, boolean>();
+    let seen = new Map<InterfaceKey, boolean>();
     
     let ctParams = getClassTypeParameters(ct);
     for (let iface in ct.implementsList) {
@@ -386,7 +386,7 @@ export final class ClassHierarchyAnalysis {
     return list;
   }
 
-  addInterfaceToTransitiveList(it: InterfaceType, list: GrowableArray<InterfaceType>, seen: HashMap<InterfaceKey, boolean>): void {
+  addInterfaceToTransitiveList(it: InterfaceType, list: GrowableArray<InterfaceType>, seen: Map<InterfaceKey, boolean>): void {
     let key = getInterfaceKey(it);
     if (!seen.has(key)) {
       seen[key] = true;
@@ -437,7 +437,7 @@ let collectMixinSymbolIds = (
   program: Program,
   model: SemanticModel,
   mixinAnns: GrowableArray<TypeAnnotation> | null,
-  seenIds: HashMap<SymbolId, boolean>
+  seenIds: Map<SymbolId, boolean>
 ): void => {
   if (mixinAnns == null) { return; }
   for (let ann in mixinAnns) {

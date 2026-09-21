@@ -18,8 +18,8 @@ import {
 
 /** Resolves the id a link carries to the declaration a reader can open. */
 export final class PublishedIndex {
-  #byId = new HashMap<String, DocDeclaration>();
-  #aliases = new HashMap<String, String>();
+  #byId = new Map<String, DocDeclaration>();
+  #aliases = new Map<String, String>();
 
   new(pkg: DocPackage) {
     for (let module in pkg.modules) {

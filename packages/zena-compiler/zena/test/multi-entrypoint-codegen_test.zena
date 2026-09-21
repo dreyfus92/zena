@@ -48,7 +48,7 @@ class FsHost implements CompilerHost {
 /** Compiles one entry to wasm bytes, throwing on any error. */
 let compileToWasm = (
     host: FsHost,
-    packages: HashMap<String, PackageConfig>,
+    packages: Map<String, PackageConfig>,
     path: String): ByteArray => {
   let options = new CompilerOptions('zena-cli', stdlibRoot, packages);
   let compiler = createCompiler(host, options);

@@ -376,7 +376,7 @@ export let anchorFor = (name: String): String => {
 
 /** Hands out anchors that are unique within one module. */
 export final class AnchorSet {
-  #used = new HashMap<String, i32>();
+  #used = new Map<String, i32>();
 
   /** The anchor for a name, suffixed if the base is already taken. */
   take(name: String): String {

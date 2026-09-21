@@ -21,7 +21,7 @@
 // For target-conditional modules, `virtual` maps target names to entry file
 // paths (relative to the package root).
 export final class ModuleExport {
-  virtual: HashMap<String, String> | null;
+  virtual: Map<String, String> | null;
   path: String | null;
   // Part of the package's own machinery rather than its API. It keeps a
   // manifest entry, because that is what selects a file per target and
@@ -29,7 +29,7 @@ export final class ModuleExport {
   // package may import it, and documentation tools leave it out.
   internal: boolean;
 
-  new(virtual: HashMap<String, String> | null, path: String | null = null,
+  new(virtual: Map<String, String> | null, path: String | null = null,
       internal: boolean = false)
     : virtual = virtual, path = path, internal = internal;
 }
@@ -46,7 +46,7 @@ export final class PackageConfig {
 
   // Explicit module exports. If null, all .zena files are importable (open
   // package). If present, only listed modules can be imported (closed package).
-  exports: HashMap<String, ModuleExport> | null;
+  exports: Map<String, ModuleExport> | null;
 
   // WIT-backed package: the path to a .wit file, or a directory of them,
   // declared with `{"wit": "./path"}` in the manifest. Its modules are
@@ -58,7 +58,7 @@ export final class PackageConfig {
 
   new(
     root: String,
-    exports: HashMap<String, ModuleExport> | null
+    exports: Map<String, ModuleExport> | null
   ) : root = root, exports = exports;
 }
 
@@ -94,10 +94,10 @@ export final class ResolvedModule(
 //   let resolved = resolver.resolve("zena:regex", "/my/file.zena");
 //   // resolved.path == "zena:regex"
 export final class ModuleResolver {
-  #packages: HashMap<String, PackageConfig>;
+  #packages: Map<String, PackageConfig>;
   #target: String;
 
-  new(packages: HashMap<String, PackageConfig>, target: String)
+  new(packages: Map<String, PackageConfig>, target: String)
     : #packages = packages, #target = target;
 
   // The compilation target (e.g., "host", "wasi").
@@ -173,7 +173,7 @@ export final class ModuleResolver {
     let name = path.sliceBytes(0, path.length - 5);
     if (let (true, config) = this.#packages.get("zena")) {
       if (config.exports != null) {
-        let exports = config.exports as HashMap<String, ModuleExport>;
+        let exports = config.exports as Map<String, ModuleExport>;
         if (let (true, moduleExport) = exports.get(name)) {
           if (moduleExport.virtual == null && moduleExport.path == null) {
             return name;
@@ -206,7 +206,7 @@ export final class ModuleResolver {
 
       // Check exports if the package has an explicit export list.
       if (config.exports != null) {
-        let exports = config.exports as HashMap<String, ModuleExport>;
+        let exports = config.exports as Map<String, ModuleExport>;
         if (!exports.has(moduleName)) {
           throw new Error(
             "Module '" + moduleName + "' not found in package '" + packageName + "'"
@@ -233,7 +233,7 @@ export final class ModuleResolver {
         // entry file that does not exist, and report a missing file
         // instead of a missing capability.
         if (moduleExport.virtual != null) {
-          let virtual = moduleExport.virtual as HashMap<String, String>;
+          let virtual = moduleExport.virtual as Map<String, String>;
           if (let (true, entryPath) = virtual.get(this.#target)) {
             return makeCanonicalFilePath(packageName, entryPath, config);
           }

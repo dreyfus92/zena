@@ -16,7 +16,7 @@ import { Diagnostic, DiagnosticSeverity } from '../lib/diagnostics.zena';
  * the host to `makeCompiler` or `createCompiler`.
  */
 export class MockHost implements CompilerHost {
-  #files = new HashMap<String, String>();
+  #files = new Map<String, String>();
 
   addFile(path: String, content: String): void {
     this.#files[path] = content;
@@ -50,7 +50,7 @@ export let makeCompiler = (host: MockHost): Compiler => {
   host.addFile("zena:async", "export class Future<T> {}");
   host.addFile("zena:console", "export let console = null;");
 
-  let packages = new HashMap<String, PackageConfig>();
+  let packages = new Map<String, PackageConfig>();
   let options = new CompilerOptions("host", "/stdlib", packages);
   return createCompiler(host, options);
 };

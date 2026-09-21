@@ -103,7 +103,7 @@ export let substituteTypeParamsInCodegen = (
     }
     case RecordType as rec: {
       var propsChanged = false;
-      let newProps = new HashMap<String, Type>();
+      let newProps = new Map<String, Type>();
       let keys = rec.properties.keys();
       while (let (true, key) = keys.next()) {
         let original = rec.properties[key];
@@ -469,7 +469,7 @@ let addTransitiveInterfaces = (
   it: InterfaceType,
   allParams: GrowableArray<TypeParameterType>,
   allArgs: GrowableArray<Type>,
-  seen: HashMap<String, boolean>
+  seen: Map<String, boolean>
 ): void => {
   let key = getInterfaceKey(it) as String;
   if (seen.has(key)) {
@@ -505,7 +505,7 @@ let addClassTransitiveInterfaces = (
   ct: ClassType,
   allParams: GrowableArray<TypeParameterType>,
   allArgs: GrowableArray<Type>,
-  seen: HashMap<String, boolean>
+  seen: Map<String, boolean>
 ): void => {
   let ctParams = getClassTypeParameters(ct);
   for (let impl in ct.implementsList) {
@@ -545,7 +545,7 @@ let addTransitiveMixins = (
   mt: MixinType,
   allParams: GrowableArray<TypeParameterType>,
   allArgs: GrowableArray<Type>,
-  seen: HashMap<String, boolean>
+  seen: Map<String, boolean>
 ): void => {
   let key = mt.sourcePath + "::" + mt.name;
   if (seen.has(key)) {
@@ -575,7 +575,7 @@ let addClassTransitiveMixins = (
   ct: ClassType,
   allParams: GrowableArray<TypeParameterType>,
   allArgs: GrowableArray<Type>,
-  seen: HashMap<String, boolean>
+  seen: Map<String, boolean>
 ): void => {
   for (let m in ct.mixins) {
     addTransitiveMixins(m, allParams, allArgs, seen);
@@ -612,11 +612,11 @@ export let substituteTypeParamsInClassContext = (
     }
     
     // 2. Add implements list and superType recursively
-    let seen = new HashMap<String, boolean>();
+    let seen = new Map<String, boolean>();
     addClassTransitiveInterfaces(wasm, classType, params, args, seen);
     
     // 3. Add mixins transitively
-    let seenMixins = new HashMap<String, boolean>();
+    let seenMixins = new Map<String, boolean>();
     addClassTransitiveMixins(classType, params, args, seenMixins);
     
     subs.params = params;
@@ -642,7 +642,7 @@ export let substituteTypeParamsInClassContext = (
  * is the one shared copy.
  */
 export let findImplementedInterfaceTransitive = (wasm: WasmModule, ct: ClassType, name: String): InterfaceType | null => {
-  let seen = new HashMap<InterfaceKey, boolean>();
+  let seen = new Map<InterfaceKey, boolean>();
   let queue = new Array<InterfaceType>();
 
   let ctParams = getClassTypeParameters(ct);
@@ -690,7 +690,7 @@ export let substituteTypeParamsInFunctionContext = (wasm: WasmModule, wasmFuncti
   
   var cache = wasmFunction.codegenSubstCache;
   if (cache == null) {
-    let fresh = new HashMap<Type, Type>();
+    let fresh = new Map<Type, Type>();
     wasmFunction.codegenSubstCache = fresh;
     cache = fresh;
   }
@@ -1110,7 +1110,7 @@ export let eraseTypeParameters = (wasm: WasmModule, t: Type): Type => {
       new InlineTupleType(newElems)
     }
     case RecordType as rec: {
-      let newProps = new HashMap<String, Type>();
+      let newProps = new Map<String, Type>();
       var changed = false;
       let keys = rec.properties.keys();
       while (let (true, key) = keys.next()) {

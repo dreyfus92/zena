@@ -40,7 +40,6 @@
  * instruction order, callee lookup by identity map — no iteration
  * over hash containers.
  */
-import { HashMap } from 'zena:collections';
 import { String, i32ToString } from 'zena:core';
 import { IrBlock, IrBody, IrOp, IrRefFunc } from './ir.zena';
 import {
@@ -165,7 +164,7 @@ let tailCallSignature = (body: IrBody, inst: i32): WasmSignature | null => {
  */
 export let runInline = (wasm: WasmModule, bodies: GrowableArray<IrBody>,
     changed: GrowableArray<boolean>, escapes: EscapeSummaries): i32 => {
-  let bodyIndex = new HashMap<WasmFunction, i32>();
+  let bodyIndex = new Map<WasmFunction, i32>();
   for (var i = 0; i < wasm.functions.length; i += 1) {
     bodyIndex[wasm.functions[i]] = i;
   }
@@ -362,12 +361,12 @@ let nopOut = (body: IrBody, inst: i32): void => {
   body.b[inst] = -1;
 };
 
-let inlineIntoBody = (caller: IrBody, bodyIndex: HashMap<WasmFunction, i32>,
+let inlineIntoBody = (caller: IrBody, bodyIndex: Map<WasmFunction, i32>,
     bodies: GrowableArray<IrBody>, callerIdx: i32,
     siteCounts: GrowableArray<i32>, escapes: EscapeSummaries): i32 => {
   var count = 0;
   var generalSplices = 0;
-  let perCallee = new HashMap<i32, i32>();
+  let perCallee = new Map<i32, i32>();
   let sizeCap = caller.instCount() * growthFactor + growthFloor;
   // Use counts of the caller's values as the sweep starts, for the
   // only-use-is-this-call test. Values the sweep creates are past the
@@ -786,7 +785,7 @@ let spliceGeneral = (caller: IrBody, callee: IrBody, b: i32, j: i32,
  * -1 otherwise (imports, wrappers this module never lowered).
  */
 let calleeBodyFor = (caller: IrBody, inst: i32,
-    bodyIndex: HashMap<WasmFunction, i32>): i32 => {
+    bodyIndex: Map<WasmFunction, i32>): i32 => {
   let r = caller.refTable[caller.b[inst]];
   if (!(r is IrRefFunc)) {
     return -1;

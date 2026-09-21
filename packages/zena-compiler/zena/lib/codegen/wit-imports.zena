@@ -337,8 +337,8 @@ export let encodeImportTypes = (
 };
 
 /** Copy every entry of `from` into `into`. */
-let copyIndices = (from: HashMap<String, i32>,
-    into: HashMap<String, i32>): void => {
+let copyIndices = (from: Map<String, i32>,
+    into: Map<String, i32>): void => {
   let keys = from.keys();
   while (let (true, key) = keys.next()) {
     into[key] = from[key];
@@ -361,8 +361,8 @@ let copyIndices = (from: HashMap<String, i32>,
 let resolveCanonTypes = (
   encoder: ComponentTypeEncoder,
   shape: ComponentShape
-): HashMap<String, i32> => {
-  let indices = new HashMap<String, i32>();
+): Map<String, i32> => {
+  let indices = new Map<String, i32>();
   let split = (canonType: String, prefixLength: i32,
       expected: String): (String, String) => {
     let spec = canonType.sliceBytes(prefixLength, canonType.length);
@@ -689,7 +689,7 @@ final class DeclaredWorldEncoder implements ImportTypeEncoder {
     // than derived from a core signature: its parameters and result
     // may be any WIT type the wrapper marshals. Its memory need
     // decides the lift's options, and its typed return's, together.
-    let exportTypes = new HashMap<String, i32>();
+    let exportTypes = new Map<String, i32>();
     for (let e in shape.exports) {
       if (!e.witTyped) { continue; }
       var meta: WitFuncMeta | null = null;

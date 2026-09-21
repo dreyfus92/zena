@@ -72,7 +72,7 @@ import {
 } from '../../component-entry.zena';
 
 /** Bodies for the synthesized entry, by function uid. */
-var entryBodies = new HashMap<i32, IrBody>();
+var entryBodies = new Map<i32, IrBody>();
 
 /**
  * The stdlib module supplying the driver. It is a path id rather than a
@@ -93,7 +93,7 @@ export let prepareComponentEntry = (
   wasm: WasmModule,
   pass: ReachabilityAnalysis
 ): void => {
-  entryBodies = new HashMap<i32, IrBody>();
+  entryBodies = new Map<i32, IrBody>();
 
   let poll = wasm.getStdlibFunc(driverModule, 'componentPoll');
   let resume = wasm.getStdlibFunc(driverModule, 'componentResume');

@@ -333,7 +333,7 @@ export final class ModuleGenerator {
         // literal's first four bytes; the first verified candidate is the
         // same offset the full scan would have found.
         let accumulatedBytes = new ByteBuffer();
-        let windowIndex = new HashMap<i32, GrowableArray<i32>>();
+        let windowIndex = new Map<i32, GrowableArray<i32>>();
         // Window starts below this offset are indexed; it trails the end of
         // the buffer by up to 3 bytes so windows spanning an append
         // boundary are indexed once the bytes after them exist.
@@ -487,7 +487,7 @@ export final class ModuleGenerator {
           }
           if (this.program.unitsByPath.has(canonicalPath)) {
             let targetUnit = this.program.unitsByPath[canonicalPath];
-            let exports = new HashMap<String, Symbol>();
+            let exports = new Map<String, Symbol>();
             collectValueExports(this.program, targetUnit, exports);
             let expKeys = exports.keys();
             while (let (true, k) = expKeys.next()) {

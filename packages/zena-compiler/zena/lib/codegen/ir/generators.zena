@@ -28,7 +28,7 @@
  * land on it. The design calls for throwing an Error there; v1 traps
  * (unreachable) — loud either way, revisit with the async runtime.
  */
-import { HashSet } from 'zena:collections';
+import { Set } from 'zena:collections';
 import {
   ValType, ValTypeI32, ValTypeI64, ValTypeF32, ValTypeF64, ValTypeRef,
   ValTypeRefNull,
@@ -70,8 +70,8 @@ final class GeneratorArtifacts(rampBody: IrBody, nextBody: IrBody)
  * Cleared at the start of every prepare so repeated compiles in one
  * process stay independent.
  */
-var rampBodies = new HashMap<i32, GeneratorArtifacts>();
-var nextBodies = new HashMap<i32, GeneratorArtifacts>();
+var rampBodies = new Map<i32, GeneratorArtifacts>();
+var nextBodies = new Map<i32, GeneratorArtifacts>();
 
 /** True if this WasmFunction carries a `gen` AST node. */
 export let isGeneratorFunction = (func: WasmFunction): boolean => {
@@ -250,10 +250,10 @@ export let enclosingRegionsOf = (
 export let dispatchRegionsOf = (
   body: IrBody,
   cfg: IrCfg,
-  pcOfBlock: HashMap<i32, i32>
-): HashMap<i32, GrowableArray<TryRegion>> => {
+  pcOfBlock: Map<i32, i32>
+): Map<i32, GrowableArray<TryRegion>> => {
   let regions = collectTryRegions(body);
-  let out = new HashMap<i32, GrowableArray<TryRegion>>();
+  let out = new Map<i32, GrowableArray<TryRegion>>();
   var b = 0;
   while (b < body.blocks.length) {
     if (pcOfBlock.has(b)) {
@@ -278,9 +278,9 @@ export let dispatchRegionsOf = (
  * first place (they ride cells, ir.md §5.1).
  */
 export let spillCatchLiveIns = (
-  liveIn: Array<HashSet<i32>>,
-  dispatchRegions: HashMap<i32, GrowableArray<TryRegion>>,
-  spilled: HashSet<i32>
+  liveIn: Array<Set<i32>>,
+  dispatchRegions: Map<i32, GrowableArray<TryRegion>>,
+  spilled: Set<i32>
 ): void => {
   dispatchRegions.forEach((target: i32, regions: GrowableArray<TryRegion>): void => {
     for (let r in regions) {
@@ -467,15 +467,15 @@ let rawDefaultOf = (body: IrBody, vt: ValType): i32 => {
 // ---------------------------------------------------------------------------
 
 /** live-in set per block: values live on entry (block params excluded). */
-export let computeLiveIn = (body: IrBody, cfg: IrCfg): Array<HashSet<i32>> => {
+export let computeLiveIn = (body: IrBody, cfg: IrCfg): Array<Set<i32>> => {
   let n = body.blocks.length;
-  let uses = new Array<HashSet<i32>>(n);
-  let defs = new Array<HashSet<i32>>(n);
-  let liveIn = new Array<HashSet<i32>>(n);
+  let uses = new Array<Set<i32>>(n);
+  let defs = new Array<Set<i32>>(n);
+  let liveIn = new Array<Set<i32>>(n);
   var bi = 0;
   while (bi < n) {
-    let use = new HashSet<i32>();
-    let def = new HashSet<i32>();
+    let use = new Set<i32>();
+    let def = new Set<i32>();
     let block = body.blocks[bi];
     for (let p in block.params) {
       def.add(p);
@@ -493,7 +493,7 @@ export let computeLiveIn = (body: IrBody, cfg: IrCfg): Array<HashSet<i32>> => {
     }
     uses.push(use);
     defs.push(def);
-    liveIn.push(new HashSet<i32>());
+    liveIn.push(new Set<i32>());
     bi += 1;
   }
   var changed = true;
@@ -539,8 +539,8 @@ export let prepareGenerators = (
   wasm: WasmModule,
   pass: ReachabilityAnalysis
 ): void => {
-  rampBodies = new HashMap<i32, GeneratorArtifacts>();
-  nextBodies = new HashMap<i32, GeneratorArtifacts>();
+  rampBodies = new Map<i32, GeneratorArtifacts>();
+  nextBodies = new Map<i32, GeneratorArtifacts>();
   // With disposal active, every frame struct subtypes one shared
   // shape holding the two disposal-relevant fields, so a for-in's
   // finalizer can test and drive any generator without knowing which.
@@ -720,7 +720,7 @@ let prepareOne = (
 
   // pc assignment: resume blocks get their suspend-state value;
   // yield-containing loop headers get values above the suspend range.
-  let pcOfBlock = new HashMap<i32, i32>();
+  let pcOfBlock = new Map<i32, i32>();
   var yi = 0;
   while (yi < resumeOf.length) {
     pcOfBlock[resumeOf[yi]] = STATE_FIRST_SUSPEND + yi;
@@ -747,7 +747,7 @@ let prepareOne = (
   // Spill set: everything live into a dispatch target, every dispatch
   // target's block params, and every function parameter (the ramp
   // stores them all; unused fields cost a few bytes).
-  let spilled = new HashSet<i32>();
+  let spilled = new Set<i32>();
   let entryParamIds = new Array<i32>();
   for (let p in presplit.blocks[0].params) {
     entryParamIds.push(p);
@@ -875,7 +875,7 @@ export let loopContainsSuspend = (
   }
   // Collect the natural loop: h plus every block reaching a backedge
   // source without passing through h.
-  let inLoop = new HashSet<i32>();
+  let inLoop = new Set<i32>();
   inLoop.add(h);
   let work = new Array<i32>();
   for (let p in cfg.preds[h]) {
@@ -956,12 +956,12 @@ let buildNextBody = (
   body: IrBody,
   cfg: IrCfg,
   frame: WasmStruct,
-  spilled: HashSet<i32>,
-  pcOfBlockIn: HashMap<i32, i32>,
+  spilled: Set<i32>,
+  pcOfBlockIn: Map<i32, i32>,
   dTargetsIn: Array<i32>,
   slotSig: WasmSignature,
   resumeOf: Array<i32>,
-  dispatchRegions: HashMap<i32, GrowableArray<TryRegion>>,
+  dispatchRegions: Map<i32, GrowableArray<TryRegion>>,
   cancelTag: WasmTag | null
 ): IrBody => {
   let origCount = body.blocks.length;
@@ -970,7 +970,7 @@ let buildNextBody = (
 
   // Snapshot the dispatch targets' params (cleared below; edges into
   // them turn into frame stores).
-  let dParams = new HashMap<i32, Array<i32>>();
+  let dParams = new Map<i32, Array<i32>>();
   for (let d in dTargetsIn) {
     let copy = new Array<i32>();
     for (let p in body.blocks[d].params) {
@@ -996,7 +996,7 @@ let buildNextBody = (
   body.blocks[0] = new IrBlock();
 
   // Dispatch-target bookkeeping with entry remapped to its new id.
-  let pcOfBlock = new HashMap<i32, i32>();
+  let pcOfBlock = new Map<i32, i32>();
   pcOfBlock[entryCopyId] = 0;
   for (let d in dTargetsIn) {
     if (d == 0) {
@@ -1004,7 +1004,7 @@ let buildNextBody = (
     }
     pcOfBlock[d] = pcOfBlockIn[d];
   }
-  let dParamsById = new HashMap<i32, Array<i32>>();
+  let dParamsById = new Map<i32, Array<i32>>();
   for (let d in dTargetsIn) {
     let mapped = if (d == 0) { entryCopyId } else { d };
     dParamsById[mapped] = dParams[d];
@@ -1293,7 +1293,7 @@ let buildNextBody = (
   }
 
   // 4. Store every spilled definition to its frame field.
-  let skipRemap = new HashSet<i32>();
+  let skipRemap = new Set<i32>();
   for (let blockId in bodyBlocks) {
     let block = body.blocks[blockId];
     let rebuilt = new Array<i32>();
@@ -1340,7 +1340,7 @@ let buildNextBody = (
       }
       truncate(ops);
       body.appendValueOperands(inst, ops);
-      let loadOf = new HashMap<i32, i32>();
+      let loadOf = new Map<i32, i32>();
       for (let v in ops) {
         if (spilled.has(v) && !loadOf.has(v)) {
           let vt = body.resultType(v) as ValType;
@@ -1484,8 +1484,8 @@ let buildNextBody = (
 export let rerouteEdges = (
   body: IrBody,
   blockId: i32,
-  pcOfBlock: HashMap<i32, i32>,
-  dParamsById: HashMap<i32, Array<i32>>,
+  pcOfBlock: Map<i32, i32>,
+  dParamsById: Map<i32, Array<i32>>,
   dispatcher: i32,
   frameParam: i32,
   frame: WasmStruct,

@@ -34,7 +34,8 @@
  * its own result, not overwrite this model. No third type level is
  * needed for single-module checking.
  */
-import { HashSet, OrderedHashMap } from 'zena:collections';
+import { Set } from 'zena:collections';
+
 import { IterableUtils } from 'zena:core';
 import {
   Type, ClassType, InterfaceType, FunctionType, RecordType, UnionType, TypeId,
@@ -70,8 +71,8 @@ export type SemanticModelProgramUnit = {
  * live, and a model is registered once, when its check finishes.
  */
 export final class ModelIndex {
-  nodeToModel = new HashMap<NodeId, SemanticModel>();
-  symbolToModel = new HashMap<SymbolId, SemanticModel>();
+  nodeToModel = new Map<NodeId, SemanticModel>();
+  symbolToModel = new Map<SymbolId, SemanticModel>();
 
   /**
    * The model that currently speaks for each file.
@@ -86,7 +87,7 @@ export final class ModelIndex {
    * assumed from the map. Missing is the right answer there; a
    * superseded type is not.
    */
-  currentByPath = new HashMap<String, SemanticModel>();
+  currentByPath = new Map<String, SemanticModel>();
 
   /** The live model owning `id`, or null if nothing current owns it. */
   ownerOfNode(id: NodeId): SemanticModel | null {
@@ -668,7 +669,7 @@ export final class SemanticModel {
    * stable across reference sites. The checker populates this when
    * processing declarations; identifier resolution looks up here.
    */
-  #bindingTypes = new HashMap<SymbolId, Type>();
+  #bindingTypes = new Map<SymbolId, Type>();
 
   /**
    * Scope analysis symbol map (nodes → Symbol).
@@ -693,7 +694,7 @@ export final class SemanticModel {
    * Used for cross-module type lookups, especially for built-in
    * primitives where Symbol ids may differ natively.
    */
-  #exportTypes = new HashMap<String, Type>();
+  #exportTypes = new Map<String, Type>();
 
   // --- Reference and declaration maps ---
 
@@ -876,9 +877,9 @@ export final class SemanticModel {
     get { return this.#nodeTypes; }
   }
 
-  #symbolDependencies = new HashMap<SymbolId, SymbolDependencies>();
-  #nodeDependencies = new HashMap<i32, SymbolDependencies>();
-  symbolNames = new HashMap<SymbolId, String>();
+  #symbolDependencies = new Map<SymbolId, SymbolDependencies>();
+  #nodeDependencies = new Map<i32, SymbolDependencies>();
+  symbolNames = new Map<SymbolId, String>();
 
   #declaredClasses = new Array<SymbolId>();
   #declaredInterfaces = new Array<SymbolId>();
@@ -886,10 +887,10 @@ export final class SemanticModel {
   #declaredEnums = new Array<SymbolId>();
   #declaredGlobals = new Array<SymbolId>();
 
-  #classDeclarations = new HashMap<SymbolId, ClassDeclaration>();
-  #interfaceDeclarations = new HashMap<SymbolId, InterfaceDeclaration>();
-  #mixinDeclarations = new HashMap<SymbolId, MixinDeclaration>();
-  #enumDeclarations = new HashMap<SymbolId, EnumDeclaration>();
+  #classDeclarations = new Map<SymbolId, ClassDeclaration>();
+  #interfaceDeclarations = new Map<SymbolId, InterfaceDeclaration>();
+  #mixinDeclarations = new Map<SymbolId, MixinDeclaration>();
+  #enumDeclarations = new Map<SymbolId, EnumDeclaration>();
   // Ordered, and in declaration order: reachability roots a module's
   // exports by iterating this, and the order decides function indices
   // in the emitted module. Keyed by symbol id in a hash map, the order
@@ -897,13 +898,13 @@ export final class SemanticModel {
   // loaded ahead of this one gains or loses a symbol — so two targets
   // whose preludes differ in size emitted the same program with its
   // functions permuted.
-  #globalDeclarations = new OrderedHashMap<SymbolId, Node>();
+  #globalDeclarations = new Map<SymbolId, Node>.ordered();
 
-  symbolDependencies: HashMap<SymbolId, SymbolDependencies> {
+  symbolDependencies: Map<SymbolId, SymbolDependencies> {
     get { return this.#symbolDependencies; }
   }
 
-  nodeDependencies: HashMap<i32, SymbolDependencies> {
+  nodeDependencies: Map<i32, SymbolDependencies> {
     get { return this.#nodeDependencies; }
   }
 
@@ -927,23 +928,23 @@ export final class SemanticModel {
     get { return this.#declaredGlobals; }
   }
 
-  classDeclarations: HashMap<SymbolId, ClassDeclaration> {
+  classDeclarations: Map<SymbolId, ClassDeclaration> {
     get { return this.#classDeclarations; }
   }
 
-  interfaceDeclarations: HashMap<SymbolId, InterfaceDeclaration> {
+  interfaceDeclarations: Map<SymbolId, InterfaceDeclaration> {
     get { return this.#interfaceDeclarations; }
   }
 
-  mixinDeclarations: HashMap<SymbolId, MixinDeclaration> {
+  mixinDeclarations: Map<SymbolId, MixinDeclaration> {
     get { return this.#mixinDeclarations; }
   }
 
-  enumDeclarations: HashMap<SymbolId, EnumDeclaration> {
+  enumDeclarations: Map<SymbolId, EnumDeclaration> {
     get { return this.#enumDeclarations; }
   }
 
-  globalDeclarations: OrderedHashMap<SymbolId, Node> {
+  globalDeclarations: Map<SymbolId, Node> {
     get { return this.#globalDeclarations; }
   }
 
@@ -992,7 +993,7 @@ export final class SemanticModel {
   edgeDrops: NodeMap<Array<EdgeDrop>> { get { return this.#edgeDrops; } }
   movedOutFields: NodeMap<Array<String>> { get { return this.#movedOutFields; } }
   parents: NodeMap<Node> { get { return this.#parents; } }
-  bindingTypes: HashMap<SymbolId, Type> { get { return this.#bindingTypes; } }
+  bindingTypes: Map<SymbolId, Type> { get { return this.#bindingTypes; } }
 }
 
 export final class ClosureDependency {
@@ -1000,7 +1001,7 @@ export final class ClosureDependency {
   node: Node;
   capturesThis: boolean;
   captures: Array<SymbolId>;
-  mutableCaptures: HashSet<SymbolId>;
+  mutableCaptures: Set<SymbolId>;
   dependencies: SymbolDependencies;
 
   new(this.id, this.node, this.capturesThis, this.captures, this.mutableCaptures, this.dependencies);
@@ -1034,7 +1035,7 @@ export final class FunctionAdaptationDependency {
  * order is stable; hash order was the only thing that was not.
  */
 export final class OrderedTypeSet with IterableUtils<Type> implements Iterable<Type> {
-  #seen = new HashSet<Type>();
+  #seen = new Set<Type>();
   #order = new Array<Type>();
 
   new();
@@ -1052,10 +1053,10 @@ export final class OrderedTypeSet with IterableUtils<Type> implements Iterable<T
 }
 
 export final class SymbolDependencies {
-  referencedSymbols = new HashSet<SymbolId>();
-  referencedClassMethods = new HashSet<String>(); // Format: ClassSymbolId.methodName
-  referencedInterfaceMembers = new HashSet<String>(); // Format: InterfaceSymbolId.memberName
-  usedInterfaceAdaptations = new HashSet<String>(); // Format: ClassSymbolId::InterfaceSymbolId
+  referencedSymbols = new Set<SymbolId>();
+  referencedClassMethods = new Set<String>(); // Format: ClassSymbolId.methodName
+  referencedInterfaceMembers = new Set<String>(); // Format: InterfaceSymbolId.memberName
+  usedInterfaceAdaptations = new Set<String>(); // Format: ClassSymbolId::InterfaceSymbolId
   referencedTypes = new OrderedTypeSet();
   closures = new Array<ClosureDependency>();
   functionAdaptations = new Array<FunctionAdaptationDependency>();
@@ -1085,7 +1086,7 @@ export final class SymbolDependencies {
    * the handler observes assignments the body completed before it
    * threw (see `analysis/capture.zena`).
    */
-  tryMutatedSymbols = new HashSet<SymbolId>();
+  tryMutatedSymbols = new Set<SymbolId>();
 
   new();
 }

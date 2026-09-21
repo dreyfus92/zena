@@ -26,14 +26,13 @@
  * Determinism: functions in module order, uses in instruction order;
  * the function map is used for lookups only.
  */
-import { HashMap } from 'zena:collections';
 import { IrBody, IrOp, IrRefFunc } from './ir.zena';
 import { WasmModule, WasmFunction } from '../wasm-module.zena';
 
 export final class EscapeSummaries {
   /** escapes[f][k]: function f's k-th parameter escapes. */
   escapes = new Array<GrowableArray<boolean>>();
-  #bodyIndex = new HashMap<WasmFunction, i32>();
+  #bodyIndex = new Map<WasmFunction, i32>();
 
   new(wasm: WasmModule, bodies: GrowableArray<IrBody>) {
     for (var i = 0; i < wasm.functions.length; i += 1) {

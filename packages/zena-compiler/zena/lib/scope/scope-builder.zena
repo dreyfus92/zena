@@ -1,4 +1,4 @@
-import { HashSet } from 'zena:collections';
+import { Set } from 'zena:collections';
 import { NodeMap } from '../node-map.zena';
 import {
   Node, NodeId, Module, SourceLocation, IdGenerator,
@@ -45,7 +45,7 @@ import {Scope, ScopeKind} from './scope.zena';
  *
  * Separate maps for value and type exports mirror the scope structure.
  */
-export type ModuleExports = HashMap<String, Symbol>;
+export type ModuleExports = Map<String, Symbol>;
 
 /**
  * A name that could not be resolved during scope building.
@@ -69,7 +69,7 @@ export final class UnresolvedName(
  */
 export final class SymbolMap {
     #byNode = new NodeMap<Symbol>();
-    #byOffset = new HashMap<i32, Symbol>();
+    #byOffset = new Map<i32, Symbol>();
 
     byNode: NodeMap<Symbol> {
       get { return this.#byNode; }
@@ -136,8 +136,8 @@ export final class ScopeResult(
    */
   symbols: SymbolMap,
 
-  isRead: HashMap<SymbolId, boolean>,
-  isWritten: HashMap<SymbolId, boolean>,
+  isRead: Map<SymbolId, boolean>,
+  isWritten: Map<SymbolId, boolean>,
 
   /**
    * Names that were declared twice in the same scope.
@@ -179,7 +179,7 @@ let populateParents = (ast: Node, parents: NodeMap<Node>): void => {
  */
 export final class ScopeBuilder {
   #modulePath: String;
-  #exports = new HashMap<String, Symbol>();
+  #exports = new Map<String, Symbol>();
   var #current = new Scope(ScopeKind.Module, null);
   var #symbolIdGenerator = makeSymbolIdGenerator();
   
@@ -191,8 +191,8 @@ export final class ScopeBuilder {
   #symbols = new SymbolMap();
   #duplicateDeclarations = new Array<UnresolvedName>();
   #parents = new NodeMap<Node>();
-  #isRead = new HashMap<SymbolId, boolean>();
-  #isWritten = new HashMap<SymbolId, boolean>();
+  #isRead = new Map<SymbolId, boolean>();
+  #isWritten = new Map<SymbolId, boolean>();
   #allVariables = new Array<Symbol>();
   #allImportDeclarations = new Array<ImportDeclaration>();
 
@@ -269,7 +269,7 @@ export final class ScopeBuilder {
       }
     }
 
-    let seenImportedNames = new HashSet<String>();
+    let seenImportedNames = new Set<String>();
     let unusedImportDeclarations = new Array<ImportDeclaration>();
     let unusedImportedSymbols = new Array<Symbol>();
     let unnecessaryImports = new Array<Symbol>();

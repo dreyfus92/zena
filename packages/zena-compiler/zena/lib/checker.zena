@@ -45,7 +45,7 @@
  */
 
 import { isValidIntrinsic } from './intrinsics.zena';
-import { HashSet, OrderedHashMap, Set } from 'zena:collections';
+import { Set } from 'zena:collections';
 
 import { StringBuilder } from 'zena:core';
 import { analyzeCaptures, analyzeTryBodyAssignments } from './analysis/capture.zena';
@@ -156,8 +156,8 @@ let lookupBindingTypeInDeps = (ctx: CheckerContext, sym: Symbol): Type | null =>
  */
 export final class SharedCheckerState {
   var typeIdGenerator = makeTypeIdGenerator();
-  preludeTypes = new HashMap<String, Type>();
-  preludeValues = new HashMap<String, Type>();
+  preludeTypes = new Map<String, Type>();
+  preludeValues = new Map<String, Type>();
   var preludeRegistered: boolean = false;
 
   /**
@@ -172,7 +172,7 @@ export final class SharedCheckerState {
    * library a module belongs to against the well-known registry, so nothing
    * a program declares can stand in for one.
    */
-  wellKnownTypes = new HashMap<i32, Type>();
+  wellKnownTypes = new Map<i32, Type>();
 
   /**
    * The canonical nominal type for each class/interface/variant
@@ -184,7 +184,7 @@ export final class SharedCheckerState {
    * origin's own registration later fills the same object
    * (docs/design/import-cycles.md).
    */
-  declaredNominalTypes = new HashMap<SymbolId, Type>();
+  declaredNominalTypes = new Map<SymbolId, Type>();
 
   /**
    * The canonical TypeParameterType per declared type parameter, keyed
@@ -199,7 +199,7 @@ export final class SharedCheckerState {
    * importing module must see the same object — same reasoning as
    * declaredNominalTypes.
    */
-  typeParameterTypes = new HashMap<String, Type>();
+  typeParameterTypes = new Map<String, Type>();
 
   /**
    * The canonical `SymbolType` per `symbol` declaration, keyed by
@@ -213,13 +213,13 @@ export final class SharedCheckerState {
    * accesses to it disagree about which symbol keyed it, inside the one
    * module that indisputably may reach it: the declaring one.
    */
-  declaredSymbolTypes = new HashMap<String, Type>();
+  declaredSymbolTypes = new Map<String, Type>();
 
   /**
    * Intermediate class types created for mixin applications, keyed by
    * "<base type id>&<mixin type id><type arguments>".
    */
-  mixinApplications = new HashMap<String, ClassType>();
+  mixinApplications = new Map<String, ClassType>();
 
   /**
    * Which model owns each node and binding checked under this state.
@@ -238,7 +238,7 @@ export final class SharedCheckerState {
    * (CheckerContext.resolveExportedFunction), which is what lets a
    * cycle be checked in one pass over each member.
    */
-  inProgressModules = new HashMap<String, CheckerContext>();
+  inProgressModules = new Map<String, CheckerContext>();
 
   invalidatePath(path: String): void {
     let tpKeys = this.typeParameterTypes.keys();
@@ -316,7 +316,7 @@ final class CheckerContext {
    * import cycle's back edge (docs/design/import-cycles.md). Null when
    * the compilation has no cycles.
    */
-  var cyclicLaterPaths: HashSet<String> | null = null;
+  var cyclicLaterPaths: Set<String> | null = null;
 
   /**
    * Modules the compiler re-checks because of import cycles. A type
@@ -324,14 +324,14 @@ final class CheckerContext {
    * originates OUTSIDE this set: such an origin is checked exactly
    * once, so its type objects are unique and stable.
    */
-  var cyclicRecheckPaths: HashSet<String> | null = null;
+  var cyclicRecheckPaths: Set<String> | null = null;
 
   /**
    * Type namespace map for built-in primitive types (i32, u32, f64, etc.).
    * Only index 0 is meaningful; the stack structure is retained because
    * enterScope/exitScope still push/pop frames for narrowing bookkeeping.
    */
-  #typeScopes = new Array<HashMap<String, Type>>();
+  #typeScopes = new Array<Map<String, Type>>();
 
   /**
    * Optional-chain nodes sanctioned as the immediate left operand of
@@ -339,7 +339,7 @@ final class CheckerContext {
    * the miss becomes the coalesce arm, so `primitive | null` never
    * materializes as a value. Any unsanctioned primitive chain errors.
    */
-  nullishSanctioned = new HashSet<i32>();
+  nullishSanctioned = new Set<i32>();
 
   /**
    * Narrowed types (control-flow narrowing) per scope level.
@@ -366,18 +366,18 @@ final class CheckerContext {
    * narrowed and no assignment could re-type takes its declared type
    * with no graph traversal at all, which is nearly every reference.
    */
-  #everNarrowedSymbols = new HashSet<i32>();
-  #everNarrowedPaths = new HashSet<String>();
-  #everAssignedSymbols = new HashSet<i32>();
+  #everNarrowedSymbols = new Set<i32>();
+  #everNarrowedPaths = new Set<String>();
+  #everAssignedSymbols = new Set<i32>();
 
   /**
    * Bindings some move consumed, anywhere. Implicit drop skips them: a
    * moved binding's value belongs to whoever it was moved to.
    */
-  #everMovedSymbols = new HashSet<i32>();
+  #everMovedSymbols = new Set<i32>();
 
   /** Moves recorded per binding, so a statement's moves can be counted. */
-  #moveCounts = new HashMap<i32, i32>();
+  #moveCounts = new Map<i32, i32>();
 
   #moveCount(id: SymbolId): i32 {
     if (let (true, c) = this.#moveCounts.get(id as i32)) { return c; }
@@ -392,7 +392,7 @@ final class CheckerContext {
    * unclassified escape leaks (the status quo) rather than releasing a
    * value someone else still holds.
    */
-  #undroppableSymbols = new HashSet<i32>();
+  #undroppableSymbols = new Set<i32>();
 
   markUndroppable(id: SymbolId): void {
     this.#undroppableSymbols.add(id as i32);
@@ -414,7 +414,7 @@ final class CheckerContext {
   #scopedScopeStack = new Array<GrowableArray<ScopedConsumeCandidate>>();
 
   /** Bindings already reported unconsumed, so each errors once. */
-  #scopedErrorSymbols = new HashSet<i32>();
+  #scopedErrorSymbols = new Set<i32>();
 
   /**
    * Second-class bindings rooted in a body's parameters: the
@@ -424,7 +424,7 @@ final class CheckerContext {
    * Scoped too — checked in checkAwaitExpression. Symbol ids are
    * process-unique, so one set serves every body.
    */
-  #paramDerivedSecondClass = new HashSet<i32>();
+  #paramDerivedSecondClass = new Set<i32>();
 
   markParamDerivedSecondClass(id: SymbolId): void {
     this.#paramDerivedSecondClass.add(id as i32);
@@ -482,12 +482,12 @@ final class CheckerContext {
    * edge, so exitFlowLoop invalidates exactly the entries written while
    * the loop was open, via the write log.
    */
-  #flowTypeMemo = new HashMap<i64, Type>();
+  #flowTypeMemo = new Map<i64, Type>();
   #flowTypeMemoLog = new Array<i64>();
   #flowLoopMemoMarks = new Array<i32>();
 
   /** The path walk's memo, keyed "<join id>|<path>"; #pathVeto included. */
-  #flowPathMemo = new HashMap<String, Type>();
+  #flowPathMemo = new Map<String, Type>();
   #flowPathMemoLog = new Array<String>();
   #flowPathMemoLogIds = new Array<i32>();
   #flowLoopPathMemoMarks = new Array<i32>();
@@ -498,7 +498,7 @@ final class CheckerContext {
    * binding, so it stops there instead of continuing into the enclosing
    * body's graph — only captured bindings look outward.
    */
-  #bindingBodyStart = new HashMap<i32, i32>();
+  #bindingBodyStart = new Map<i32, i32>();
 
   // --- Control-flow graph (analysis/flow.zena) ---
   //
@@ -544,14 +544,14 @@ final class CheckerContext {
    * declared inside the loop is fresh every iteration, so its moves are
    * exempt from the back-edge rule.
    */
-  var #flowLoopDeclared = new Array<HashSet<i32>>();
+  var #flowLoopDeclared = new Array<Set<i32>>();
 
   /**
    * Nodes that already reported use-after-move. Several call paths check
    * an argument expression twice (overload pre-pass, then the selected
    * signature), and the second check must not duplicate the error.
    */
-  #moveErrorNodes = new HashSet<i32>();
+  #moveErrorNodes = new Set<i32>();
 
   /**
    * Second-class borrow reads of the current suspending body, decided
@@ -559,7 +559,7 @@ final class CheckerContext {
    * re-check passes flush the same body again.
    */
   var #bodyBorrowUses = new Array<BorrowUseRec>();
-  #borrowSuspendErrorNodes = new HashSet<i32>();
+  #borrowSuspendErrorNodes = new Set<i32>();
 
   /**
    * The current body's member-path moves and its `return` positions,
@@ -568,7 +568,7 @@ final class CheckerContext {
    */
   var #bodyPathMoves = new Array<FlowMove>();
   var #bodyExits = new Array<FlowNode>();
-  #pathMoveErrorNodes = new HashSet<i32>();
+  #pathMoveErrorNodes = new Set<i32>();
 
   /**
    * Where each second-class local was declared, as a flow node id: the
@@ -576,7 +576,7 @@ final class CheckerContext {
    * suspension is clean. A parameter has no entry — its extent begins
    * at the body start, so the walk runs to FlowStart.
    */
-  #borrowBirthNodes = new HashMap<i32, i32>();
+  #borrowBirthNodes = new Map<i32, i32>();
 
   /**
    * The identifier node currently being checked as a plain assignment
@@ -689,14 +689,14 @@ final class CheckerContext {
    * can lazily resolve forward-referenced function types from their
    * annotations without waiting for the main pass to reach them.
    */
-  #pendingFunctions = new HashMap<SymbolId, Node>();
+  #pendingFunctions = new Map<SymbolId, Node>();
 
   /**
    * Symbol IDs currently being lazily resolved.
    * Used for cycle detection: if we re-enter resolution for an ID
    * already in this set, we've found a recursive reference.
    */
-  #resolving = new HashSet<SymbolId>();
+  #resolving = new Set<SymbolId>();
 
   /**
    * Pipeline value stack for `|>` operator.
@@ -774,7 +774,7 @@ final class CheckerContext {
     this.#dependencyStack.push(new SymbolDependencies());
   }
 
-  exitClosureReferrer(fe: FunctionExpression, capturesThis: boolean, captures: Array<SymbolId>, mutableCaptures: HashSet<SymbolId>): void {
+  exitClosureReferrer(fe: FunctionExpression, capturesThis: boolean, captures: Array<SymbolId>, mutableCaptures: Set<SymbolId>): void {
     // A captured binding escapes its scope's timeline — the closure can
     // run after the scope ends — so it is never implicitly dropped.
     for (let capId in captures) {
@@ -800,32 +800,32 @@ final class CheckerContext {
    * which references type A. Keyed by Symbol.id rather than
    * name strings, since names only have meaning within a scope.
    */
-  #pendingTypes = new HashSet<SymbolId>();
+  #pendingTypes = new Set<SymbolId>();
 
   /**
    * Materialized type declarations keyed by type-symbol identity.
    * Avoids name-based caching bugs under lexical shadowing.
    */
-  #materializedTypes = new HashMap<SymbolId, Type>();
+  #materializedTypes = new Map<SymbolId, Type>();
 
   /**
    * Materialized declaration types keyed by declaration offset.
    * Keeps type/value namespace symbols for the same declaration unified.
    */
-  #materializedDeclTypes = new HashMap<i32, Type>();
+  #materializedDeclTypes = new Map<i32, Type>();
 
   /**
    * Dependency exports map: import specifier → ModuleExports.
    * Populated by the compiler so the checker can resolve imported types.
    */
-  var #depExports: HashMap<String, ModuleExports> | null = null;
+  var #depExports: Map<String, ModuleExports> | null = null;
 
   /**
    * Dependency semantic models: import specifier → SemanticModel.
    * When provided, the checker can look up actual resolved types from
    * already-checked dependency modules instead of creating empty stubs.
    */
-  var #depModels: HashMap<String, SemanticModel> | null = null;
+  var #depModels: Map<String, SemanticModel> | null = null;
 
   /** The file path of the module being checked. */
   #filePath: String;
@@ -837,8 +837,8 @@ final class CheckerContext {
       sharedState: SharedCheckerState,
       file: String,
       scopeResult: ScopeResult,
-      depExports: HashMap<String, ModuleExports> | null,
-      depModels: HashMap<String, SemanticModel> | null,
+      depExports: Map<String, ModuleExports> | null,
+      depModels: Map<String, SemanticModel> | null,
       emitLocations: boolean = false,
       warnUnnecessaryCasts: boolean = false)
     : diagnostics = new DiagnosticBag(file),
@@ -851,7 +851,7 @@ final class CheckerContext {
       warnUnnecessaryCasts = warnUnnecessaryCasts {
     
     // Initialize with module-level scope.
-    this.#typeScopes.push(new HashMap<String, Type>());
+    this.#typeScopes.push(new Map<String, Type>());
 
     // Module-level control flow. The field defaults exist only to keep
     // the fields non-nullable; mint real ids so nodes never compare
@@ -901,7 +901,7 @@ final class CheckerContext {
     return this.#sharedState.typeIdGenerator.next();
   }
 
-  mixinApplications(): HashMap<String, ClassType> {
+  mixinApplications(): Map<String, ClassType> {
     return this.#sharedState.mixinApplications;
   }
 
@@ -932,7 +932,7 @@ final class CheckerContext {
    * Type-parameter scoping is handled by registerTypeParameter → #materializedTypes.
    */
   enterScope(): void {
-    this.#typeScopes.push(new HashMap<String, Type>());
+    this.#typeScopes.push(new Map<String, Type>());
   }
 
   exitScope(): void {
@@ -1658,7 +1658,7 @@ final class CheckerContext {
             let backingType = if (isStringEnum) { this.tryResolveWellKnownType(WellKnown.StringClass) as Type } else { new I32Type() as Type };
             let enumType = new TypeAliasType(ed.name.name, null, backingType, true, null, false, "");
             enumType.enumDeclaration = ed;
-            let fields = new HashMap<String, Type>();
+            let fields = new Map<String, Type>();
             for (let member in ed.members) {
               fields[member.name.name] = enumType;
             }
@@ -1781,7 +1781,7 @@ final class CheckerContext {
           let variants = cd.sealedVariants as GrowableArray<SealedVariant>;
           for (let variant in variants) {
             if (variant.params == null) {
-              let forwardVariantNames = ct.forwardVariantNames ??= new HashSet<String>();
+              let forwardVariantNames = ct.forwardVariantNames ??= new Set<String>();
               forwardVariantNames.add(variant.name.name);
             }
           }
@@ -2011,14 +2011,14 @@ final class CheckerContext {
   /**
    * Get the dependency exports map (import specifier → ModuleExports).
    */
-  depExports: HashMap<String, ModuleExports> | null {
+  depExports: Map<String, ModuleExports> | null {
     get { return this.#depExports; }
   }
 
   /**
    * Get the dependency semantic models (import specifier → SemanticModel).
    */
-  depModels: HashMap<String, SemanticModel> | null {
+  depModels: Map<String, SemanticModel> | null {
     get { return this.#depModels; }
   }
 
@@ -2029,9 +2029,9 @@ final class CheckerContext {
    */
   addDepModel(key: String, model: SemanticModel): void {
     if (this.#depModels == null) {
-      this.#depModels = new HashMap<String, SemanticModel>();
+      this.#depModels = new Map<String, SemanticModel>();
     }
-    (this.#depModels as HashMap<String, SemanticModel>)[key] = model;
+    (this.#depModels as Map<String, SemanticModel>)[key] = model;
   }
 
   /**
@@ -2347,7 +2347,7 @@ final class CheckerContext {
     this.#flowLoopHeads.push(head);
     this.#flowLoopExits.push(exit);
     this.#flowLoopMoves.push(new Array<FlowMove>());
-    this.#flowLoopDeclared.push(new HashSet<i32>());
+    this.#flowLoopDeclared.push(new Set<i32>());
     this.#flowLoopMemoMarks.push(this.#flowTypeMemoLog.length);
     this.#flowLoopPathMemoMarks.push(this.#flowPathMemoLog.length);
     this.#currentFlow = head;
@@ -2372,7 +2372,7 @@ final class CheckerContext {
     // iteration re-runs the move on a dead binding otherwise. Checked
     // here, before the back edge is wired, by asking whether any move
     // is still live at the body's end.
-    let reported = new HashSet<i32>();
+    let reported = new Set<i32>();
     for (let mv in moves) {
       if (declared.has(mv.symbolId as i32)) { continue; }
       if (reported.has(mv.symbolId as i32)) { continue; }
@@ -2468,7 +2468,7 @@ final class CheckerContext {
    * null. Fields are immutable, so nothing revives a moved path.
    */
   findLivePathMove(pathKey: String, from: FlowNode): FlowMove | null {
-    let visited = new HashSet<i32>();
+    let visited = new Set<i32>();
     let pending = new Array<FlowNode>();
     pending.push(from);
     while (pending.length > 0) {
@@ -2502,11 +2502,11 @@ final class CheckerContext {
    * Cycles answer false, conservatively.
    */
   pathDefinitelyMoved(pathKey: String, from: FlowNode): boolean {
-    let memo = new HashMap<i32, boolean>();
+    let memo = new Map<i32, boolean>();
     return this.#mustMoveWalk(pathKey, from, memo);
   }
 
-  #mustMoveWalk(pathKey: String, node: FlowNode, memo: HashMap<i32, boolean>): boolean {
+  #mustMoveWalk(pathKey: String, node: FlowNode, memo: Map<i32, boolean>): boolean {
     if (let (true, m) = memo.get(node.id)) { return m; }
     memo[node.id] = false;
     let result = match (node) {
@@ -2565,7 +2565,7 @@ final class CheckerContext {
     let exits = new Array<FlowNode>();
     for (let e in this.#bodyExits) { exits.push(e); }
     if (bodyEndReachable) { exits.push(this.#currentFlow); }
-    let seen = new HashSet<String>();
+    let seen = new Set<String>();
     for (let mv in this.#bodyPathMoves) {
       let pk = mv.pathKey;
       if (seen.has(pk)) { continue; }
@@ -2626,7 +2626,7 @@ final class CheckerContext {
    * the value read was produced after it — exactly as in findLiveMove.
    */
   #findFlowSuspend(id: SymbolId, from: FlowNode, stopAtId: i32): boolean {
-    let visited = new HashSet<i32>();
+    let visited = new Set<i32>();
     let pending = new Array<FlowNode>();
     pending.push(from);
     while (pending.length > 0) {
@@ -2721,7 +2721,7 @@ final class CheckerContext {
    * assumes consumed, so the acyclic paths decide.
    */
   #definitelyConsumed(id: SymbolId, from: FlowNode, birthId: i32,
-      memo: HashMap<i32, boolean>): boolean {
+      memo: Map<i32, boolean>): boolean {
     if (from.id == birthId) { return false; }
     if (let (true, v) = memo.get(from.id)) { return v; }
     memo[from.id] = true;
@@ -2793,7 +2793,7 @@ final class CheckerContext {
         if (this.#scopedErrorSymbols.has(cid)) { continue; }
         let birthId = if (let (true, b) =
             this.#borrowBirthNodes.get(cid)) b else -1;
-        let memo = new HashMap<i32, boolean>();
+        let memo = new Map<i32, boolean>();
         if (this.#definitelyConsumed(c.sym.id, this.#currentFlow, birthId, memo)) {
           continue;
         }
@@ -2891,7 +2891,7 @@ final class CheckerContext {
     let frame = this.#ownScopeStack[this.#ownScopeStack.length - 1];
     this.#ownScopeStack.pop();
     if (frame.length == 0) { return; }
-    let ids = new HashSet<i32>();
+    let ids = new Set<i32>();
     for (let c in frame) { ids.add(c.sym.id as i32); }
     classifyOwnUses(this, scopeNode, ids);
     for (let c in frame) {
@@ -3022,7 +3022,7 @@ final class CheckerContext {
    * stopAtId to walk to the start.
    */
   findLiveMove(id: SymbolId, from: FlowNode, stopAtId: i32): FlowMove | null {
-    let visited = new HashSet<i32>();
+    let visited = new Set<i32>();
     let pending = new Array<FlowNode>();
     pending.push(from);
     while (pending.length > 0) {
@@ -3122,7 +3122,7 @@ final class CheckerContext {
     this.#flowLoopExits = new Array<FlowJoin>();
     this.#flowExceptionTargets = new Array<FlowJoin>();
     this.#flowLoopMoves = new Array<GrowableArray<FlowMove>>();
-    this.#flowLoopDeclared = new Array<HashSet<i32>>();
+    this.#flowLoopDeclared = new Array<Set<i32>>();
     this.#pendingEdgeIfs = new Array<PendingEdgeIf>();
     saved.borrowUses = this.#bodyBorrowUses;
     this.#bodyBorrowUses = new Array<BorrowUseRec>();
@@ -3247,9 +3247,9 @@ final class CheckerContext {
    * exponentially. Each entry is bucketed by its lowlink; when the join
    * at stack depth d pops, buckets >= d are purged.
    */
-  #taintedBindingMemo = new HashMap<i64, Type>();
+  #taintedBindingMemo = new Map<i64, Type>();
   #taintedBindingBuckets = new Array<GrowableArray<i64>>();
-  #taintedPathMemo = new HashMap<String, Type>();
+  #taintedPathMemo = new Map<String, Type>();
   #taintedPathBuckets = new Array<GrowableArray<String>>();
 
   #purgeTaintedFrom(depth: i32): void {
@@ -3889,7 +3889,7 @@ let checkCyclicImportRules = (
   // may cross freely — only the value/init-order rule applies to them.
   var originRechecked = false;
   if (ctx.cyclicRecheckPaths != null &&
-      (ctx.cyclicRecheckPaths as HashSet<String>).has(origin.modulePath)) {
+      (ctx.cyclicRecheckPaths as Set<String>).has(origin.modulePath)) {
     originRechecked = true;
   }
   match (origin.declaration) {
@@ -3996,13 +3996,13 @@ export final class ModuleCheck {
 export let checkModule = (
   ast: Module,
   scopeResult: ScopeResult,
-  depExports: HashMap<String, ModuleExports> | null,
-  depModels: HashMap<String, SemanticModel> | null = null,
+  depExports: Map<String, ModuleExports> | null,
+  depModels: Map<String, SemanticModel> | null = null,
   emitLocations: boolean = false,
   sharedState: SharedCheckerState | null = null,
   warnUnnecessaryCasts: boolean = false,
-  cyclicLaterPaths: HashSet<String> | null = null,
-  cyclicRecheckPaths: HashSet<String> | null = null,
+  cyclicLaterPaths: Set<String> | null = null,
+  cyclicRecheckPaths: Set<String> | null = null,
   priorModel: SemanticModel | null = null
 ): CheckResult => {
   return finishModule(beginModule(ast, scopeResult, depExports, depModels,
@@ -4019,13 +4019,13 @@ export let checkModule = (
 export let beginModule = (
   ast: Module,
   scopeResult: ScopeResult,
-  depExports: HashMap<String, ModuleExports> | null,
-  depModels: HashMap<String, SemanticModel> | null = null,
+  depExports: Map<String, ModuleExports> | null,
+  depModels: Map<String, SemanticModel> | null = null,
   emitLocations: boolean = false,
   sharedState: SharedCheckerState | null = null,
   warnUnnecessaryCasts: boolean = false,
-  cyclicLaterPaths: HashSet<String> | null = null,
-  cyclicRecheckPaths: HashSet<String> | null = null,
+  cyclicLaterPaths: Set<String> | null = null,
+  cyclicRecheckPaths: Set<String> | null = null,
   priorModel: SemanticModel | null = null
 ): ModuleCheck => {
   let state = if (sharedState != null) sharedState else new SharedCheckerState();
@@ -5200,7 +5200,7 @@ let registerOwnParamCandidates = (
  * droppable. Anything else leaves the binding alone, which leaks
  * exactly as the language did before implicit drop.
  */
-let classifyOwnUses = (ctx: CheckerContext, scope: Node, ids: HashSet<i32>): void => {
+let classifyOwnUses = (ctx: CheckerContext, scope: Node, ids: Set<i32>): void => {
   walkEnter(scope, (n: Node): void => {
     if (!(n is Identifier)) { return; }
     let info = ctx.model.resolve(n);
@@ -5537,15 +5537,15 @@ let resolveTypeAnnotationInner = (ctx: CheckerContext, ann: TypeAnnotation, allo
     }
   }
   case RecordTypeAnnotation {properties}: {
-    let props = new HashMap<String, Type>();
-    var optionals: HashSet<String> | null = null;
+    let props = new Map<String, Type>();
+    var optionals: Set<String> | null = null;
     for (let prop in properties) {
       let resolved = resolveTypeAnnotation(ctx, prop.typeAnnotation, allowInlineTuple);
       rejectSecondClassStorage(ctx, resolved, "a record field", prop.typeAnnotation.loc);
       rejectAffineStructuralMember(ctx, resolved, "a record member", prop.typeAnnotation.loc);
             props[prop.name.name] = resolved;
       if (prop.optional) {
-        optionals ??= new HashSet<String>();
+        optionals ??= new Set<String>();
         optionals.add(prop.name.name);
       }
     }
@@ -5677,7 +5677,7 @@ let mergeHandleMembers = (
 
   // Rebuild in member order: each handle name appears once, at its
   // first position, wrapping the union of its inners.
-  let emitted = new HashSet<String>();
+  let emitted = new Set<String>();
   let result = new Array<Type>();
   for (let m in members) {
     if (isOwnershipWrapper(m) && ownershipHandleInner(m) != null) {
@@ -6020,7 +6020,7 @@ let substituteTypeParams = (
       return new InlineTupleT(subElems);
     }
     case RecordT {properties, optionalProperties}: {
-      let subProps = new HashMap<String, Type>();
+      let subProps = new Map<String, Type>();
       for (let {key} in properties) {
         subProps[key] = substituteTypeParams(typeParams, typeArgs, properties[key]);
       }
@@ -6599,7 +6599,7 @@ let instantiateGenericClass = (
   // signature afterwards, so this inference pass leaves the flow where
   // it found it (see the call pre-pass for why that matters).
   let preInferFlow = ctx.currentFlow;
-  let inferred = new HashMap<String, Type>();
+  let inferred = new Map<String, Type>();
   if (ctor != null) {
     var ai = 0;
     while (ai < args.length && ai < ctor.parameters.length) {
@@ -6648,14 +6648,14 @@ let instantiateGenericClass = (
  * superclass, or an interface the constructed interface extends, and the
  * matching type's arguments are paired with the expected type's.
  *
- *   let m: Map<String, i32> = new OrderedHashMap();   // K, V through HashMap
+ *   let m: Map<String, i32> = new Map.ordered();   // K, V through HashMap
  *   let a: Array<i32> = new Array();          // T through MutableArray
  *   let s: Set<String> = new Set.ordered();           // T from Set itself
  *
  * Only what the arguments left open is filled in: inferTypeArg keeps
  * the first answer for a parameter.
  */
-let inferTypeArgsFromContext = (self: Type, expected: Type, inferred: HashMap<String, Type>): void => {
+let inferTypeArgsFromContext = (self: Type, expected: Type, inferred: Map<String, Type>): void => {
   match (expected) {
     case InterfaceType as ei: {
       let name = (ei.genericSource ?? ei).name;
@@ -6687,7 +6687,7 @@ let inferTypeArgsFromContext = (self: Type, expected: Type, inferred: HashMap<St
 let inferTypeArgsPairwise = (
   fromArgs: Array<Type> | null,
   toArgs: Array<Type> | null,
-  inferred: HashMap<String, Type>
+  inferred: Map<String, Type>
 ): void => {
   if (fromArgs == null || toArgs == null) {
     return;
@@ -6726,7 +6726,7 @@ let findExtendedInterfaceTransitive = (it: InterfaceType, name: String): Interfa
  * argType: the actual argument type
  * inferred: map to store inferred type params
  */
-let inferTypeArg = (paramType: Type, argType: Type, inferred: HashMap<String, Type>): void => {
+let inferTypeArg = (paramType: Type, argType: Type, inferred: Map<String, Type>): void => {
   match (paramType) {
     case TypeParameterType {name}: {
       // Direct type parameter — infer from arg type.
@@ -7563,7 +7563,7 @@ let adaptCoalescedArm = (
   return adaptArmToContext(ctx, node, armType, expectedType);
 };
 
-let inferTypeParameter = (sourceType: Type, targetType: Type, tpName: String, inferred: HashMap<String, Type>): boolean => {
+let inferTypeParameter = (sourceType: Type, targetType: Type, tpName: String, inferred: Map<String, Type>): boolean => {
   if (sourceType is TypeParameterType && sourceType.name == tpName) {
     inferred[tpName] = targetType;
     return true;
@@ -7603,7 +7603,7 @@ let tryInstantiateGenericFunction = (
     let {typeParameters} = source;
     if (typeParameters != null && typeParameters.length > 0) {
       let tps = typeParameters;
-      let inferred = new HashMap<String, Type>();
+      let inferred = new Map<String, Type>();
       for (let tp in tps) {
         var found = false;
         var pIdx = 0;
@@ -8720,11 +8720,11 @@ let extractNullGuardPathNarrowing = (
 };
 
 final class ConditionNarrowings {
-  bindings: HashMap<SymbolId, Type>;
-  paths: HashMap<String, Type>;
+  bindings: Map<SymbolId, Type>;
+  paths: Map<String, Type>;
   new() :
-    bindings = new HashMap<SymbolId, Type>(),
-    paths = new HashMap<String, Type>();
+    bindings = new Map<SymbolId, Type>(),
+    paths = new Map<String, Type>();
 }
 
 let mergeNarrowings = (ctx: CheckerContext, dest: ConditionNarrowings, src: ConditionNarrowings): void => {
@@ -8943,7 +8943,7 @@ let extractIsPathNarrowing = (
  */
 let collectAssignedSymbolIds = (ctx: CheckerContext, node: Node): Array<SymbolId> => {
   let ids = new Array<SymbolId>();
-  let seen = new HashSet<i32>();
+  let seen = new Set<i32>();
   walkEnter(node, (n: Node): void => {
     if (n is AssignmentExpression) {
       if (n.left is Identifier) {
@@ -8985,7 +8985,7 @@ let unwrapAliases = (t: Type): Type => {
 };
 
 let findImplementedInterfaceTransitiveInChecker = (ct: ClassType, name: String): InterfaceType | null => {
-  let seen = new HashMap<String, boolean>();
+  let seen = new Map<String, boolean>();
   let queue = new Array<InterfaceType>();
   
   for (let impl in ct.implementsList) {
@@ -9482,7 +9482,7 @@ case _: {
                   }
                 }
               }
-              let properties = new HashMap<String, Type>();
+              let properties = new Map<String, Type>();
               for (let expKey in depMod.keys()) {
                 if (let (true, exp) = depMod.get(expKey)) {
                   if (exp.isValue()) {
@@ -12061,19 +12061,19 @@ let checkExpressionInner = (ctx: CheckerContext, expr: Expression, expectedType:
     // so two literals of the same declared type must not come out as two
     // different mints ({p: null} and {p: somePofTypeP} against {p: P | null}) —
     // record dispatch casts the receiver to the declared type's mint.
-    var expectedProps: HashMap<String, Type> | null = null;
+    var expectedProps: Map<String, Type> | null = null;
     if (expectedType != null) {
       let baseExpected = baseType(expectedType);
       if (baseExpected is RecordT) {
         expectedProps = baseExpected.properties;
       }
     }
-    let propTypes = new HashMap<String, Type>();
+    let propTypes = new Map<String, Type>();
     // A field fed only by a spread source where it is optional stays
     // optional in the literal's own type — its runtime presence follows
     // the source's. An explicit assignment (or a required spread field)
     // later in the literal makes it definite again.
-    var literalOptionals: HashSet<String> | null = null;
+    var literalOptionals: Set<String> | null = null;
     var i = 0;
     while (i < properties.length) {
       match (properties[i]) {
@@ -12098,7 +12098,7 @@ let checkExpressionInner = (ctx: CheckerContext, expr: Expression, expectedType:
               while (let (true, key) = keys.next()) {
                 propTypes[key] = spreadProps[key];
                 if (spreadRec.isOptional(key)) {
-                  literalOptionals ??= new HashSet<String>();
+                  literalOptionals ??= new Set<String>();
                   literalOptionals.add(key);
                 } else if (literalOptionals != null) {
                   literalOptionals.delete(key);
@@ -12217,7 +12217,7 @@ let checkExpressionInner = (ctx: CheckerContext, expr: Expression, expectedType:
         }
         ei += 1;
       }
-      // Return HashMap<K, V> if available, otherwise ErrorType.
+      // Return Map<K, V> if available, otherwise ErrorType.
       let hashMapType = ctx.resolveTypeName("HashMap");
       if (hashMapType != null) {
         match (hashMapType) {
@@ -13073,7 +13073,7 @@ let registerClassDeclaration = (ctx: CheckerContext, cd: ClassDeclaration): void
         if (forwardVariantNames != null) {
           forwardVariantNames.add(variant.name.name);
         } else {
-          let set = new HashSet<String>();
+          let set = new Set<String>();
           set.add(variant.name.name);
           classType.forwardVariantNames = set;
         }
@@ -13401,9 +13401,9 @@ let registerClassDeclaration = (ctx: CheckerContext, cd: ClassDeclaration): void
   // This allows forward references between methods (e.g. this.#foo() calling
   // a private method defined later in the class body).
   // Track fields declared directly in this class body (not inherited).
-  let ownFieldNames = new HashSet<String>();
-  let ownMethodNames = new HashSet<String>();
-  let ownConstructorNames = new HashSet<String>();
+  let ownFieldNames = new Set<String>();
+  let ownMethodNames = new Set<String>();
+  let ownConstructorNames = new Set<String>();
   for (let member in cd.body) {
     match (member) {
       case FieldDefinition as fd: {
@@ -13512,9 +13512,9 @@ let registerClassDeclaration = (ctx: CheckerContext, cd: ClassDeclaration): void
             };
             if (fd.setterName is Identifier) {
               if (classType.fieldSetterNames == null) {
-                classType.fieldSetterNames = new HashMap<String, String>();
+                classType.fieldSetterNames = new Map<String, String>();
               }
-              let m = classType.fieldSetterNames as HashMap<String, String>;
+              let m = classType.fieldSetterNames as Map<String, String>;
               m[fieldName] = (fd.setterName as Identifier).name;
             }
           }
@@ -13595,7 +13595,7 @@ let registerClassDeclaration = (ctx: CheckerContext, cd: ClassDeclaration): void
           if (fd.isDeclare) {
             let df = classType.declaredFields;
             let dfNonNull = if (df == null) {
-              let newSet = new HashSet<String>();
+              let newSet = new Set<String>();
               classType.declaredFields = newSet;
               newSet
             } else {
@@ -14284,7 +14284,7 @@ let checkFieldInitializer = (
 
   // Temporarily hide fields declared after this one or inherited from superclasses,
   // so that they cannot be accessed within the field's default initializer.
-  let hiddenFields = new HashMap<String, MemberInfo>();
+  let hiddenFields = new Map<String, MemberInfo>();
   let keysToHide = new Array<String>();
 
   let allFieldKeys = classType.members.keys();
@@ -14858,7 +14858,7 @@ let checkMethodSignature = (
     var paramType: Type = new ErrorType();
     var lookupName = paramName;
     if (classType != null && classType.fieldSetterNames != null) {
-      let m = classType.fieldSetterNames as HashMap<String, String>;
+      let m = classType.fieldSetterNames as Map<String, String>;
       if (m.has(paramName)) {
         lookupName = m[paramName];
       }
@@ -15359,7 +15359,7 @@ let checkMethodBody = (
     // defaults, then the initializer list, then the super call. It is
     // checked in that order too, so flow-sensitive analysis — move
     // checking above all — sees evaluation order, not source order.
-    let fieldsInInitializerList = new HashSet<String>();
+    let fieldsInInitializerList = new Set<String>();
     let {initializerList} = md;
     if (initializerList != null) {
       for (let item in initializerList) {
@@ -15416,8 +15416,8 @@ let checkMethodBody = (
     for (let param in md.params) {
       if (param.isThisParam) {
         let paramName = param.name.name;
-        let actualFieldName = if (classType.fieldSetterNames != null && (classType.fieldSetterNames as HashMap<String, String>).has(paramName)) {
-          (classType.fieldSetterNames as HashMap<String, String>)[paramName]
+        let actualFieldName = if (classType.fieldSetterNames != null && (classType.fieldSetterNames as Map<String, String>).has(paramName)) {
+          (classType.fieldSetterNames as Map<String, String>)[paramName]
         } else {
           paramName
         };
@@ -15452,7 +15452,7 @@ let checkMethodBody = (
         let {genericSource} = classType;
         if (genericSource != null) {
           let gs = genericSource;
-          if (gs.declaredFields != null && (gs.declaredFields as HashSet<String>).has(fieldName)) {
+          if (gs.declaredFields != null && (gs.declaredFields as Set<String>).has(fieldName)) {
             isDeclared = true;
           }
         }
@@ -15637,7 +15637,7 @@ let checkInterfaceDeclaration = (ctx: CheckerContext, id: InterfaceDeclaration):
 
   // Process body members.
   ctx.enterInterface();
-  let ownConstructorNames = new HashSet<String>();
+  let ownConstructorNames = new Set<String>();
   for (let member in id.body) {
     match (member) {
       case MethodDefinition as md: {
@@ -15796,7 +15796,7 @@ let registerInterfaceConstructor = (
   ctx: CheckerContext,
   ifaceType: InterfaceType,
   md: MethodDefinition,
-  ownConstructorNames: HashSet<String>
+  ownConstructorNames: Set<String>
 ): void => {
   let ctorName = match (md.name) {
     case Identifier {name}: name
@@ -15927,7 +15927,7 @@ let checkInterfaceConstructorBodies = (ctx: CheckerContext, id: InterfaceDeclara
     return;
   }
   let ifaceType = resolved;
-  let seen = new HashSet<String>();
+  let seen = new Set<String>();
   for (let member in id.body) {
     if (member is MethodDefinition) {
       let ctorName = match (member.name) {
@@ -16194,7 +16194,7 @@ let checkEnumDeclaration = (ctx: CheckerContext, ed: EnumDeclaration): void => {
     ctx.registerType(info2, enumType as Type);
   }
   // Create a record type for the value namespace (e.g., Color.Red).
-  let fields = new HashMap<String, Type>();
+  let fields = new Map<String, Type>();
   for (let member in members) {
     fields[member.name.name] = enumType;
   }
@@ -17031,7 +17031,7 @@ let instantiateGenericInterface = (
 
   let ctor = it.constructors[ctorKey];
   let preInferFlow = ctx.currentFlow;
-  let inferred = new HashMap<String, Type>();
+  let inferred = new Map<String, Type>();
   var ai = 0;
   while (ai < args.length && ai < ctor.parameters.length) {
     let paramType = ctor.parameters[ai];
@@ -17222,7 +17222,7 @@ let unqualifiedSymbolRefOf = (nameNode: Node): Expression | null => {
  */
 let recordSymbolKeyedMemberIdentities = (
     ctx: CheckerContext,
-    members: OrderedHashMap<String, MemberInfo>,
+    members: Map<String, MemberInfo>,
     body: Array<Node>): void => {
   for (let member in body) {
     var nameNode: Node | null = null;
@@ -18704,7 +18704,7 @@ let isFiniteType = (t: Type): boolean => {
  */
 final class EnumCoverage {
   declaration: EnumDeclaration;
-  covered: HashSet<String> = new HashSet<String>();
+  covered: Set<String> = new Set<String>();
   var complete: boolean = false;
   new(this.declaration);
 }
@@ -18785,7 +18785,7 @@ let collectCoveredEnumMembers = (
   ctx: CheckerContext,
   pattern: Node,
   ed: EnumDeclaration,
-  covered: HashSet<String>
+  covered: Set<String>
 ): void => {
   match (pattern) {
     case MemberExpression as me: {
@@ -20881,7 +20881,7 @@ let checkCallExpressionInner = (
             // Infer type arguments from argument types. Deferred closure
             // arguments hold a placeholder in argTypes, so they are left
             // out of this first round.
-            let inferred = new HashMap<String, Type>();
+            let inferred = new Map<String, Type>();
             var anyDeferred = false;
             for (var i = 0; i < args.length && i < effectiveFt.parameters.length; i += 1) {
               if (i < deferredArgs.length && deferredArgs[i]) {

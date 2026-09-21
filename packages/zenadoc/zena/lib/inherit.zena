@@ -13,7 +13,7 @@
  * and may not have been walked when its subtype was.
  */
 
-import { HashSet } from 'zena:collections';
+import { Set } from 'zena:collections';
 import {
   DocDeclaration, DocMember, DocPackage, TypeRef,
 } from './model.zena';
@@ -33,8 +33,8 @@ export let inheritMembers = (pkg: DocPackage): void => {
   for (let module in pkg.modules) {
     for (let declaration in module.declarations) {
       let inherited = new Array<DocMember>(0);
-      let seenTypes = new HashSet<String>();
-      let seenNames = new HashSet<String>();
+      let seenTypes = new Set<String>();
+      let seenNames = new Set<String>();
       for (let member in declaration.members) {
         seenNames.add(member.name);
       }
@@ -51,8 +51,8 @@ let collect = (
   declaration: DocDeclaration,
   index: PublishedIndex,
   out: GrowableArray<DocMember>,
-  seenTypes: HashSet<String>,
-  seenNames: HashSet<String>,
+  seenTypes: Set<String>,
+  seenNames: Set<String>,
   depth: i32
 ): void => {
   if (depth > MAX_DEPTH) {

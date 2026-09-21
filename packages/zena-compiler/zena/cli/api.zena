@@ -73,7 +73,7 @@ export let compileSource = (
   let host = new ApiHost(stdlibRoot);
   host.entryPath = entryPath;
   host.entrySource = source;
-  let packages = new HashMap<String, PackageConfig>();
+  let packages = new Map<String, PackageConfig>();
   let options = new CompilerOptions(target, stdlibRoot, packages);
   let compiler = createCompiler(host, options);
 

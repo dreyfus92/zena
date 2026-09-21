@@ -961,7 +961,7 @@ let finishProtectedArm = (cx: LoweringContext, scope: FinallyScope,
 let lowerFinallyRegion = (cx: LoweringContext, mirrored: GrowableArray<SymbolId>,
     isVoid: boolean, resultVt: ValType | null,
     lowerProtected: (scope: FinallyScope, resultVar: i32,
-        saved: HashMap<SymbolId, i32>) => void,
+        saved: Map<SymbolId, i32>) => void,
     lowerFinalizer: (scope: FinallyScope) => void,
     finalizeOnNormal: boolean = true): i32 => {
   if (cx.wasm.exceptionTag == null || cx.wasm.exceptionPayload == null) {
@@ -1247,7 +1247,7 @@ let lowerTryFinally = (cx: LoweringContext, expr: TryExpression): i32 => {
 
   let tag = cx.wasm.exceptionTag as WasmTag;
   let lowerArmsInto = (scope: FinallyScope, resultVar: i32,
-      saved: HashMap<SymbolId, i32>): void => {
+      saved: Map<SymbolId, i32>): void => {
     let handler = expr.handler;
     if (handler == null) {
       let bodyValue = lowerValueNode(cx, expr.body as Node, isVoid, resultVt);
@@ -2045,7 +2045,7 @@ export let lowerFieldDropRegions = (cx: LoweringContext,
   let st = info.structType;
   var lookupName = names[idx];
   if (ct.fieldSetterNames != null) {
-    let mapping = ct.fieldSetterNames as HashMap<String, String>;
+    let mapping = ct.fieldSetterNames as Map<String, String>;
     if (let (true, mapped) = mapping.get(lookupName)) {
       lookupName = mapped;
     }
@@ -2319,7 +2319,7 @@ let isProtocolUnion = (t: Type): boolean => {
  * merge. */
 let coalesceMerge = (cx: LoweringContext, bin: BinaryExpression,
     overallVt: ValType, mergeSyms: GrowableArray<SymbolId>,
-    rightB: i32, okValue: i32, saved: HashMap<SymbolId, i32>): i32 => {
+    rightB: i32, okValue: i32, saved: Map<SymbolId, i32>): i32 => {
   // The ok arm comes out of the left operand's maybe-form — a tuple
   // slot or an optional record field — so it is not an expression the
   // post-expression adaptation hook can reach. The checker records the

@@ -16,7 +16,8 @@
  *   }
  */
 
-import { HashSet } from 'zena:collections';
+import { Set } from 'zena:collections';
+
 import {
   PackageConfig, ModuleResolver, ResolvedModule,
 } from './module-resolver.zena';
@@ -87,7 +88,7 @@ export final class CompilerOptions {
    * automatically from `stdlibRoot`.
    * Loaded from zena-packages.json via `loadPackageMap()`.
    */
-  packages: HashMap<String, PackageConfig>;
+  packages: Map<String, PackageConfig>;
 
   /** Whether to emit source locations for __LOCATION__ defaults. */
   emitLocations: boolean = false;
@@ -123,7 +124,7 @@ export final class CompilerOptions {
   new(
     target: String,
     stdlibRoot: String,
-    packages: HashMap<String, PackageConfig>
+    packages: Map<String, PackageConfig>
   ) : target = target, stdlibRoot = stdlibRoot, packages = packages;
 }
 
@@ -153,13 +154,13 @@ export final class CompilationResult(
  */
 export final class ProgramCheckResult {
   /** Per-module check results, keyed by file path. */
-  results: HashMap<String, CheckResult>;
+  results: Map<String, CheckResult>;
 
   /** Source text at the time each module was checked, keyed by file path. */
-  sources: HashMap<String, String>;
+  sources: Map<String, String>;
 
   /** AST Module at the time each module was checked, keyed by file path. */
-  asts: HashMap<String, Module>;
+  asts: Map<String, Module>;
 
   /**
    * Export signatures at the time each module was checked, keyed by file path.
@@ -167,7 +168,7 @@ export final class ProgramCheckResult {
    * Type objects. Used for incremental invalidation: if a file's exports
    * change, its dependents must be re-checked.
    */
-  exportSignatures: HashMap<String, HashMap<String, Type>>;
+  exportSignatures: Map<String, Map<String, Type>>;
 
   /** Aggregated diagnostics from all modules. */
   diagnostics = new Array<Diagnostic>();
@@ -187,13 +188,13 @@ export final class ProgramCheckResult {
    * That matters when another module consults the carried result
    * through the new Symbols — a member of the same import cycle does.
    */
-  var scopes = new HashMap<String, ScopeResult>();
+  var scopes = new Map<String, ScopeResult>();
 
   new(
-    this.results: HashMap<String, CheckResult>,
-    this.sources: HashMap<String, String>,
-    this.asts: HashMap<String, Module>,
-    this.exportSignatures: HashMap<String, HashMap<String, Type>>,
+    this.results: Map<String, CheckResult>,
+    this.sources: Map<String, String>,
+    this.asts: Map<String, Module>,
+    this.exportSignatures: Map<String, Map<String, Type>>,
     this.entry: CheckResult,
     this.sharedState: SharedCheckerState
   ) {
@@ -237,9 +238,9 @@ let buildResolver = (options: CompilerOptions): ModuleResolver => {
  */
 export let withBuiltinPackages = (
   stdlibRoot: String,
-  packages: HashMap<String, PackageConfig>
-): HashMap<String, PackageConfig> => {
-  let all = new HashMap<String, PackageConfig>();
+  packages: Map<String, PackageConfig>
+): Map<String, PackageConfig> => {
+  let all = new Map<String, PackageConfig>();
   let userPkgIter = packages.keys();
   while (let (true, name) = userPkgIter.next()) {
     all[name] = packages[name];
@@ -265,7 +266,7 @@ export final class Compiler {
    * pass, so re-export copies never accumulate stale entries and
    * statement order keeps its last-writer-wins semantics.
    */
-  #localExports = new HashMap<String, ScopeModuleExports>();
+  #localExports = new Map<String, ScopeModuleExports>();
   #symbolIdGenerator = makeSymbolIdGenerator();
 
   new(host: CompilerHost, options: CompilerOptions, resolver: ModuleResolver, loader: LibraryLoader)
@@ -366,7 +367,7 @@ export final class Compiler {
         componentEntryWrapperFor(entryPoint, entry.ast)
       };
       if (wrapper != null) {
-        let pinned = new HashMap<String, String>();
+        let pinned = new Map<String, String>();
         pinned[wrapper.entrySpecifier] = wrapper.entryPath;
         entries.push(this.#loader.loadSynthesized(
             wrapper.path, wrapper.source, pinned));
@@ -509,13 +510,13 @@ export final class Compiler {
    *
    * Computed rather than listed, so it cannot drift as the prelude changes.
    */
-  #preludeClosure(files: GrowableArray<SourceFile>): HashSet<String> {
-    let byPath = new HashMap<String, SourceFile>();
+  #preludeClosure(files: GrowableArray<SourceFile>): Set<String> {
+    let byPath = new Map<String, SourceFile>();
     for (let lib in files) {
       byPath[lib.path] = lib;
     }
 
-    let closure = new HashSet<String>();
+    let closure = new Set<String>();
     let pending = new Array<String>();
 
     let prelude = getStandardPrelude(this.#resolver.target);
@@ -574,13 +575,13 @@ export final class Compiler {
    * topological order. This set is how the compiler avoids *advising*
    * a change that would break the build in the meantime.
    */
-  #preludeLoadClosure(files: GrowableArray<SourceFile>): HashSet<String> {
-    let byPath = new HashMap<String, SourceFile>();
+  #preludeLoadClosure(files: GrowableArray<SourceFile>): Set<String> {
+    let byPath = new Map<String, SourceFile>();
     for (let lib in files) {
       byPath[lib.path] = lib;
     }
 
-    let closure = new HashSet<String>();
+    let closure = new Set<String>();
     let pending = new Array<String>();
 
     let prelude = getStandardPrelude(this.#resolver.target);
@@ -612,7 +613,7 @@ export final class Compiler {
    * Repeat import wiring until no pass makes progress. When `only` is
    * non-null, wiring is restricted to that set of module paths.
    */
-  #wireToFixpoint(files: GrowableArray<SourceFile>, only: HashSet<String> | null): void {
+  #wireToFixpoint(files: GrowableArray<SourceFile>, only: Set<String> | null): void {
     var changed = true;
     while (changed) {
       changed = false;
@@ -695,7 +696,7 @@ export final class Compiler {
     } else {
       result.exports
     };
-    let rebuilt = new HashMap<String, Symbol>();
+    let rebuilt = new Map<String, Symbol>();
     for (let key in base.keys()) {
       if (let (true, info) = base.get(key)) {
         rebuilt[key] = info;
@@ -805,7 +806,7 @@ export final class Compiler {
   #snapshotLocalExports(lib: SourceFile): void {
     if (lib.scopeResult != null) {
       let exports = (lib.scopeResult as ScopeResult).exports;
-      let snap = new HashMap<String, Symbol>();
+      let snap = new Map<String, Symbol>();
       for (let key in exports.keys()) {
         if (let (true, info) = exports.get(key)) {
           snap[key] = info;
@@ -879,8 +880,8 @@ let computeExportSignature = (
   exports: ScopeModuleExports,
   rootScope: Scope,
   model: SemanticModel
-): HashMap<String, Type> => {
-  let sig = new HashMap<String, Type>();
+): Map<String, Type> => {
+  let sig = new Map<String, Type>();
 
   let iter = exports.keys();
   while (let (true, name) = iter.next()) {
@@ -941,11 +942,11 @@ let computeExportSignature = (
  * Optimistic assumption: if already visiting a pair, return true.
  */
 let signatureTypeEquals = (a: Type, b: Type): boolean => {
-  let visited = new HashSet<String>();
+  let visited = new Set<String>();
   return signatureTypeEqualsRec(a, b, visited);
 };
 
-let signatureTypeEqualsRec = (a: Type, b: Type, visited: HashSet<String>): boolean => {
+let signatureTypeEqualsRec = (a: Type, b: Type, visited: Set<String>): boolean => {
   // Fast path: referential identity (singletons, carried-forward objects).
   if (a === b) { return true; }
 
@@ -1033,8 +1034,8 @@ let signatureTypeEqualsRec = (a: Type, b: Type, visited: HashSet<String>): boole
           // Compare optional properties.
           if (ra.optionalProperties == null && rb.optionalProperties == null) { return true; }
           if (ra.optionalProperties == null || rb.optionalProperties == null) { return false; }
-          let optA = ra.optionalProperties as HashSet<String>;
-          let optB = rb.optionalProperties as HashSet<String>;
+          let optA = ra.optionalProperties as Set<String>;
+          let optB = rb.optionalProperties as Set<String>;
           stringSetEquals(optA, optB)
         }
         case _: false
@@ -1107,7 +1108,7 @@ let signatureTypeEqualsRec = (a: Type, b: Type, visited: HashSet<String>): boole
  * Compare two arrays of types elementwise.
  */
 let arrayTypesEqual = (
-  a: Array<Type>, b: Array<Type>, visited: HashSet<String>
+  a: Array<Type>, b: Array<Type>, visited: Set<String>
 ): boolean => {
   if (a.length != b.length) {
     return false;
@@ -1126,7 +1127,7 @@ let arrayTypesEqual = (
 let typeParamsEqual = (
   a: Array<TypeParameterType> | null,
   b: Array<TypeParameterType> | null,
-  visited: HashSet<String>
+  visited: Set<String>
 ): boolean => {
   if (a == null && b == null) {
     return true;
@@ -1151,7 +1152,7 @@ let typeParamsEqual = (
 let typeArgsEqual = (
   a: Array<Type> | null,
   b: Array<Type> | null,
-  visited: HashSet<String>
+  visited: Set<String>
 ): boolean => {
   if (a == null && b == null) {
     return true;
@@ -1166,7 +1167,7 @@ let typeArgsEqual = (
  * Compare two HashMaps of name → Type.
  */
 let typeMapEquals = (
-  a: HashMap<String, Type>, b: HashMap<String, Type>, visited: HashSet<String>
+  a: Map<String, Type>, b: Map<String, Type>, visited: Set<String>
 ): boolean => {
   if (a.size != b.size) {
     return false;
@@ -1186,7 +1187,7 @@ let typeMapEquals = (
  * Compare two Maps of name → MemberInfo.
  */
 let membersMapEquals = (
-  a: Map<String, MemberInfo>, b: Map<String, MemberInfo>, visited: HashSet<String>
+  a: Map<String, MemberInfo>, b: Map<String, MemberInfo>, visited: Set<String>
 ): boolean => {
   if (a.size != b.size) {
     return false;
@@ -1243,7 +1244,7 @@ let membersMapEquals = (
  * Compare two HashMaps of name → boolean.
  */
 let boolMapEquals = (
-  a: HashMap<String, boolean>, b: HashMap<String, boolean>
+  a: Map<String, boolean>, b: Map<String, boolean>
 ): boolean => {
   if (a.size != b.size) {
     return false;
@@ -1259,7 +1260,7 @@ let boolMapEquals = (
 /**
  * Compare two HashSets of String.
  */
-let stringSetEquals = (a: HashSet<String>, b: HashSet<String>): boolean => {
+let stringSetEquals = (a: Set<String>, b: Set<String>): boolean => {
   if (a.size != b.size) {
     return false;
   }
@@ -1272,10 +1273,10 @@ let stringSetEquals = (a: HashSet<String>, b: HashSet<String>): boolean => {
 };
 
 /**
- * Compare nullable HashSet<String>.
+ * Compare nullable Set<String>.
  */
 let nullableStringSetEquals = (
-  a: HashSet<String> | null, b: HashSet<String> | null
+  a: Set<String> | null, b: Set<String> | null
 ): boolean => {
   if (a == null && b == null) {
     return true;
@@ -1288,7 +1289,7 @@ let nullableStringSetEquals = (
 
 /** Deep comparison of FunctionType for signature purposes. */
 let functionTypeEquals = (
-  fa: FunctionType, fb: FunctionType, visited: HashSet<String>
+  fa: FunctionType, fb: FunctionType, visited: Set<String>
 ): boolean => {
   if (fa === fb) { return true; }
   if (fa.parameters.length != fb.parameters.length) { return false; }
@@ -1318,7 +1319,7 @@ let functionTypeEquals = (
 
 /** Deep comparison of ClassType for signature purposes. */
 let classTypeEquals = (
-  ca: ClassType, cb: ClassType, visited: HashSet<String>
+  ca: ClassType, cb: ClassType, visited: Set<String>
 ): boolean => {
   if (ca === cb) { return true; }
   if (ca.name != cb.name) { return false; }
@@ -1387,7 +1388,7 @@ let classTypeEquals = (
 
 /** Deep comparison of InterfaceType for signature purposes. */
 let interfaceTypeEquals = (
-  ia: InterfaceType, ib: InterfaceType, visited: HashSet<String>
+  ia: InterfaceType, ib: InterfaceType, visited: Set<String>
 ): boolean => {
   if (ia === ib) { return true; }
   if (ia.name != ib.name) { return false; }
@@ -1413,7 +1414,7 @@ let interfaceTypeEquals = (
 
 /** Deep comparison of MixinType for signature purposes. */
 let mixinTypeEquals = (
-  ma: MixinType, mb: MixinType, visited: HashSet<String>
+  ma: MixinType, mb: MixinType, visited: Set<String>
 ): boolean => {
   if (ma === mb) { return true; }
   if (ma.name != mb.name) { return false; }
@@ -1445,14 +1446,14 @@ let mixinTypeEquals = (
  * For each file, records which files depend on it AND which names they
  * import. This enables precise invalidation: when a dependency's export
  * signature changes, a dependent is only invalidated if one of the names
- * it actually i * Structure: depPath → HashMap<importerPath, GrowableArray<String>>
+ * it actually i * Structure: depPath → Map<importerPath, GrowableArray<String>>
  * where the GrowableArray<String> contains the imported names (prefixed "v:" or
  * "t:" to match signature keys).
  */
 let buildReverseDeps = (
   files: GrowableArray<SourceFile>
-): HashMap<String, HashMap<String, GrowableArray<String>>> => {
-  let reverseDeps = new HashMap<String, HashMap<String, GrowableArray<String>>>();
+): Map<String, Map<String, GrowableArray<String>>> => {
+  let reverseDeps = new Map<String, Map<String, GrowableArray<String>>>();
 
   for (let file in files) {
     // Walk the AST to find import/re-export declarations and their names.
@@ -1463,7 +1464,7 @@ let buildReverseDeps = (
           if (file.imports.has(specifier)) {
             let depPath = file.imports[specifier];
             if (!reverseDeps.has(depPath)) {
-              reverseDeps[depPath] = new HashMap<String, GrowableArray<String>>();
+              reverseDeps[depPath] = new Map<String, GrowableArray<String>>();
             }
             let depMap = reverseDeps[depPath];
             if (!depMap.has(file.path)) {
@@ -1488,7 +1489,7 @@ let buildReverseDeps = (
           if (file.imports.has(specifier)) {
             let depPath = file.imports[specifier];
             if (!reverseDeps.has(depPath)) {
-              reverseDeps[depPath] = new HashMap<String, GrowableArray<String>>();
+              reverseDeps[depPath] = new Map<String, GrowableArray<String>>();
             }
             let depMap = reverseDeps[depPath];
             if (!depMap.has(file.path)) {
@@ -1503,7 +1504,7 @@ let buildReverseDeps = (
           if (file.imports.has(specifier)) {
             let depPath = file.imports[specifier];
             if (!reverseDeps.has(depPath)) {
-              reverseDeps[depPath] = new HashMap<String, GrowableArray<String>>();
+              reverseDeps[depPath] = new Map<String, GrowableArray<String>>();
             }
             let depMap = reverseDeps[depPath];
             if (!depMap.has(file.path)) {
@@ -1538,21 +1539,21 @@ let buildReverseDeps = (
  * declarations.
  */
 final class FileCheckInputs {
-  depExports: HashMap<String, ScopeModuleExports>;
-  depModels: HashMap<String, SemanticModel>;
-  laterPaths: HashSet<String> | null;
+  depExports: Map<String, ScopeModuleExports>;
+  depModels: Map<String, SemanticModel>;
+  laterPaths: Set<String> | null;
   new(this.depExports, this.depModels, this.laterPaths);
 }
 
 let fileCheckInputs = (
   file: SourceFile,
-  allResults: HashMap<String, CheckResult>,
-  inProgress: HashMap<String, ModuleCheck> | null,
+  allResults: Map<String, CheckResult>,
+  inProgress: Map<String, ModuleCheck> | null,
   allFiles: GrowableArray<SourceFile>,
-  recheckPaths: HashSet<String> | null
+  recheckPaths: Set<String> | null
 ): FileCheckInputs => {
-  let depExports = new HashMap<String, ScopeModuleExports>();
-  let depModels = new HashMap<String, SemanticModel>();
+  let depExports = new Map<String, ScopeModuleExports>();
+  let depModels = new Map<String, SemanticModel>();
   let specIter = file.imports.keys();
   while (let (true, specifier) = specIter.next()) {
     let depPath = file.imports[specifier];
@@ -1590,9 +1591,9 @@ let fileCheckInputs = (
   // whose declaration originates in one of them crosses an import
   // cycle's back edge (docs/design/import-cycles.md). Null in the
   // common acyclic case so the checker skips the bookkeeping.
-  var laterPaths: HashSet<String> | null = null;
+  var laterPaths: Set<String> | null = null;
   if (recheckPaths != null) {
-    let later = new HashSet<String>();
+    let later = new Set<String>();
     var seen = false;
     for (let other in allFiles) {
       if (seen) {
@@ -1614,13 +1615,13 @@ let fileCheckInputs = (
  */
 let beginFile = (
   file: SourceFile,
-  allResults: HashMap<String, CheckResult>,
-  inProgress: HashMap<String, ModuleCheck>,
+  allResults: Map<String, CheckResult>,
+  inProgress: Map<String, ModuleCheck>,
   allFiles: GrowableArray<SourceFile>,
   emitLocations: boolean,
   sharedState: SharedCheckerState,
   warnUnnecessaryCasts: boolean,
-  recheckPaths: HashSet<String> | null
+  recheckPaths: Set<String> | null
 ): ModuleCheck => {
   let inputs = fileCheckInputs(file, allResults, inProgress, allFiles, recheckPaths);
   return beginModule(
@@ -1643,8 +1644,8 @@ let beginFile = (
 let refreshDepModels = (
   mc: ModuleCheck,
   file: SourceFile,
-  allResults: HashMap<String, CheckResult>,
-  inProgress: HashMap<String, ModuleCheck>
+  allResults: Map<String, CheckResult>,
+  inProgress: Map<String, ModuleCheck>
 ): void => {
   let specIter = file.imports.keys();
   while (let (true, specifier) = specIter.next()) {
@@ -1669,12 +1670,12 @@ let refreshDepModels = (
 
 let checkFile = (
   file: SourceFile,
-  allResults: HashMap<String, CheckResult>,
+  allResults: Map<String, CheckResult>,
   allFiles: GrowableArray<SourceFile>,
   emitLocations: boolean,
   sharedState: SharedCheckerState,
   warnUnnecessaryCasts: boolean,
-  recheckPaths: HashSet<String> | null
+  recheckPaths: Set<String> | null
 ): CheckResult => {
   let inputs = fileCheckInputs(file, allResults, null, allFiles, recheckPaths);
   let depExports = inputs.depExports;
@@ -1715,7 +1716,7 @@ let checkFile = (
  */
 final class ImportComponents {
   #files: GrowableArray<SourceFile>;
-  #pathIndex: HashMap<String, i32>;
+  #pathIndex: Map<String, i32>;
   #index = new Array<i32>();
   #low = new Array<i32>();
   #onStack = new Array<boolean>();
@@ -1723,7 +1724,7 @@ final class ImportComponents {
   var #next = 0;
   components = new Array<GrowableArray<i32>>();
 
-  new(files: GrowableArray<SourceFile>, pathIndex: HashMap<String, i32>)
+  new(files: GrowableArray<SourceFile>, pathIndex: Map<String, i32>)
     : #files = files, #pathIndex = pathIndex {
     var i = 0;
     while (i < files.length) {
@@ -1807,10 +1808,10 @@ export let checkCompilation = (
   emitLocations: boolean = false,
   warnUnnecessaryCasts: boolean = false
 ): ProgramCheckResult => {
-  let allResults = new HashMap<String, CheckResult>();
-  let allSources = new HashMap<String, String>();
-  let allAsts = new HashMap<String, Module>();
-  let allSignatures = new HashMap<String, HashMap<String, Type>>();
+  let allResults = new Map<String, CheckResult>();
+  let allSources = new Map<String, String>();
+  let allAsts = new Map<String, Module>();
+  let allSignatures = new Map<String, Map<String, Type>>();
 
   let sharedState = if (previous != null) {
     previous.sharedState
@@ -1823,9 +1824,9 @@ export let checkCompilation = (
 
   // Set of file paths that must be (re-)checked. Start with files whose
   // source text changed or that are new, or that import missing/deleted files.
-  let mustCheck = new HashSet<String>();
+  let mustCheck = new Set<String>();
   if (previous != null) {
-    let currentPaths = new HashSet<String>();
+    let currentPaths = new Set<String>();
     for (let file in result.files) {
       currentPaths.add(file.path);
     }
@@ -1882,25 +1883,25 @@ export let checkCompilation = (
   // cycle's second pass now runs as soon as its last member has had
   // its first, before any module outside the cycle that imports from
   // it is checked, so those importers see final models and check once.
-  var recheckPaths: HashSet<String> | null = null;
+  var recheckPaths: Set<String> | null = null;
   // For the index of a cycle's last member in evaluation order: the
   // cycle's members, in evaluation order.
-  let cyclesEndingAt = new HashMap<i32, GrowableArray<SourceFile>>();
+  let cyclesEndingAt = new Map<i32, GrowableArray<SourceFile>>();
   if (result.hasCycle) {
-    let pathIndex = new HashMap<String, i32>();
+    let pathIndex = new Map<String, i32>();
     var pi = 0;
     while (pi < result.files.length) {
       pathIndex[result.files[pi].path] = pi;
       pi = pi + 1;
     }
-    let recheck = new HashSet<String>();
+    let recheck = new Set<String>();
     let finder = new ImportComponents(result.files, pathIndex);
     for (let component in finder.components) {
       if (component.length < 2) {
         continue;
       }
       var last = -1;
-      let inComponent = new HashSet<i32>();
+      let inComponent = new Set<i32>();
       for (let member in component) {
         inComponent.add(member);
         if (member > last) {
@@ -1994,7 +1995,7 @@ export let checkCompilation = (
         let oldSig = if (previous.exportSignatures.has(file.path)) {
           previous.exportSignatures[file.path]
         } else {
-          new HashMap<String, Type>()  // new file — all names are "changed"
+          new Map<String, Type>()  // new file — all names are "changed"
         };
 
         let importerMap = reverseDeps[file.path];
@@ -2029,8 +2030,8 @@ export let checkCompilation = (
 
   // Members of import cycles that have registered their declarations
   // and not yet checked their bodies, by path.
-  let inProgress = new HashMap<String, ModuleCheck>();
-  let allScopes = new HashMap<String, ScopeResult>();
+  let inProgress = new Map<String, ModuleCheck>();
+  let allScopes = new Map<String, ScopeResult>();
 
   // Check each file in topo order.
   var fileIndex = -1;

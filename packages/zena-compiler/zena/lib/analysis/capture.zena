@@ -1,4 +1,4 @@
-import { HashSet } from 'zena:collections';
+import { Set } from 'zena:collections';
 import {
   Node, Identifier, ThisExpression, AssignmentExpression, FunctionExpression, Parameter, VariableDeclaration, IdentifierPattern, Module, ClassDeclaration, InterfaceDeclaration, EnumDeclaration, MixinDeclaration, MethodDefinition, BlockStatement,
 } from '../ast.zena';
@@ -8,7 +8,7 @@ import { walkEnter } from '../visitor.zena';
 
 export class CaptureInfo {
   captures = new Array<Symbol>();
-  mutableCaptures = new HashSet<SymbolId>();
+  mutableCaptures = new Set<SymbolId>();
   var capturesThis: boolean = false;
 
   new();
@@ -141,7 +141,7 @@ let isDeclaredWithin = (sym: Symbol, root: Node, model: SemanticModel): boolean 
  */
 export let analyzeTryBodyAssignments = (tryBody: Node, model: SemanticModel): Array<SymbolId> => {
   let out = new Array<SymbolId>();
-  let seen = new HashSet<SymbolId>();
+  let seen = new Set<SymbolId>();
   walkEnter(tryBody, (n: Node): void => {
     if (!(n is AssignmentExpression)) { return; }
     if (!(n.left is Identifier)) { return; }
@@ -161,7 +161,7 @@ export let analyzeTryBodyAssignments = (tryBody: Node, model: SemanticModel): Ar
 
 export let analyzeCaptures = (func: FunctionExpression, model: SemanticModel): CaptureInfo => {
   let info = new CaptureInfo();
-  let seen = new HashSet<SymbolId>();
+  let seen = new Set<SymbolId>();
 
   // Traverse the body and collect referenced variables that are declared outside
   walkEnter(func.body, (n: Node): void => {

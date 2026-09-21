@@ -45,7 +45,7 @@ export final class EncodedImports {
   var typeCount = 0;
   var instanceCount = 0;
   /** Each imported interface's component instance index, by name. */
-  instanceIndices = new HashMap<String, i32>();
+  instanceIndices = new Map<String, i32>();
   /**
    * Component type indices for the canon builtins' nominal type
    * immediates, keyed by the builtin's `canonType` spelling
@@ -53,13 +53,13 @@ export final class EncodedImports {
    * instances by the encoder — a resource's type is the instance's
    * own, and only an alias can name it.
    */
-  canonTypeIndices = new HashMap<String, i32>();
+  canonTypeIndices = new Map<String, i32>();
   /**
    * Component type indices for the exports whose lifted type the
    * encoder wrote from the WIT rather than the emitter from a core
    * signature — the declared world's async exports — by export name.
    */
-  exportTypeIndices = new HashMap<String, i32>();
+  exportTypeIndices = new Map<String, i32>();
   new();
 }
 

@@ -28,7 +28,6 @@
  * Determinism: callees in function order, sites in body and
  * instruction order, clones appended in that order.
  */
-import { HashMap } from 'zena:collections';
 import { String, i32ToString } from 'zena:core';
 import {
   IrBlock, IrBody, IrOp, IrRefFunc, IrRefGlobal,
@@ -53,7 +52,7 @@ final class Site {
  */
 export let runSpecialize = (wasm: WasmModule, bodies: GrowableArray<IrBody>,
     changed: GrowableArray<boolean>): i32 => {
-  let bodyIndex = new HashMap<WasmFunction, i32>();
+  let bodyIndex = new Map<WasmFunction, i32>();
   let originalCount = wasm.functions.length;
   for (var i = 0; i < originalCount; i += 1) {
     bodyIndex[wasm.functions[i]] = i;

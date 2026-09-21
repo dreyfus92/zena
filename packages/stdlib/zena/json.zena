@@ -1,5 +1,3 @@
-import { HashMap } from 'zena:collections';
-import {OrderedMap} from './collections/hash-map.zena';
 import {GrowableArray, Box, Error, StringReader, StringBuilder, parseF64} from 'zena:core';
 import {div} from 'zena:math';
 
@@ -21,8 +19,8 @@ export final class SourceLocation {
 export type JsonValue = JsonObject | JsonArray | String | Box<f64> | Box<boolean> | null;
 
 export class JsonObject {
-  #fields = new OrderedMap<String, JsonValue>();
-  #locations: HashMap<String, SourceLocation> | null = null;
+  #fields = new Map<String, JsonValue>.ordered();
+  #locations: Map<String, SourceLocation> | null = null;
 
   static withLocations(): JsonObject {
     return new JsonObject(true);
@@ -30,7 +28,7 @@ export class JsonObject {
 
   new(withLocations: boolean = false)
     : #locations = 
-        if (withLocations) { new HashMap<String, SourceLocation>() }
+        if (withLocations) { new Map<String, SourceLocation>() }
         else { null } {}
 
   operator [](key: String): JsonValue {

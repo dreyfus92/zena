@@ -58,7 +58,7 @@ declare function __read_file(path: String, len: i32): String | null;
  * JS host's filesystem read.
  */
 class LspHost implements CompilerHost {
-  #openDocuments = new HashMap<String, String>();
+  #openDocuments = new Map<String, String>();
   #stdlibRoot: String;
 
   new(stdlibRoot: String) : #stdlibRoot = stdlibRoot;
@@ -825,8 +825,8 @@ export class LanguageService {
   #host: LspHost;
   #compiler: Compiler;
   var #cachedCheckResult: ProgramCheckResult | null = null;
-  #scopeResults = new HashMap<String, ScopeResult>();
-  #compilations = new HashMap<String, CompilationResult>();
+  #scopeResults = new Map<String, ScopeResult>();
+  #compilations = new Map<String, CompilationResult>();
 
   new(host: LspHost, compiler: Compiler) : #host = host, #compiler = compiler;
 
@@ -1209,7 +1209,7 @@ export class LanguageService {
         if (nodeType == null) {
           nodeType = model.getBindingType(symbolInfo);
         }
-        // For type references (e.g. Symbol in HashMap<String, Symbol>),
+        // For type references (e.g. Symbol in Map<String, Symbol>),
         // getBindingType may fail because the reference map stores a different
         // Symbol (type namespace) than the one the checker used to store
         // the binding type (value namespace). Try the declaration's node type.
@@ -1298,7 +1298,7 @@ export class LanguageService {
             let objType = resolveObjectType(me.object, model, scopeResult, me.loc, ast, checkResult.sharedState);
             if (objType != null) {
               let memberItems = new Array<CompletionItem>();
-              let addedMembers = new HashMap<String, boolean>();
+              let addedMembers = new Map<String, boolean>();
 
               if (objType is ClassType) {
                 var currClass: ClassType | null = objType;
@@ -1423,7 +1423,7 @@ export class LanguageService {
     let searchPath = if (this.#scopeResults.has(normPath)) normPath else path;
     if (this.#scopeResults.has(searchPath)) {
       let scopeResult = this.#scopeResults[searchPath];
-      let added = new HashMap<String, boolean>();
+      let added = new Map<String, boolean>();
       for (let kw in keywords) { added[kw] = true; }
       for (let b in builtins) { let (name, _) = b; added[name] = true; }
 
@@ -1676,7 +1676,7 @@ let resolveClassMemberHover = (ast: Module, offset: i32, model: SemanticModel): 
  */
 export let createLanguageService = (stdlibRoot: String): LanguageService => {
   let host = new LspHost(stdlibRoot);
-  let packages = new HashMap<String, PackageConfig>();
+  let packages = new Map<String, PackageConfig>();
   let options = new CompilerOptions("host", stdlibRoot, packages);
   // Source in an editor is source mid-edit: recover from what can be
   // recovered from, so an unfinished import still yields an AST to

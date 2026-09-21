@@ -52,7 +52,7 @@ export final class ZirFunctionEmitter {
    * argStart (unique per successor record): flat (src, dst) local
    * pairs. Edges whose moves all coalesced away have no entry.
    */
-  #movePlans = new HashMap<i32, GrowableArray<i32>>();
+  #movePlans = new Map<i32, GrowableArray<i32>>();
   /** Locals beyond the signature params, in index order. */
   localTypes = new Array<ValType>();
   /**
@@ -63,7 +63,7 @@ export final class ZirFunctionEmitter {
    */
   #varLocal = new Array<i32>();
   /** Multi-result call -> its mv_get projections, ascending index. */
-  #mvProjections = new HashMap<i32, GrowableArray<i32>>();
+  #mvProjections = new Map<i32, GrowableArray<i32>>();
   frames = new Array<EmitFrame>();
   /**
    * Stack-scheduled values (ir.md §12, first step): used exactly
@@ -674,7 +674,7 @@ export final class ZirFunctionEmitter {
       }
       return c;
     };
-    let membersOf = new HashMap<i32, GrowableArray<i32>>();
+    let membersOf = new Map<i32, GrowableArray<i32>>();
     let members = (root: i32): GrowableArray<i32> => {
       if (let (true, list) = membersOf.get(root)) {
         return list;
