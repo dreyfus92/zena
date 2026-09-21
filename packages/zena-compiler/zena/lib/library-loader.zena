@@ -309,29 +309,21 @@ export class LibraryLoader {
     let norm = normalizePath(path);
     if (this.#cache.has(norm)) { this.#cache.delete(norm); }
     if (this.#cache.has(path)) { this.#cache.delete(path); }
-
-    // Clear scopeResult on cached files that directly import this path.
-    let iter = this.#cache.keys();
-    while (let (true, p) = iter.next()) {
-      let cached = this.#cache[p];
-      if (!cached.isStdlib && cached.scopeResult != null) {
-        let importIter = cached.imports.keys();
-        while (let (true, spec) = importIter.next()) {
-          let target = cached.imports[spec];
-          if (target == path || target == norm) {
-            cached.scopeResult = null;
-          }
-        }
-      }
-    }
+    // The files that import this one keep their scope trees. Import
+    // wiring is redone for every file on every compile (the compiler's
+    // wire-to-fixpoint pass re-links each import specifier to the
+    // exporter's current Symbol), so nothing about the importer's own
+    // scope depends on the file that changed — and a rebuilt scope
+    // would mint fresh Symbols, which a check result carried forward
+    // for the importer could not answer for (ProgramCheckResult.scopes).
   }
 
   /**
    * Invalidate a single file by canonical path (push-based).
    *
-   * Evicts the file from the cache, clears `scopeResult` on any cached
-   * file that directly imports it (so import wiring is redone), then
-   * re-loads the file from the host so it's ready for the next compile.
+   * Evicts the file from the cache, then re-loads it from the host so
+   * it's ready for the next compile. Files that import it keep their
+   * scope trees; the compiler re-wires every import on each compile.
    *
    * Use this in push-based environments (IDE, language service) where
    * the host knows exactly which file changed. For pull-based batch
@@ -378,29 +370,11 @@ export class LibraryLoader {
     }
 
     if (changedPaths.size > 0) {
-      // Phase 2: Clear scope results for non-stdlib files that directly
-      // import any changed file, so import wiring is redone with fresh
-      // dependency exports. Files that don't import a changed file keep
-      // their cached scope results.
-      let iter2 = this.#cache.keys();
-      while (let (true, path) = iter2.next()) {
-        let cached = this.#cache[path];
-        if (!cached.isStdlib && cached.scopeResult != null) {
-          // Check if this file imports any changed path.
-          let importIter = cached.imports.keys();
-          var needsClear = false;
-          while (let (true, spec) = importIter.next()) {
-            if (changedPaths.has(cached.imports[spec])) {
-              needsClear = true;
-            }
-          }
-          if (needsClear) {
-            cached.scopeResult = null;
-          }
-        }
-      }
+      // Files importing a changed one keep their scope trees, as in
+      // `delete`: import wiring is redone every compile, and a fresh
+      // scope would invalidate their carried check results.
 
-      // Phase 3: Re-load evicted files so they're back in the cache
+      // Phase 2: Re-load evicted files so they're back in the cache
       // before computeGraph() tries to find them.
       for (let path in changedPaths) {
         this.load(path);

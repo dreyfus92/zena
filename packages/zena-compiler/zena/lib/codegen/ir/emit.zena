@@ -1980,6 +1980,10 @@ export final class ZirFunctionEmitter {
     }
   }
 
+  #funcName(): String {
+    return if (this.func.name != null) this.func.name as String else '<unnamed>';
+  }
+
   #emitRefCastInst(inst: i32): void {
     let {body} = this;
     this.#pushValue(body.a[inst]);
@@ -1994,7 +1998,13 @@ export final class ZirFunctionEmitter {
       }
       case ValTypeEqRef: { this.emitter.emitRefCastEqNull(); }
       case _: {
-        throw new Error('zir emit: ref.cast target kind');
+        let kind = match (body.typeTable[body.b[inst]]) {
+          case ValTypeAnyRef: 'anyref'
+          case ValTypeStructRef: 'structref'
+          case ValTypeVoid: 'void'
+          case _: 'a non-reference type'
+        };
+        throw new Error('zir emit: ref.cast target kind ' + kind + ' [in ' + this.#funcName() + ']');
       }
     }
   }

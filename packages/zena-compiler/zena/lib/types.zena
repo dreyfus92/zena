@@ -176,6 +176,18 @@ export final class FieldInfo extends MemberInfo {
   var isMutable: boolean;
   var hasInitializer: boolean;
 
+  /**
+   * For a field declared without a type, infers it from the initializer
+   * on first demand, in the declaring module's context (the checker
+   * sets this at registration and clears it once run). A member of an
+   * import cycle can read such a field of a class from another member
+   * before that member's bodies have been checked.
+   */
+  var pendingInit: (() => Type) | null = null;
+
+  /** Whether the initializer has been checked, eagerly or on demand. */
+  var initializerChecked: boolean = false;
+
   new(
     type: Type,
     this.isMutable = false,

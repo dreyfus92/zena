@@ -228,6 +228,17 @@ export final class SharedCheckerState {
    */
   modelIndex = new ModelIndex();
 
+  /**
+   * Modules of the current compilation that have registered their
+   * declarations but not yet checked their bodies: the members of an
+   * import cycle, between beginModule and finishModule. Keyed by module
+   * path. A module here answers for the signatures of the annotated
+   * functions it exports before its bodies are checked
+   * (CheckerContext.resolveExportedFunction), which is what lets a
+   * cycle be checked in one pass over each member.
+   */
+  inProgressModules = new HashMap<String, CheckerContext>();
+
   invalidatePath(path: String): void {
     let tpKeys = this.typeParameterTypes.keys();
     let toDeleteTp = new GrowableArray<String>();
@@ -1001,6 +1012,17 @@ final class CheckerContext {
       }
     }
 
+    // An import from a member of the same import cycle that has
+    // registered its declarations but not yet checked its bodies: its
+    // annotated functions resolve on demand from the origin's context.
+    if (resolvedSym.id != info.id) {
+      let lazy = this.resolveInProgressFunction(resolvedSym);
+      if (lazy != null) {
+        this.model.setBindingType(info, lazy);
+        return lazy;
+      }
+    }
+
     // No type stored yet — attempt lazy resolution for pending functions.
     if (let (true, pendingFunc) = this.#pendingFunctions.get(info.id)) {
       return this.lazyResolveFunction(info, pendingFunc);
@@ -1134,17 +1156,58 @@ final class CheckerContext {
       }
     }
 
-    // Resolve parameter types.
+    // Resolve parameter types. Optional parameters are recorded the way
+    // checkFunctionExpression records them — a `?` parameter without a
+    // default widens to `T | null`, a default stays on the declared type
+    // and is kept for the caller-side splice — so a call resolved
+    // through this path (a forward reference, or an import from a
+    // member of the same import cycle) may omit them.
     let paramTypes = new GrowableArray<Type>();
     let paramNames = new GrowableArray<String>();
+    var hasOptionals = false;
+    let optionals = new GrowableArray<boolean>();
+    var hasInitializers = false;
+    let initializers = new GrowableArray<Expression | null>();
     for (let param in params) {
       paramNames.push(param.name.name);
       let {typeAnnotation} = param;
-      if (typeAnnotation != null) {
-        paramTypes.push(resolveTypeAnnotation(this, typeAnnotation, false));
+      var paramType: Type = if (typeAnnotation != null) {
+        resolveTypeAnnotation(this, typeAnnotation, false)
       } else {
-        paramTypes.push(new ErrorType());
+        new ErrorType() as Type
+      };
+      let isOptional = param.optional || param.defaultValue != null;
+      optionals.push(isOptional);
+      initializers.push(param.defaultValue);
+      if (param.defaultValue != null) {
+        hasInitializers = true;
       }
+      if (isOptional) {
+        hasOptionals = true;
+        if (param.optional && param.defaultValue == null) {
+          var alreadyNullable = false;
+          match (paramType) {
+            case NullType: { alreadyNullable = true; }
+            case UnionT {types}: {
+              for (let member in types) {
+                if (member is NullType) { alreadyNullable = true; }
+              }
+            }
+            case _: {}
+          }
+          if (!alreadyNullable) {
+            let unionTypes = new GrowableArray<Type>();
+            unionTypes.push(paramType);
+            unionTypes.push(new NullType());
+            // Every argument spelled out: this is a forward reference to
+            // a function with defaults, which is exactly what this
+            // change teaches the checker — but the bootstrap compiling
+            // this file does not know it yet.
+            paramType = createUnionType(unionTypes, null, null);
+          }
+        }
+      }
+      paramTypes.push(paramType);
     }
 
     // Resolve return type. For generators the annotation is the full
@@ -1157,6 +1220,12 @@ final class CheckerContext {
     let funcType = new FunctionType(paramTypes, paramNames, retType);
     if (resolvedTypeParams != null) {
       funcType.typeParameters = resolvedTypeParams;
+    }
+    if (hasOptionals) {
+      funcType.optionalParameters = optionals;
+    }
+    if (hasInitializers) {
+      funcType.parameterInitializers = initializers;
     }
 
     return funcType as Type;
@@ -1950,6 +2019,75 @@ final class CheckerContext {
    */
   depModels: HashMap<String, SemanticModel> | null {
     get { return this.#depModels; }
+  }
+
+  /**
+   * Make a dependency's model visible to this module. Used between
+   * beginModule and finishModule for a cycle member whose dependencies
+   * were still being registered when this module began.
+   */
+  addDepModel(key: String, model: SemanticModel): void {
+    if (this.#depModels == null) {
+      this.#depModels = new HashMap<String, SemanticModel>();
+    }
+    (this.#depModels as HashMap<String, SemanticModel>)[key] = model;
+  }
+
+  /**
+   * The type of a function this module exports, resolved from its
+   * annotations on demand — for an importer that is a member of the
+   * same import cycle and is checking its bodies before this module
+   * has checked its own. Null when the symbol is not a function this
+   * module can resolve that way (the cycle rules already require a
+   * full signature for a function crossing a back edge).
+   */
+  resolveExportedFunction(sym: Symbol): Type | null {
+    let bound = this.model.getBindingType(sym);
+    if (bound != null) {
+      return bound;
+    }
+    if (let (true, pending) = this.#pendingFunctions.get(sym.id)) {
+      return this.lazyResolveFunction(sym, pending);
+    }
+    return null;
+  }
+
+  /**
+   * The type of `origin`, a function declared by another module of the
+   * same import cycle that has registered but not finished — resolved
+   * from that module's context. Null when there is no such module, or
+   * the symbol is not a function it can resolve.
+   */
+  resolveInProgressFunction(origin: Symbol): Type | null {
+    if (origin.modulePath == this.#filePath) {
+      return null;
+    }
+    if (let (true, other) = this.#sharedState.inProgressModules.get(origin.modulePath)) {
+      return other.resolveExportedFunction(origin);
+    }
+    return null;
+  }
+
+  /**
+   * The type a type declaration `origin` names, when its module is a
+   * member of the same import cycle that has registered but not
+   * finished: what that module's own registration bound for it, or —
+   * for a declaration registration does not bind, such as a distinct
+   * type alias — what its context resolves the name to. Null when
+   * there is no such module.
+   */
+  resolveInProgressType(origin: Symbol): Type | null {
+    if (origin.modulePath == this.#filePath) {
+      return null;
+    }
+    if (let (true, other) = this.#sharedState.inProgressModules.get(origin.modulePath)) {
+      let bound = other.model.getBindingType(origin);
+      if (bound != null) {
+        return bound;
+      }
+      return other.resolveTypeName(origin.name);
+    }
+    return null;
   }
 
   // --- Return type ---
@@ -3835,6 +3973,25 @@ let prescanPendingFunctions = (ctx: CheckerContext, body: GrowableArray<Statemen
   }
 };
 
+/**
+ * A module between the two halves of its check: its declarations are
+ * registered (beginModule) and its bodies are not yet checked
+ * (finishModule). The members of an import cycle are all begun before
+ * any is finished, so every body sees every member's declarations.
+ */
+export final class ModuleCheck {
+  ctx: CheckerContext;
+  ast: Module;
+  scopeResult: ScopeResult;
+  state: SharedCheckerState;
+  new(this.ctx, this.ast, this.scopeResult, this.state);
+}
+
+/**
+ * Check a module: register its declarations, then check its bodies.
+ * The two halves are beginModule and finishModule; a module outside
+ * any import cycle runs them back to back.
+ */
 export let checkModule = (
   ast: Module,
   scopeResult: ScopeResult,
@@ -3847,6 +4004,29 @@ export let checkModule = (
   cyclicRecheckPaths: HashSet<String> | null = null,
   priorModel: SemanticModel | null = null
 ): CheckResult => {
+  return finishModule(beginModule(ast, scopeResult, depExports, depModels,
+      emitLocations, sharedState, warnUnnecessaryCasts, cyclicLaterPaths,
+      cyclicRecheckPaths, priorModel));
+};
+
+/**
+ * The first half of checking a module: imports, scope diagnostics, and
+ * the registration of every declaration's signature, so that all
+ * member signatures exist before any body is checked. The result
+ * carries the module's context to finishModule.
+ */
+export let beginModule = (
+  ast: Module,
+  scopeResult: ScopeResult,
+  depExports: HashMap<String, ModuleExports> | null,
+  depModels: HashMap<String, SemanticModel> | null = null,
+  emitLocations: boolean = false,
+  sharedState: SharedCheckerState | null = null,
+  warnUnnecessaryCasts: boolean = false,
+  cyclicLaterPaths: HashSet<String> | null = null,
+  cyclicRecheckPaths: HashSet<String> | null = null,
+  priorModel: SemanticModel | null = null
+): ModuleCheck => {
   let state = if (sharedState != null) sharedState else new SharedCheckerState();
   let ctx = new CheckerContext(state, ast.path, scopeResult, depExports, depModels, emitLocations, warnUnnecessaryCasts);
   ctx.cyclicLaterPaths = cyclicLaterPaths;
@@ -3982,6 +4162,20 @@ export let checkModule = (
       case _: {}
     }
   }
+
+  return new ModuleCheck(ctx, ast, scopeResult, state);
+};
+
+/**
+ * The second half of checking a module: its bodies, against the
+ * declarations every module it imports from has registered by now;
+ * then its diagnostics and export bindings.
+ */
+export let finishModule = (mc: ModuleCheck): CheckResult => {
+  let ctx = mc.ctx;
+  let ast = mc.ast;
+  let scopeResult = mc.scopeResult;
+  let state = mc.state;
 
   // === Phase 2: Main Checking Phase ===
   // This is the actual checking phase where the full structure is validated
@@ -9347,6 +9541,13 @@ case _: {
                     resolvedType = lookupBindingTypeInDeps(ctx, typeExport);
                   }
                   if (resolvedType == null) {
+                    // The origin is a member of the same import cycle
+                    // that has registered its declarations but not yet
+                    // finished (so its export types are not filled in):
+                    // ask its context.
+                    resolvedType = ctx.resolveInProgressType(typeExport.resolveTarget());
+                  }
+                  if (resolvedType == null) {
                     // Cycle back edge on the first pass: the origin has
                     // no model yet. Materialize (or reuse) the canonical
                     // shell for nominal declarations; the origin's own
@@ -9441,10 +9642,29 @@ case _: {
                       // canonical shell.
                       resolvedValType = ctx.materializeCyclicImport(valueExport, importedName);
                     }
+                    if (resolvedValType == null) {
+                      // A function from a member of the same import cycle
+                      // that has registered its declarations but not yet
+                      // checked its bodies: its signature comes from its
+                      // annotations, on demand.
+                      resolvedValType = ctx.resolveInProgressFunction(valueExport.resolveTarget());
+                    }
                     if (resolvedValType != null) {
                       ctx.declareBinding(localValInfo, resolvedValType);
                     } else if (typeExport == null) {
-                      ctx.declareBinding(localValInfo, new ErrorType());
+                      // A function from later in the cycle, not yet
+                      // registered: left unbound here, and resolved the
+                      // same way at its first use, by which time the
+                      // origin has registered (resolveIdentifierInternal).
+                      // Anything else is an error the cycle rules have
+                      // already reported.
+                      let origin = valueExport.resolveTarget();
+                      let laterForFn = ctx.cyclicLaterPaths;
+                      let deferred = origin.isFunctionBinding && laterForFn != null &&
+                          laterForFn.has(origin.modulePath);
+                      if (!deferred) {
+                        ctx.declareBinding(localValInfo, new ErrorType());
+                      }
                     }
                   }
                 }
@@ -13320,7 +13540,7 @@ let registerClassDeclaration = (ctx: CheckerContext, cd: ClassDeclaration): void
           ownFieldNames.add(actualFieldName);
 
           let isMutable = (fd.mutability != null && fd.mutability == "var") || hasPrivateSetter;
-          classType.members[actualFieldName] = new FieldInfo(
+          let registeredField = new FieldInfo(
             fieldType,
             isMutable,
             false, // isAbstract
@@ -13328,6 +13548,48 @@ let registerClassDeclaration = (ctx: CheckerContext, cd: ClassDeclaration): void
             actualFieldName.length > 0 && actualFieldName.sliceBytes(0, 1) == "#", // isPrivate
             fd.value != null // hasInitializer
           );
+          classType.members[actualFieldName] = registeredField;
+
+          // A field declared without a type gets it from its initializer,
+          // normally when this class's bodies are checked. Another member
+          // of an import cycle can read the field before then, so the
+          // inference is also available on demand, run once, with the
+          // same scope checkClassBodies would give it.
+          if (fd.typeAnnotation == null && fd.value != null) {
+            let pendingDecl = cd;
+            let pendingClass = classType;
+            let pendingName = fieldName;
+            registeredField.pendingInit = (): Type => {
+              if (registeredField.initializerChecked) {
+                return registeredField.type;
+              }
+              ctx.enterScope();
+              let tps = pendingClass.typeParameters;
+              if (tps != null) {
+                for (let tp in tps) {
+                  ctx.declareTypeName(tp.name, tp);
+                }
+              }
+              ctx.enterClass(pendingClass);
+              let prevBodyThis = ctx.bodyThisType;
+              ctx.setBodyThisType(selfTypeOfClass(pendingClass));
+              let order = new GrowableArray<String>();
+              var at = 0;
+              for (let m in pendingDecl.body) {
+                if (m is FieldDefinition) {
+                  if (m === fd) {
+                    at = order.length;
+                  }
+                  order.push(fieldDeclaredName(m));
+                }
+              }
+              checkFieldInitializer(ctx, pendingClass, fd, pendingName, at, order);
+              ctx.setBodyThisType(prevBodyThis);
+              ctx.exitClass();
+              ctx.exitScope();
+              return registeredField.type;
+            };
+          }
 
           if (fd.isDeclare) {
             let df = classType.declaredFields;
@@ -13952,6 +14214,145 @@ let registerClassDeclaration = (ctx: CheckerContext, cd: ClassDeclaration): void
  * conformance, and abstract field/method implementation. Called in Phase 2
  * after all declaration signatures have been registered.
  */
+/** The name a field is declared under (a symbol-keyed one as `:name`). */
+let fieldDeclaredName = (fd: FieldDefinition): String => match (fd.name) {
+  case Identifier {name}: name
+  case SymbolPropertyName {symbolRef}: ":" + match (symbolRef) {
+    case Identifier {name}: name
+    case MemberExpression {property}: property.name
+    case _: "<symbol>"
+  }
+  case _: "<unknown>"
+};
+
+/**
+ * Resolve a field's type if it is still to be inferred from its
+ * initializer (FieldInfo.pendingInit). Called where a member access
+ * reads a field's type, so a class from another member of an import
+ * cycle answers before its own bodies are checked.
+ */
+let settleFieldType = (fi: FieldInfo): void => {
+  let pending = fi.pendingInit;
+  if (pending != null) {
+    fi.pendingInit = null;
+    fi.type = pending();
+  }
+};
+
+/**
+ * Check a field's initializer against its declared type, or infer the
+ * type from it when none is declared. Run once per field: by
+ * checkClassBodies in declaration order, or earlier on demand through
+ * FieldInfo.pendingInit. `fieldIndex` and `fieldOrder` say which fields
+ * were declared before this one; later fields and inherited ones are
+ * hidden while the initializer is checked.
+ */
+let checkFieldInitializer = (
+  ctx: CheckerContext,
+  classType: ClassType,
+  fd: FieldDefinition,
+  fieldName: String,
+  fieldIndex: i32,
+  fieldOrder: GrowableArray<String>
+): void => {
+  let {value} = fd;
+  if (value == null) {
+    return;
+  }
+  // A `var(#x) x` field is registered under its SETTER name.
+  var lookupField = fieldName;
+  let fsn = classType.fieldSetterNames;
+  if (fsn != null) {
+    if (let (true, mapped) = fsn.get(fieldName)) {
+      lookupField = mapped;
+    }
+  }
+  if (!classType.members.has(lookupField)) {
+    return;
+  }
+  let fieldInfo = classType.members[lookupField];
+  if (fieldInfo is FieldInfo) {
+    if (fieldInfo.initializerChecked) {
+      return;
+    }
+    fieldInfo.initializerChecked = true;
+    fieldInfo.pendingInit = null;
+  }
+
+  ctx.enterNodeReferrer(fd.id as i32);
+
+  // Temporarily hide fields declared after this one or inherited from superclasses,
+  // so that they cannot be accessed within the field's default initializer.
+  let hiddenFields = new HashMap<String, MemberInfo>();
+  let keysToHide = new GrowableArray<String>();
+
+  let allFieldKeys = classType.members.keys();
+  while (let (true, k) = allFieldKeys.next()) {
+    if (classType.members[k] is FieldInfo) {
+      var isPriorLocal = false;
+      var fi = 0;
+      while (fi <= fieldIndex) {
+        // A `var(#x) x` field's member key is its SETTER name;
+        // fieldOrder carries the declared one.
+        var declared = fieldOrder[fi];
+        let fsnOrder = classType.fieldSetterNames;
+        if (fsnOrder != null) {
+          if (let (true, mapped) = fsnOrder.get(declared)) {
+            declared = mapped;
+          }
+        }
+        if (declared == k) {
+          isPriorLocal = true;
+        }
+        fi = fi + 1;
+      }
+      if (!isPriorLocal) {
+        keysToHide.push(k);
+      }
+    }
+  }
+
+  var kh = 0;
+  while (kh < keysToHide.length) {
+    let k = keysToHide[kh];
+    hiddenFields[k] = classType.members[k];
+    classType.members.delete(k);
+    kh = kh + 1;
+  }
+
+  let fieldType = fieldInfo.type;
+  let initType = checkExpression(ctx, value, fieldType);
+
+  // Restore hidden fields.
+  let restoreKeys = hiddenFields.keys();
+  while (let (true, key) = restoreKeys.next()) {
+    classType.members[key] = hiddenFields[key];
+  }
+
+  // Infer field type from initializer when no explicit annotation.
+  if (fieldType is ErrorType && !(initType is ErrorType)) {
+    var inferredType = initType;
+    if (fd.mutability != null && fd.mutability == "var") {
+      inferredType = widenType(ctx, initType);
+    }
+    fieldInfo.type = inferredType;
+  } else if (!isAssignableTo(ctx, initType, fieldType)) {
+    ctx.error(
+      "Type mismatch: field '" + fieldName + "' has type '" +
+      typeToString(fieldType) + "' but initializer has type '" +
+      typeToString(initType) + "'.",
+      DiagnosticCode.TypeMismatch,
+      fd.loc
+    );
+  } else {
+    let instantiatedVal = tryInstantiateGenericFunction(ctx, initType, fieldType);
+    if (instantiatedVal != initType) {
+      ctx.setNodeType(value, instantiatedVal);
+    }
+  }
+  ctx.exitNodeReferrer(fd.id as i32);
+};
+
 let checkClassBodies = (ctx: CheckerContext, cd: ClassDeclaration): void => {
   let className = cd.name.name;
 
@@ -14009,98 +14410,8 @@ let checkClassBodies = (ctx: CheckerContext, cd: ClassDeclaration): void => {
   for (let member in cd.body) {
     match (member) {
       case FieldDefinition as fd: {
-        let {value} = fd;
-        if (value != null) {
-          ctx.enterNodeReferrer(fd.id as i32);
-          let fieldName = match (fd.name) {
-            case Identifier {name}: name
-          case SymbolPropertyName {symbolRef}: ":" + match (symbolRef) {
-            case Identifier {name}: name
-            case MemberExpression {property}: property.name
-            case _: "<symbol>"
-          }
-          case _: "<unknown>"
-          };
-
-          // Temporarily hide fields declared after this one or inherited from superclasses,
-          // so that they cannot be accessed within the field's default initializer.
-          let hiddenFields = new HashMap<String, MemberInfo>();
-          let keysToHide = new GrowableArray<String>();
-          
-          let allFieldKeys = classType.members.keys();
-          while (let (true, k) = allFieldKeys.next()) {
-            if (classType.members[k] is FieldInfo) {
-              var isPriorLocal = false;
-              var fi = 0;
-              while (fi <= fieldIndex) {
-                // A `var(#x) x` field's member key is its SETTER name;
-                // fieldOrder carries the declared one.
-                var declared = fieldOrder[fi];
-                let fsnOrder = classType.fieldSetterNames;
-                if (fsnOrder != null) {
-                  if (let (true, mapped) = fsnOrder.get(declared)) {
-                    declared = mapped;
-                  }
-                }
-                if (declared == k) {
-                  isPriorLocal = true;
-                }
-                fi = fi + 1;
-              }
-              if (!isPriorLocal) {
-                keysToHide.push(k);
-              }
-            }
-          }
-          
-          var kh = 0;
-          while (kh < keysToHide.length) {
-            let k = keysToHide[kh];
-            hiddenFields[k] = classType.members[k];
-            classType.members.delete(k);
-            kh = kh + 1;
-          }
-
-          // A `var(#x) x` field is registered under its SETTER name.
-          var lookupField = fieldName;
-          let fsn = classType.fieldSetterNames;
-          if (fsn != null) {
-            if (let (true, mapped) = fsn.get(fieldName)) {
-              lookupField = mapped;
-            }
-          }
-          let fieldInfo = classType.members[lookupField];
-          let fieldType = fieldInfo.type;
-          let initType = checkExpression(ctx, value, fieldType);
-
-          // Restore hidden fields.
-          let restoreKeys = hiddenFields.keys();
-          while (let (true, key) = restoreKeys.next()) {
-            classType.members[key] = hiddenFields[key];
-          }
-
-          // Infer field type from initializer when no explicit annotation.
-          if (fieldType is ErrorType && !(initType is ErrorType)) {
-            var inferredType = initType;
-            if (fd.mutability != null && fd.mutability == "var") {
-              inferredType = widenType(ctx, initType);
-            }
-            fieldInfo.type = inferredType;
-          } else if (!isAssignableTo(ctx, initType, fieldType)) {
-            ctx.error(
-              "Type mismatch: field '" + fieldName + "' has type '" +
-              typeToString(fieldType) + "' but initializer has type '" +
-              typeToString(initType) + "'.",
-              DiagnosticCode.TypeMismatch,
-              fd.loc
-            );
-          } else {
-            let instantiatedVal = tryInstantiateGenericFunction(ctx, initType, fieldType);
-            if (instantiatedVal != initType) {
-              ctx.setNodeType(value, instantiatedVal);
-            }
-          }
-          ctx.exitNodeReferrer(fd.id as i32);
+        if (fd.value != null) {
+          checkFieldInitializer(ctx, classType, fd, fieldDeclaredName(fd), fieldIndex, fieldOrder);
         }
         fieldIndex = fieldIndex + 1;
       }
@@ -15277,7 +15588,18 @@ let checkInterfaceDeclaration = (ctx: CheckerContext, id: InterfaceDeclaration):
       let parentType = resolveTypeAnnotation(ctx, currentExtends);
       match (parentType) {
         case InterfaceType as pt: {
-          ifaceType.extendsList.push(pt);
+          // Registration can run twice on one canonical object (a
+          // member of an import cycle registers again once every
+          // member has); the parents list is shared with the
+          // interface's instantiations, so it is deduplicated rather
+          // than replaced.
+          var alreadyListed = false;
+          for (let listed in ifaceType.extendsList) {
+            if (listed === pt) { alreadyListed = true; }
+          }
+          if (!alreadyListed) {
+            ifaceType.extendsList.push(pt);
+          }
           // Inherit members.
           for (let key in pt.members.keys()) {
             if (let (true, parentMember) = pt.members.get(key)) {
@@ -17315,6 +17637,7 @@ let resolveMemberType = (
           );
           return new ErrorType();
         }
+        settleFieldType(fi);
         let fieldType = fi.type;
         // Substitute type parameters if this is an instantiated generic class.
         let subField = substituteTypeParams(ct.typeParameters, ct.typeArguments, fieldType);

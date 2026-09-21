@@ -1,0 +1,14 @@
+// Support module for cycle_iface_extends.zena: the parent interface and
+// a class implementing the child interface from the importing module.
+import { Wide } from './cycle_iface_extends.zena';
+
+export interface Narrow {
+  base(): i32;
+}
+
+export class Impl implements Wide {
+  value: i32;
+  new(this.value);
+  base(): i32 { return this.value; }
+  doubled(): i32 { return this.value * 2; }
+}

@@ -1,0 +1,13 @@
+// Support module for cycle_class_extends.zena: the superclass, and a
+// function whose body constructs the subclass from the importing module.
+import { Derived } from './cycle_class_extends.zena';
+
+export class Base {
+  value: i32;
+  new(this.value);
+}
+
+export let twice = (n: i32): i32 => {
+  let d = new Derived(n);
+  return d.value * 2;
+};

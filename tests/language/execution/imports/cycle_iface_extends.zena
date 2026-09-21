@@ -1,0 +1,17 @@
+// @mode: run
+// @result: 30
+
+// An interface extending an interface from later in an import cycle.
+// Registering `Wide` copies `Narrow`'s members, and `Narrow` is an empty
+// shell at that point, so this is the shape that still needs the
+// cycle's second checking pass.
+import { Narrow, Impl } from './cycle_iface_extends_b.zena';
+
+export interface Wide extends Narrow {
+  doubled(): i32;
+}
+
+export let main = (): i32 => {
+  let w: Wide = new Impl(10);
+  return w.base() + w.doubled();
+};

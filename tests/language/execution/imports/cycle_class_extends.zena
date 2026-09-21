@@ -1,0 +1,19 @@
+// @mode: run
+// @result: 12
+
+// A class extending a class from later in an import cycle. The
+// superclass is an empty shell when this module registers; its members
+// are looked up through the superclass when the body is checked, by
+// which time the whole cycle has registered.
+import { Base, twice } from './cycle_class_extends_b.zena';
+
+export class Derived extends Base {
+  new(v: i32) : super(v);
+  tripled(): i32 { return this.value * 3; }
+}
+
+export let main = (): i32 => {
+  let d = new Derived(2);
+  // 6 + twice(3) = 6 + 6
+  return d.tripled() + twice(3);
+};

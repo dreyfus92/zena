@@ -74,39 +74,71 @@ implementation in both compilers.
    the static value rule covers the direct case, and chasing it through
    call graphs is undecidable. Don't do work in module initializers.
 
-## Implementation: two-pass checking
+## Implementation: registration before bodies
 
-Both compilers use the same architecture; no type is ever materialized
-from an unchecked module's AST.
+No type is ever materialized from an unchecked module's AST. Checking
+a module has two halves — registering its declarations' signatures
+(`beginModule`), then checking its bodies (`finishModule`) — and an
+import cycle is checked by registering every member before any
+member's bodies are checked. Bodies, where nearly all the checking
+happens, are checked once.
 
-- **Pass one** checks every module once, in evaluation order. A
-  back-edge import of a _nominal_ type resolves to the declaration's
-  canonical object — materialized as a shell from the origin's AST if
-  the origin has not been checked yet, and later filled in (never
-  replaced) by the origin's own registration. Value bindings and
-  function signatures cannot resolve until the exporter has a model;
-  those uses re-check in pass two.
-- **The re-check closure** is computed up front from the import graph:
-  a module with a back-edge import, or one importing any re-checked
-  module, re-checks. Everything acyclic and upstream — the stdlib in
-  particular — is checked exactly once, and modules outside the closure
-  keep their pass-one results and diagnostics untouched.
-- **Pass two** re-checks exactly the closure, in evaluation order. By
-  then every module has a model, so back-edge imports resolve through
-  the normal path; each re-checked module's diagnostics wholesale
-  replace its first-pass ones (which were computed against missing
-  imports). The cycle rules above are enforced during this pass, keyed
-  by two sets threaded into the checker: modules later in evaluation
-  order, and the re-check closure.
-- **Incremental hosts** (a `previous` check result): closure members
-  never carry a previous result forward — their first-pass results are
-  order-dependent by design, and pass two consults closure models
-  before replacing them. Symmetrically, a shell is only materialized
-  for an import whose origin lies across a back edge of the _current_
-  compilation; any other model miss is stale incremental state (a
-  re-loaded module's rebuilt scope has fresh Symbols the old model
-  cannot resolve), and minting a shell there would give the
-  declaration a second nominal identity.
+- **Cycle members** are the strongly connected components of the import
+  graph with more than one module (`ImportComponents`, Tarjan's
+  algorithm). The files are in evaluation order, which is a post-order
+  of the import graph, so every member of a cycle precedes every module
+  outside it that imports from it. Walking the files in order: a member
+  registers when reached; when the cycle's last member has registered,
+  every member registers once more, in order, and then every member's
+  bodies are checked, in order. A module outside every cycle registers
+  and checks in one step, as before, and everything acyclic and
+  upstream — the stdlib in particular — costs what it always did.
+- **Why registration runs twice.** The first registration of an early
+  member sees the later members' types as empty shells — identity-stable
+  canonical objects, materialized from the origin's AST and filled in
+  (never replaced) by the origin's own registration. Identity is enough
+  for a signature to name a type, but an instantiation of a generic
+  type copies structure when it is made (a substituted interface copies
+  its parents list, a class instantiation its interfaces), and a
+  member registration copies a superclass's or a parent interface's
+  members. Those copies, made from a shell, stay stale after the shell
+  fills. Registering again, once every shell is filled, rebuilds them;
+  registration is signatures only, so it is cheap, and the first
+  registration's context and diagnostics are discarded.
+- **What bodies need** is then available. A function crossing a back
+  edge has a full signature (rule 4), which the origin's context
+  resolves from the annotations on demand: an importer asks the origin
+  through `SharedCheckerState.inProgressModules` — at import time when
+  the origin has registered, otherwise at the function's first use
+  (`CheckerContext.resolveInProgressFunction`). A type declaration that
+  registration binds nothing for, a distinct type alias, is resolved
+  the same way by the origin's context (`resolveInProgressType`). A
+  field declared without a type gets it from its initializer, normally
+  when the declaring class's bodies are checked; a member checking its
+  bodies earlier reads the field through `FieldInfo.pendingInit`, which
+  runs that inference on demand, once, in the declaring module's
+  context. The cycle rules are enforced during registration, keyed by
+  two sets threaded into the checker: modules later in evaluation
+  order, and the cycle's members.
+- **Incremental hosts** (a `previous` check result): a cycle member
+  carries its previous result forward like any other module, under one
+  rule that now applies to every module: the result was checked against
+  the same scope tree (`ProgramCheckResult.scopes`). Bindings are keyed
+  by Symbol id, and the loader rebuilds the scope tree of every file
+  that imports an invalidated file, so a carried result of such a file
+  could not answer for the fresh Symbols. Outside a cycle nobody asks
+  it to; inside one, its cycle partner does
+  (`cycle-incremental_test.zena` pins the case). A shell is only
+  materialized for an import whose origin lies across a back edge of
+  the _current_ compilation; any other model miss is stale incremental
+  state, and minting a shell there would give the declaration a second
+  nominal identity.
+
+An earlier design checked every cycle member twice, bodies included,
+and re-checked the whole closure of modules importing from a cycle,
+transitively — which made a cycle in the standard library re-check
+every program (the prelude reaches everything) at three times the
+compile time. The component computation is what remains of it.
 
 ### Self-hosted compiler
 

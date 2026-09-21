@@ -1,0 +1,73 @@
+// A cycle's members are checked once each, with a previous result carried
+// forward across compilations: the semantics runner's shape, where two
+// entries of one cycle are compiled back to back in one compiler.
+//
+// Invalidating the second entry makes the loader rebuild the scope tree of
+// every file that imports it — its cycle partner included — and a result
+// checked against the old scope tree cannot answer for the new Symbols.
+// The partner has to be re-checked, not carried forward, and the second
+// compilation must come out clean.
+import { suite, test, TestContext } from 'zena:test';
+import { equal } from 'zena:assert';
+import { readFile } from 'zena:fs';
+import { CompilerHost } from '../lib/library-loader.zena';
+import { createCompiler, CompilerOptions, checkCompilation, ProgramCheckResult } from '../lib/compiler.zena';
+import { loadPackageMap } from '../lib/package-manifest.zena';
+import { stdlibIdToRelativeFile } from '../lib/module-resolver.zena';
+import { Diagnostic, DiagnosticSeverity } from '../lib/diagnostics.zena';
+
+class FsHost implements CompilerHost {
+  #stdlibRoot: String;
+  new(stdlibRoot: String) : #stdlibRoot = stdlibRoot;
+  readFile(path: String): String {
+    if (path.startsWith("zena:")) {
+      return readFile(this.#stdlibRoot + "/" + stdlibIdToRelativeFile(path));
+    }
+    return readFile(path);
+  }
+}
+
+let errorsOf = (result: ProgramCheckResult): GrowableArray<String> => {
+  let out = new GrowableArray<String>();
+  for (let path in result.results.keys()) {
+    if (path.startsWith("zena:")) { continue; }
+    for (let d in result.results[path].diagnostics) {
+      match (d.severity) {
+        case DiagnosticSeverity.Error: { out.push(path + ": " + d.message); }
+        case _: {}
+      }
+    }
+  }
+  return out;
+};
+
+export let tests = suite('cycle members across incremental compiles', (): void => {
+  test('the second entry of a cycle checks clean after the first', (ctx: TestContext): void => {
+    let stdlibRoot = "packages/stdlib/zena";
+    let host = new FsHost(stdlibRoot);
+    let packages = loadPackageMap(host, "zena-packages.json");
+    let options = new CompilerOptions("host", stdlibRoot, packages);
+    let compiler = createCompiler(host, options);
+    let a = "tests/language/semantics/modules/cyclic_functions_ok.zena";
+    let b = "tests/language/semantics/modules/cyclic_functions_ok_first.zena";
+
+    compiler.invalidate(a);
+    let first = checkCompilation(compiler.compile(a), null);
+    let firstErrors = errorsOf(first);
+    for (let e in firstErrors) { console.log("first: " + e); }
+    equal(firstErrors.length, 0);
+
+    compiler.invalidate(b);
+    let second = checkCompilation(compiler.compile(b), first);
+    let secondErrors = errorsOf(second);
+    for (let e in secondErrors) { console.log("second: " + e); }
+    equal(secondErrors.length, 0);
+
+    // And a third compilation of the first entry again, everything
+    // unchanged: every module carries forward and it is still clean.
+    let third = checkCompilation(compiler.compile(a), second);
+    let thirdErrors = errorsOf(third);
+    for (let e in thirdErrors) { console.log("third: " + e); }
+    equal(thirdErrors.length, 0);
+  });
+});

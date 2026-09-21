@@ -35,7 +35,7 @@ import {
   ImportDeclaration, ExportFromDeclaration, ExportAllDeclaration, MemberExpression, FieldDefinition, MethodDefinition, ClassDeclaration, Identifier, Expression, ThisExpression, Node, Module, SourceLocation,
 } from './ast.zena';
 import { parse } from './parser.zena';
-import { checkModule, CheckResult, SharedCheckerState } from './checker.zena';
+import { checkModule, beginModule, finishModule, ModuleCheck, CheckResult, SharedCheckerState } from './checker.zena';
 import { walk } from './visitor.zena';
 import { Diagnostic, SourceSpan } from './diagnostics.zena';
 import { SemanticModel } from './semantic-model.zena';
@@ -177,6 +177,17 @@ export final class ProgramCheckResult {
 
   /** Shared checker state containing ID counters and prelude types. */
   sharedState: SharedCheckerState;
+
+  /**
+   * The scope tree each module was checked against, keyed by file path.
+   * A result can only carry forward while its module's scope tree is
+   * the same object: bindings are keyed by Symbol id, and a rebuilt
+   * scope (the loader rebuilds a file's scope when a file it imports is
+   * invalidated) mints fresh Symbols the old result cannot answer for.
+   * That matters when another module consults the carried result
+   * through the new Symbols — a member of the same import cycle does.
+   */
+  var scopes = new HashMap<String, ScopeResult>();
 
   new(
     this.results: HashMap<String, CheckResult>,
@@ -1518,15 +1529,28 @@ let buildReverseDeps = (
 /**
  * Check a single file: build its depExports/depModels and run checkModule.
  */
-let checkFile = (
+/**
+ * What a file's check reads from the rest of the compilation: the
+ * export maps of the modules it imports (by specifier), and the models
+ * of every module checked so far (by specifier and by path) — including
+ * cycle members that have registered their declarations but not yet
+ * checked their bodies (`inProgress`), whose models already hold those
+ * declarations.
+ */
+final class FileCheckInputs {
+  depExports: HashMap<String, ScopeModuleExports>;
+  depModels: HashMap<String, SemanticModel>;
+  laterPaths: HashSet<String> | null;
+  new(this.depExports, this.depModels, this.laterPaths);
+}
+
+let fileCheckInputs = (
   file: SourceFile,
   allResults: HashMap<String, CheckResult>,
+  inProgress: HashMap<String, ModuleCheck> | null,
   allFiles: GrowableArray<SourceFile>,
-  emitLocations: boolean,
-  sharedState: SharedCheckerState,
-  warnUnnecessaryCasts: boolean,
   recheckPaths: HashSet<String> | null
-): CheckResult => {
+): FileCheckInputs => {
   let depExports = new HashMap<String, ScopeModuleExports>();
   let depModels = new HashMap<String, SemanticModel>();
   let specIter = file.imports.keys();
@@ -1543,6 +1567,8 @@ let checkFile = (
     }
     if (allResults.has(depPath)) {
       depModels[specifier] = allResults[depPath].model;
+    } else if (inProgress != null && inProgress.has(depPath)) {
+      depModels[specifier] = inProgress[depPath].ctx.model;
     }
   }
 
@@ -1550,6 +1576,14 @@ let checkFile = (
   let resIter = allResults.keys();
   while (let (true, path) = resIter.next()) {
     depModels[path] = allResults[path].model;
+  }
+  if (inProgress != null) {
+    let progIter = inProgress.keys();
+    while (let (true, path) = progIter.next()) {
+      if (path != file.path) {
+        depModels[path] = inProgress[path].ctx.model;
+      }
+    }
   }
 
   // Modules that run after this one in evaluation order: an import
@@ -1570,6 +1604,82 @@ let checkFile = (
     }
     laterPaths = later;
   }
+  return new FileCheckInputs(depExports, depModels, laterPaths);
+};
+
+/**
+ * The first half of checking a member of an import cycle: register its
+ * declarations. Its bodies are checked by finishModule once every
+ * member of the cycle has registered.
+ */
+let beginFile = (
+  file: SourceFile,
+  allResults: HashMap<String, CheckResult>,
+  inProgress: HashMap<String, ModuleCheck>,
+  allFiles: GrowableArray<SourceFile>,
+  emitLocations: boolean,
+  sharedState: SharedCheckerState,
+  warnUnnecessaryCasts: boolean,
+  recheckPaths: HashSet<String> | null
+): ModuleCheck => {
+  let inputs = fileCheckInputs(file, allResults, inProgress, allFiles, recheckPaths);
+  return beginModule(
+    file.ast,
+    file.scopeResult as ScopeResult,
+    inputs.depExports,
+    inputs.depModels,
+    emitLocations,
+    sharedState,
+    warnUnnecessaryCasts,
+    inputs.laterPaths,
+    recheckPaths,
+    null);
+};
+
+/**
+ * Make every model checked or registered since a cycle member began
+ * visible to it, before its bodies are checked.
+ */
+let refreshDepModels = (
+  mc: ModuleCheck,
+  file: SourceFile,
+  allResults: HashMap<String, CheckResult>,
+  inProgress: HashMap<String, ModuleCheck>
+): void => {
+  let specIter = file.imports.keys();
+  while (let (true, specifier) = specIter.next()) {
+    let depPath = file.imports[specifier];
+    if (allResults.has(depPath)) {
+      mc.ctx.addDepModel(specifier, allResults[depPath].model);
+    } else if (inProgress.has(depPath)) {
+      mc.ctx.addDepModel(specifier, inProgress[depPath].ctx.model);
+    }
+  }
+  let resIter = allResults.keys();
+  while (let (true, path) = resIter.next()) {
+    mc.ctx.addDepModel(path, allResults[path].model);
+  }
+  let progIter = inProgress.keys();
+  while (let (true, path) = progIter.next()) {
+    if (path != file.path) {
+      mc.ctx.addDepModel(path, inProgress[path].ctx.model);
+    }
+  }
+};
+
+let checkFile = (
+  file: SourceFile,
+  allResults: HashMap<String, CheckResult>,
+  allFiles: GrowableArray<SourceFile>,
+  emitLocations: boolean,
+  sharedState: SharedCheckerState,
+  warnUnnecessaryCasts: boolean,
+  recheckPaths: HashSet<String> | null
+): CheckResult => {
+  let inputs = fileCheckInputs(file, allResults, null, allFiles, recheckPaths);
+  let depExports = inputs.depExports;
+  let depModels = inputs.depModels;
+  let laterPaths = inputs.laterPaths;
 
   // The same file's model from an earlier pass over this compilation
   // (the cycle-driven re-check): the splice of default arguments into
@@ -1811,34 +1921,10 @@ export let checkCompilation = (
     recheckPaths = recheck;
   }
 
-  // Check each file in topo order.
-  var fileIndex = -1;
-  for (let file in result.files) {
-    fileIndex += 1;
-    // Carry forward if source unchanged AND not invalidated by a dependency.
-    // Members of the re-check closure never carry forward: their first-pass
-    // results are order-dependent by design, and the second pass consults
-    // closure models before replacing them — a result carried from an
-    // earlier compilation would be consulted through the current scope's
-    // Symbols and miss (models resolve bindings by Symbol identity, and a
-    // re-loaded module's rebuilt scope mints fresh Symbols).
-    let inRecheckClosure = recheckPaths != null
-      && recheckPaths.has(file.path);
-    if (previous != null && !mustCheck.has(file.path) && !inRecheckClosure) {
-      if (previous.sources.has(file.path) && previous.results.has(file.path) &&
-          previous.asts.has(file.path) && previous.asts[file.path] == file.ast) {
-        allResults[file.path] = previous.results[file.path];
-        allSources[file.path] = file.source;
-        allAsts[file.path] = file.ast;
-        if (previous.exportSignatures.has(file.path)) {
-          allSignatures[file.path] = previous.exportSignatures[file.path];
-        }
-        continue;
-      }
-    }
-
-    // (Re-)check this file.
-    let checkResult = checkFile(file, allResults, result.files, emitLocations, sharedState, warnUnnecessaryCasts, recheckPaths);
+  // What a checked file contributes: its result, the prelude and
+  // well-known declarations it owns, and its export signature — which
+  // decides whether its importers must re-check.
+  let recordChecked = (file: SourceFile, checkResult: CheckResult): void => {
     allResults[file.path] = checkResult;
     allSources[file.path] = file.source;
     allAsts[file.path] = file.ast;
@@ -1939,21 +2025,77 @@ export let checkCompilation = (
       }
     }
 
-    // Second pass over an import cycle, once its last member has had
-    // its first (docs/design/import-cycles.md): a module with a
-    // back-edge import could not resolve it on the first pass, the
-    // exporting module having no model yet. Every member re-checks
-    // against the others' first-pass models; first-pass diagnostics
-    // are superseded wholesale by the second result. Modules outside
-    // the cycle come later in evaluation order and are checked once,
-    // against these final models.
+  };
+
+  // Members of import cycles that have registered their declarations
+  // and not yet checked their bodies, by path.
+  let inProgress = new HashMap<String, ModuleCheck>();
+  let allScopes = new HashMap<String, ScopeResult>();
+
+  // Check each file in topo order.
+  var fileIndex = -1;
+  for (let file in result.files) {
+    fileIndex += 1;
+    if (file.scopeResult != null) {
+      allScopes[file.path] = file.scopeResult as ScopeResult;
+    }
+    // Carry forward if source unchanged AND not invalidated by a
+    // dependency AND checked against this same scope tree (see
+    // ProgramCheckResult.scopes).
+    let inCycleNow = recheckPaths != null && recheckPaths.has(file.path);
+    let sameScope = previous != null && file.scopeResult != null &&
+        previous.scopes.has(file.path) &&
+        previous.scopes[file.path] === (file.scopeResult as ScopeResult);
+    if (previous != null && !mustCheck.has(file.path) && sameScope) {
+      if (previous.sources.has(file.path) && previous.results.has(file.path) &&
+          previous.asts.has(file.path) && previous.asts[file.path] == file.ast) {
+        allResults[file.path] = previous.results[file.path];
+        allSources[file.path] = file.source;
+        allAsts[file.path] = file.ast;
+        if (previous.exportSignatures.has(file.path)) {
+          allSignatures[file.path] = previous.exportSignatures[file.path];
+        }
+        continue;
+      }
+    }
+
+    if (inCycleNow) {
+      // A member of an import cycle registers its declarations now;
+      // its bodies wait until every member has registered
+      // (docs/design/import-cycles.md): a body may construct a class
+      // from later in the cycle, and needs that class's constructor.
+      let mc = beginFile(file, allResults, inProgress, result.files, emitLocations, sharedState, warnUnnecessaryCasts, recheckPaths);
+      inProgress[file.path] = mc;
+      sharedState.inProgressModules[file.path] = mc.ctx;
+    } else {
+      recordChecked(file, checkFile(file, allResults, result.files, emitLocations, sharedState, warnUnnecessaryCasts, recheckPaths));
+    }
+
+    // The last member of a cycle has registered. Every canonical type
+    // the cycle declares is filled in now, but the registrations that
+    // ran while some were still empty shells built their signatures'
+    // instantiations from those shells, and an instantiation copies
+    // the structure it finds. So register every member once more, in
+    // evaluation order — signatures only, which is cheap — and then
+    // check every member's bodies, once, against the second
+    // registrations. The first registrations are discarded, their
+    // diagnostics with them. Modules outside the cycle come later in
+    // evaluation order and are checked once, against these results.
     if (let (true, members) = cyclesEndingAt.get(fileIndex)) {
       for (let member in members) {
-        let second = checkFile(member, allResults, result.files, emitLocations, sharedState, warnUnnecessaryCasts, recheckPaths);
-        allResults[member.path] = second;
-        if (member.scopeResult != null) {
-          let sr = member.scopeResult as ScopeResult;
-          allSignatures[member.path] = computeExportSignature(sr.exports, sr.rootScope, second.model);
+        if (inProgress.has(member.path)) {
+          let again = beginFile(member, allResults, inProgress, result.files, emitLocations, sharedState, warnUnnecessaryCasts, recheckPaths);
+          inProgress[member.path] = again;
+          sharedState.inProgressModules[member.path] = again.ctx;
+        }
+      }
+      for (let member in members) {
+        if (let (true, mc) = inProgress.get(member.path)) {
+          refreshDepModels(mc, member, allResults, inProgress);
+          let checkResult = finishModule(mc);
+          sharedState.inProgressModules.delete(member.path);
+          inProgress.delete(member.path);
+          recordChecked(member, checkResult);
         }
       }
     }
@@ -1962,7 +2104,9 @@ export let checkCompilation = (
 
   // The entry module's result is always the last in topo order.
   let entryResult = allResults[result.entry.path];
-  return new ProgramCheckResult(allResults, allSources, allAsts, allSignatures, entryResult, sharedState);
+  let checked = new ProgramCheckResult(allResults, allSources, allAsts, allSignatures, entryResult, sharedState);
+  checked.scopes = allScopes;
+  return checked;
 };
 
 // ============================================================================
