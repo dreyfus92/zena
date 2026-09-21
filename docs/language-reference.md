@@ -3051,7 +3051,7 @@ The rules that follow from "a factory with no class behind it":
   and no `this` in the body.
 - A constructor may restate the interface's type parameters with tighter
   bounds, when its body needs more of them than the interface asks. `Map<K,
-  V>` asks nothing of `K`, but the hash table `new Map()` builds needs it to
+V>` asks nothing of `K`, but the hash table `new Map()` builds needs it to
   be `Hashable`:
 
   ```zena
@@ -3069,6 +3069,7 @@ The rules that follow from "a factory with no class behind it":
   The restatement names the interface's parameters, all of them and in
   order; the bounds are checked at each `new`, and inside the body the
   parameters carry them.
+
 - Constructors are not inherited: `interface MutableArray<T> extends Array<T>`
   does not get `new MutableArray()` from `Array`.
 - Default parameter values work as they do on class constructors.

@@ -459,8 +459,9 @@ Own<this>): void`).
 - **`Borrow<T>`**: Represents a temporary, non-escaping reference to an owned
   resource, ensuring the resource remains valid for the duration of the borrow.
 
-For an in-depth explanation of ownership rules, linear consumption, and
-concurrency, see the upcoming **Ownership and Resource Management** reference.
+For an in-depth explanation of ownership rules, linear consumption, handles,
+and second-class borrows, see the [Ownership and Resources](/reference/ownership/)
+reference.
 
 ## Comparison with other languages
 

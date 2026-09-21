@@ -374,12 +374,21 @@ To add a page: add it to the sidebar with an `outline`, then run
     - Literal types
     - Narrowing a union
     - Unions versus sealed classes
-  - 📝 [Generics](src/reference/generics.md) — `/reference/generics/`
+  - ✅ [Generics](src/reference/generics.md) — `/reference/generics/`
     - Type parameters
     - Constraints
-    - Monomorphization
+    - The scoped modifier
+    - Monomorphization and reification
     - Variance
-    - Inference
+    - Type argument inference
+  - 📝 [Ownership and Resources](src/reference/ownership.md) — `/reference/ownership/`
+    - Resource classes
+    - The Disposable protocol
+    - Deterministic cleanup with using
+    - Handles: Own, Borrow, and Unmanaged
+    - Second-class borrows
+    - Scoped values and the scoped modifier
+    - Regime transitions: disown and adopt
   - 📝 [Type Testing and Narrowing](src/reference/type-testing.md) — `/reference/type-testing/`
     - The is operator
     - The as operator
@@ -614,4 +623,4 @@ To add a page: add it to the sidebar with an `outline`, then run
 
 ---
 
-52 of 95 pages written; 43 still placeholders.
+53 of 96 pages written; 43 still placeholders.

@@ -702,9 +702,23 @@ const reference = [
         outline: [
           'Type parameters',
           'Constraints',
-          'Monomorphization',
+          'The scoped modifier',
+          'Monomorphization and reification',
           'Variance',
-          'Inference',
+          'Type argument inference',
+        ],
+      },
+      {
+        text: 'Ownership and Resources',
+        link: '/reference/ownership/',
+        outline: [
+          'Resource classes',
+          'The Disposable protocol',
+          'Deterministic cleanup with using',
+          'Handles: Own, Borrow, and Unmanaged',
+          'Second-class borrows',
+          'Scoped values and the scoped modifier',
+          'Regime transitions: disown and adopt',
         ],
       },
       {
