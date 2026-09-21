@@ -366,13 +366,14 @@ To add a page: add it to the sidebar with an `outline`, then run
     - Distinct types with distinct type
     - Opaque types with opaque type
     - Conversions and casting
-  - 📝 [Unions](src/reference/unions.md) — `/reference/unions/`
+  - ✅ [Unions](src/reference/unions.md) — `/reference/unions/`
     - Declaring a union
     - Nullability
     - What may appear in a union
     - Why primitives are restricted
-    - Narrowing a union
     - Literal types
+    - Narrowing a union
+    - Unions versus sealed classes
   - 📝 [Generics](src/reference/generics.md) — `/reference/generics/`
     - Type parameters
     - Constraints
@@ -613,4 +614,4 @@ To add a page: add it to the sidebar with an `outline`, then run
 
 ---
 
-51 of 95 pages written; 44 still placeholders.
+52 of 95 pages written; 43 still placeholders.

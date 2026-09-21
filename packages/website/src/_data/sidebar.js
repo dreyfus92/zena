@@ -691,8 +691,9 @@ const reference = [
           'Nullability',
           'What may appear in a union',
           'Why primitives are restricted',
-          'Narrowing a union',
           'Literal types',
+          'Narrowing a union',
+          'Unions versus sealed classes',
         ],
       },
       {

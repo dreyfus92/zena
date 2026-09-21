@@ -53,9 +53,9 @@ Zena establishes and preserves soundness through several core design rules:
 - **Strict assignability**: No implicit coercions exist between numeric types or
   between primitives and references. Representation transitions must always be
   explicit.
-- **Exhaustive pattern matching**: `match` expressions over enums and sealed
-  classes must handle all cases at compile time, guaranteeing control flow never
-  falls through without producing a value.
+- **Exhaustive pattern matching**: `match` expressions over enums and
+  [sealed classes](/reference/classes/sealed/) must handle all cases at compile
+  time, guaranteeing control flow never falls through without producing a value.
 - **Checked downcasts**: When polymorphism requires narrowing via `as`,
   reference casts compile directly to WebAssembly GC's `ref.cast` instruction.
   If the operand does not match the target type, the engine traps immediately,
@@ -154,7 +154,8 @@ Nominal types establish identity through explicit declarations. Two nominal
 types with identical fields or methods are distinct and not interchangeable:
 
 - **Classes and Interfaces**: Subtyping must be explicitly declared via
-  `extends` or `implements`.
+  `extends` or `implements`. Closed sum-type hierarchies are declared with
+  [sealed classes](/reference/classes/sealed/).
 - **Enums**: An `enum Status { Active, Inactive }` is distinct from any other
   enum or its backing `i32`/`String` type.
 
@@ -201,7 +202,7 @@ An important distinction in Zena is between **runtime-distinguishable types**
 and **erased types**:
 
 - **Erased distinct types and extension classes**: Types declared with `distinct
-  type` (such as `distinct type UserId = String`) or extension classes share the
+type` (such as `distinct type UserId = String`) or extension classes share the
   exact runtime representation of their underlying type. They provide
   compile-time safety with zero memory or performance overhead. See
   [Type Declarations](/reference/type-declarations/) for syntax and details.
@@ -218,9 +219,10 @@ and **erased types**:
   and `as` casts.
 
 Runtime distinguishability is also critical for union types: for a union `A | B`
-to be
-safely narrowed at runtime using `is` or `match`, each branch must possess a
-distinct runtime representation.
+to be safely narrowed at runtime using `is` or `match`, each branch must possess a
+distinct runtime representation. See
+[Unions](/reference/unions/#restrictions-on-indistinguishable-types) for details
+on restrictions such as multiple extension classes.
 
 ## Assignability, subtyping, and variance
 
@@ -234,7 +236,8 @@ Subtyping in Zena follows strict rules:
 1. **Nominal subtyping**: A class `C` is assignable to its superclasses and
    implemented interfaces.
 2. **Union inclusion**: A type `T` is assignable to any union containing `T`
-   (e.g., `String` is assignable to `String | null`).
+   (e.g., `String` is assignable to `String | null`). See
+   [Unions](/reference/unions/).
 3. **Record structural subtyping**:
    - **Width subtyping**: A record type is assignable to a target record type if
      it contains all required properties of the target. Extra properties in the
@@ -375,6 +378,9 @@ let name: String = 'Alice';          // Cannot be null
 let nickname: String | null = null;  // Nullable
 let title: String? = null;           // Shorthand for String | null
 ```
+
+See [Unions](/reference/unions/) for full coverage of union normalization, the
+`?` shorthand, reference constraints, and null narrowing.
 
 ### Record field presence
 

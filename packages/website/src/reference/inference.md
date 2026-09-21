@@ -47,8 +47,8 @@ let mode = 'strict';  // Type is the literal string 'strict'
 let flag = true;      // Type is the literal boolean true
 ```
 
-Preserving literal types enables inferred variables to satisfy union types and
-discriminate pattern matches:
+Preserving literal types enables inferred variables to satisfy
+[union types](/reference/unions/) and discriminate pattern matches:
 
 ```zena
 type Theme = 'light' | 'dark' | 'system';
