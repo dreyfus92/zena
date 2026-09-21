@@ -255,12 +255,12 @@ of the three are already answered:
 
 An exported interface with rich types is the missing half of
 _composition testing_: a Zena provider component implementing
-`wasi:geo`/`wasi:store` composed (`wasm-tools compose`) with the
+`fixture:geo`/`fixture:store` composed (`wasm-tools compose`) with the
 existing consumer fixtures would execute the whole type matrix —
 records, variants, enums, borrows — with both sides generated, no
 host support required. Today those fixtures stop at "compiles and
 validates" because only interfaces wasmtime happens to serve can run.
-That also requires instance-grouped exports (`wasi:geo/survey` as an
+That also requires instance-grouped exports (`fixture:geo/survey` as an
 exported instance, not flat names), which the emitter does not emit
 yet and composition needs.
 

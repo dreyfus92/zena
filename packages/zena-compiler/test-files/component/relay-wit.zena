@@ -3,8 +3,8 @@
 // imports the classes from `data`'s synthesized module rather than
 // re-declaring them, and this consumer constructs values with one
 // module's classes and passes them through the other's functions.
-import { Packet, Level, Fault } from 'wasi:relay/data';
-import { forward, grade, confirm } from 'wasi:relay/forwarding';
+import { Packet, Level, Fault } from 'fixture:relay/data';
+import { forward, grade, confirm } from 'fixture:relay/forwarding';
 import { Ok } from 'zena:core';
 import { Future } from 'zena:async';
 

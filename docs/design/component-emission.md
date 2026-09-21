@@ -756,10 +756,12 @@ things which are really one mechanism:
 The relationship is the one a declaration file has to an
 implementation: the WIT declares the boundary, the Zena program
 implements it, and the compiler both emits from and checks against the
-declaration. A world may import the WASI interfaces the compiler
-carries WIT for (`wasi:cli`/`wasi:io` at 0.2.8) by name without
-vendoring them; a document that declares those packages itself
-overrides the carried copies.
+declaration. A world may import the WASI 0.3 interfaces by name without
+vendoring them — the standard library vendors the whole of WASI 0.3
+(`packages/stdlib/zena/wit/`, one file per proposal, written from the
+pinned corpus by `dev/vendor-wasi-wit.js` and checked against it by the
+stdlib's tests); a document that declares one of those packages itself
+is taken to be self-contained, and the vendored copies stay out.
 
 ### The freestanding target
 
@@ -1173,11 +1175,12 @@ Three decisions worth recording:
   that a memory exists.
 
 The stdio half was built on top of that, against p2, and has since
-flipped to p3 (C6's stdio slice below) — the p2 interfaces are gone
-from `wasi-interfaces.zena`, and what follows records the p2 shape
-that proved the marshaling. The compiler carried the real WIT for
-`wasi:io/error`, `wasi:io/streams`, `wasi:cli/stdout` and
-`wasi:cli/stderr` at 0.2.8 (`wasi-interfaces.zena`) — a Zena
+flipped to p3 (C6's stdio slice below) — the p2 interfaces are gone,
+and the baked `wasi-interfaces.zena` that carried them is gone too,
+retired once the standard library vendored all of WASI 0.3; what
+follows records the p2 shape that proved the marshaling. The compiler
+carried the real WIT for `wasi:io/error`, `wasi:io/streams`,
+`wasi:cli/stdout` and `wasi:cli/stderr` at 0.2.8 — a Zena
 declaration is core-shaped and cannot spell `own` or `list<u8>`, so for
 these interfaces the baked source substitutes for the derived document,
 the encoder emits the true instance types (`wasi:io/error` arrives

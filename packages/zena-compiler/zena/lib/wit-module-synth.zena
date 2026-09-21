@@ -1918,9 +1918,13 @@ export function declaredPackageNamespaces(witSource: String): Array<String> {
 
 /**
  * The synthesized Zena source for a `wit:<root>#<ns>:<iface-path>`
- * canonical path.
+ * canonical path. `packagesWit` is the program's WIT-backed packages'
+ * source, spliced in where the root's document lacks it: a declared
+ * world's document is a root too, and its worlds import `wasi:cli` by
+ * name, which the parser resolves.
  */
-export function synthesizeWitModule(canonicalPath: String): String {
+export function synthesizeWitModule(canonicalPath: String,
+    packagesWit: String = ""): String {
   let rest = canonicalPath.sliceBytes(4, canonicalPath.length);
   var hash = -1;
   for (var i = 0; i < rest.length; i += 1) {
@@ -1943,11 +1947,8 @@ export function synthesizeWitModule(canonicalPath: String): String {
   let namespace = spec.sliceBytes(0, colon);
   let interfacePath = spec.sliceBytes(colon + 1, spec.length);
 
-  // With the compiler's WASI WIT spliced in where the document lacks
-  // it: a declared world's document is a package root too, and its
-  // worlds import `wasi:cli` by name, which the parser resolves. The
-  // splice appends, so the spans the type text is read from hold.
-  let witSource = withWasiPackages(readWitSource(witRoot));
+  // The splice appends, so the spans the type text is read from hold.
+  let witSource = withWasiPackages(readWitSource(witRoot), packagesWit);
   currentWitSource = witSource;
   let ast = parse(witSource);
   let iface = findInterface(ast, namespace, interfacePath);

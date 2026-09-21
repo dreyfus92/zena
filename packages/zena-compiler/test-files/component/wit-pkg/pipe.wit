@@ -5,7 +5,7 @@
 // result, a future parameter whose result payload has a bare ok arm,
 // a rich-payload future inside a tuple, a sync bare-arm result — and
 // the refused shapes, a non-u8 stream element and a bare future.
-package wasi:pipe@1.0.0;
+package fixture:pipe@1.0.0;
 
 interface pipes {
   variant pipe-error {

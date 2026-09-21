@@ -36,9 +36,6 @@ import {
   ComponentFuncType, noComponentResult, EncodedImports, EncodedImportPiece,
   ImportTypeEncoder
 } from './component-emitter.zena';
-import {
-  knownWasiPackagesWit, isKnownWasiInterface, isKnownWasiPackage
-} from './wasi-interfaces.zena';
 
 /** The WIT spelling of a flat-scalar component value type opcode. */
 let scalarWitName = (opcode: i32): String => {
@@ -133,6 +130,31 @@ let derivedWorldName = "imports";
  * substitutes for the derived spelling, exactly as the compiler's own
  * baked WASI blocks do.
  */
+/** Whether `ast` declares the package `ns:pkg@version`, in its main
+ * package or a nested one. */
+let docDeclaresPackage = (ast: Ast, packageKey: String): boolean => {
+  let keyOf = (pkg: PackageName | null): String => {
+    if (pkg == null) {
+      return "";
+    }
+    let p = pkg as PackageName;
+    var key = p.namespace.name + ":" + p.name.name;
+    if (p.version != null) {
+      key = key + "@" + (p.version as String);
+    }
+    return key;
+  };
+  if (keyOf(ast.packageName) == packageKey) {
+    return true;
+  }
+  for (let nested in ast.nestedPackages) {
+    if (keyOf(nested.name) == packageKey) {
+      return true;
+    }
+  }
+  return false;
+};
+
 let docDeclaresInterface = (ast: Ast, qualified: String): boolean => {
   let path = splitInterfaceName(qualified);
   let matches = (pkg: PackageName | null, items: Array<AstItem>): boolean => {
@@ -188,13 +210,8 @@ export let deriveImportsWit = (
   packagesWit: String = ""
 ): String => {
   let packagesAst = if (packagesWit == "") null else parse(packagesWit);
-  let provided = (name: String): boolean => {
-    if (isKnownWasiInterface(name)) {
-      return true;
-    }
-    return packagesAst != null &&
-        docDeclaresInterface(packagesAst as Ast, name);
-  };
+  let provided = (name: String): boolean =>
+      packagesAst != null && docDeclaresInterface(packagesAst as Ast, name);
   // Group by interface, preserving first-appearance order (the same
   // grouping the emitter's aliases use), then group interfaces by
   // package for the nested-package declarations.
@@ -210,37 +227,31 @@ export let deriveImportsWit = (
   let sb = new StringBuilder();
   sb.append("package zena:derived;\n\n");
 
-  // Interfaces whose real WIT the compiler carries — its own baked
-  // blocks, or a WIT-backed package's — are not derived: their package
-  // blocks are appended whole, and the world imports them by name like
-  // any other.
-  var anyKnown = false;
+  // Interfaces whose real WIT a WIT-backed package carries — the
+  // stdlib's vendored WASI, a manifest package's — are not derived:
+  // `packagesWit` is appended whole at the END of the document (after
+  // the world), and the world imports them by name like any other. At
+  // the end because its files declare their packages unbraced, and an
+  // unbraced `package` declaration switches the rest of the document
+  // into that package — spliced here, it would swallow the world.
   var anyPackaged = false;
   for (let name in interfaceNames) {
-    if (isKnownWasiInterface(name)) {
-      anyKnown = true;
-    } else if (provided(name)) {
+    if (provided(name)) {
       anyPackaged = true;
     }
   }
-  if (anyKnown) {
-    sb.append(knownWasiPackagesWit()).append("\n");
-  }
-  // `packagesWit` is appended at the END of the document (after the
-  // world): its files declare their packages unbraced, and an unbraced
-  // `package` declaration switches the rest of the document into that
-  // package — spliced here, it would swallow the world.
 
   let renderedPackages = new GrowableArray<String>();
   for (let name in interfaceNames) {
     if (provided(name)) { continue; }
     let path = splitInterfaceName(name);
     let packageKey = path.packageName + "@" + path.version;
-    if (anyKnown && isKnownWasiPackage(packageKey)) {
+    if (packagesAst != null &&
+        docDeclaresPackage(packagesAst as Ast, packageKey)) {
       throw new Error(
         "The component target cannot import '" + name + "': its package " +
-          "is one the compiler carries real WIT for, and this interface " +
-          "is not in it.");
+          "is one the program's WIT-backed packages carry real WIT for, " +
+          "and this interface is not in it.");
     }
     var rendered = false;
     for (let p in renderedPackages) {
@@ -411,9 +422,6 @@ final class DerivedImportEncoder implements ImportTypeEncoder {
   new(packagesWit: String = "") : #packagesWit = packagesWit;
 
   witProvided(interfaceName: String): boolean {
-    if (isKnownWasiInterface(interfaceName)) {
-      return true;
-    }
     if (this.#packagesWit == "") {
       return false;
     }
@@ -459,28 +467,28 @@ let exportableWitOpcode = (t: Type): i32 => {
 };
 
 /**
- * Parse a declared world's document, with the compiler's own WASI WIT
- * riding along so a world can `import wasi:cli/stdout@0.3.0;` without
- * vendoring it — unless the document declares those packages itself,
- * in which case its definitions win and ours stay out of the way.
+ * Parse a declared world's document, with the program's WIT-backed
+ * packages riding along so a world can `import wasi:cli/stdout@0.3.0;`
+ * without vendoring it — unless the document declares those packages
+ * itself, in which case its definitions win and theirs stay out of the
+ * way.
  */
 let parseWithWasi = (witSource: String, packagesWit: String = ""): Ast => {
   return parse(withWasiPackages(witSource, packagesWit));
 };
 
 /**
- * `witSource` with the compiler's WASI WIT and the program's WIT-backed
- * packages appended, so a declared world can import their interfaces
- * by name (`wasi:cli/stdout`, `wasi:http/types`) without vendoring
- * them — unless the document declares a package itself, in which case
- * its definitions win and ours stay out of the way.
+ * `witSource` with the program's WIT-backed packages appended — the
+ * stdlib's vendored WASI among them — so a declared world can import
+ * their interfaces by name (`wasi:cli/stdout`, `wasi:http/types`)
+ * without vendoring them. Unless the document declares one of those
+ * packages itself, in which case its definitions win and the packages
+ * stay out of the way, all of them: a document that vendors a package
+ * is taken to be self-contained.
  */
 export let withWasiPackages = (witSource: String,
     packagesWit: String = ""): String => {
   var source = witSource;
-  if (!source.contains("package wasi:cli@0.3.0")) {
-    source = source + "\n" + knownWasiPackagesWit();
-  }
   if (packagesWit != "" && !declaresAnyOf(witSource, packagesWit)) {
     source = source + "\n" + packagesWit;
   }

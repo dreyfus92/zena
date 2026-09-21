@@ -2,7 +2,7 @@
 // positions bind to `zena:stream`'s `Stream<u8>` pumped by
 // `zena:wasi`, future positions bind to `Future` moved by
 // generated per-payload-type helpers, and a bare result arm is a
-// `void` lane. Compile-only — no host serves `wasi:pipe` — so the
+// `void` lane. Compile-only — no host serves `fixture:pipe` — so the
 // point is the whole surface compiling: a direct stream result, a
 // stream parameter, streams inside a tuple and an option, an async
 // transfer, a scalar-payload future result, a future parameter with
@@ -12,7 +12,7 @@
 import {
   source, sink, tee, open, transfer, finish, deliver, submit, commit,
   PipeError, PipeErrorClosed,
-} from 'wasi:pipe/pipes';
+} from 'fixture:pipe/pipes';
 import { Stream, StreamWriter } from 'zena:stream';
 import { Some, Option, Outcome, Ok } from 'zena:core';
 import { Completer, Future } from 'zena:async';

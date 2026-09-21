@@ -58,12 +58,22 @@ class PlainHost implements CompilerHost {
   }
 }
 
-/** Package map: the repo's, plus a WIT-backed `wasi` for the fixtures. */
+/**
+ * The WIT-backed packages' source as the CLI passes it: the `fixture`
+ * package's, and the stdlib's vendored WASI (the built-in `wasi`
+ * package) — a fixture world's `import wasi:cli/stdout@0.3.0;`
+ * resolves against the latter.
+ */
+let packagesWit = (): String =>
+    readWitSource(`${fixtures}/wit-pkg`) + "\n" +
+    readWitSource(`${stdlibRoot}/wit`);
+
+/** Package map: the repo's, plus the WIT-backed `fixture` package. */
 let testPackages = (host: CompilerHost): HashMap<String, PackageConfig> => {
   let packages = loadPackageMap(host, 'zena-packages.json');
-  let wasi = new PackageConfig('', null);
-  wasi.witRoot = `${fixtures}/wit-pkg`;
-  packages['wasi'] = wasi;
+  let fixture = new PackageConfig('', null);
+  fixture.witRoot = `${fixtures}/wit-pkg`;
+  packages['fixture'] = fixture;
   return packages;
 };
 
@@ -82,7 +92,8 @@ let programFor = (
     // implements the declared world's async exports.
     options.componentWrapperSynth =
         (entryPath: String, ast: Module): ComponentEntryWrapper | null =>
-            synthesizeExportWrapper(witSource, worldName, entryPath, ast);
+            synthesizeExportWrapper(witSource, worldName, entryPath, ast,
+                packagesWit());
   }
   let c = createCompiler(host, options);
   let result = c.compile(path);
@@ -115,8 +126,7 @@ let compileFor = (path: String, target: String): ByteArray => {
     // The test `wasi` package's WIT, as the CLI passes its WIT-backed
     // packages' sources: the encoder emits those interfaces' true
     // types rather than deriving them from synthesized declarations.
-    generator.importEncoder = makeImportEncoder(null, '',
-        readWitSource(`${fixtures}/wit-pkg`));
+    generator.importEncoder = makeImportEncoder(null, '', packagesWit());
   }
   return generator.generate(programFor(path, target)).toByteArray();
 };
@@ -131,7 +141,8 @@ let compileForWorld = (
   let host = new PlainHost();
   generator.runtimeMemoryModule = compileComponentRuntimeModule(
       host, stdlibRoot, loadPackageMap(host, 'zena-packages.json'));
-  generator.importEncoder = makeImportEncoder(witSource, worldName);
+  generator.importEncoder = makeImportEncoder(witSource, worldName,
+      packagesWit());
   return generator.generate(
       programFor(path, 'component', witSource, worldName)).toByteArray();
 };
@@ -283,13 +294,14 @@ export let tests = suite('Component emission', (): void => {
   });
 
   test('an imported WIT interface produces the full section sequence', (ctx: TestContext): void => {
-    // type (the instance type) / import / alias / canon lower / core
-    // instance (the lowered functions) / core module / core instance
-    // (instantiate) / alias (the core export) / type / canon lift /
-    // export. Order is not cosmetic: each section's indices refer only
-    // to what came before it.
+    // type (the instance type) / import / alias, for the `wasi:clocks/
+    // types` instance the clock `use`s from, then again for the clock
+    // itself / canon lower / core instance (the lowered functions) /
+    // core module / core instance (instantiate) / alias (the core
+    // export) / type / canon lift / export. Order is not cosmetic: each
+    // section's indices refer only to what came before it.
     let ids = sectionIds(compileFor(`${fixtures}/clock.zena`, 'component'));
-    equal(idsToString(ids), '7,10,6,8,2,1,2,6,7,8,11',
+    equal(idsToString(ids), '7,10,6,7,10,6,8,2,1,2,6,7,8,11',
       `clock.zena emitted sections ${idsToString(ids)}`);
   });
 
@@ -302,7 +314,7 @@ export let tests = suite('Component emission', (): void => {
     // opcode — so they cannot ride in the lowering section beside the
     // imports they sit next to in the core module.
     let ids = sectionIds(compileFor(`${fixtures}/timer.zena`, 'component'));
-    equal(idsToString(ids), '7,10,6,8,7,8,2,1,2,6,7,8,11',
+    equal(idsToString(ids), '7,10,6,7,10,6,8,7,8,2,1,2,6,7,8,11',
       `timer.zena emitted sections ${idsToString(ids)}`);
   });
 
@@ -367,7 +379,7 @@ export let tests = suite('Component emission', (): void => {
     let wit = readFile(`${fixtures}/service.wit`);
     let entry = `${fixtures}/service.zena`;
     let wrapperOpt = synthesizeExportWrapper(wit, 'service', entry,
-        parse(readFile(entry), entry));
+        parse(readFile(entry), entry), packagesWit());
     isTrue(wrapperOpt != null, 'the service world gets no wrapper');
     let source = (wrapperOpt as ComponentEntryWrapper).source;
     isTrue(source.contains('@external("canon", "task.return#describe", ' +
@@ -437,10 +449,9 @@ export let tests = suite('Component emission', (): void => {
     // types module, and declares its return at the WIT's result under
     // the exporting interface, whose `use`s the encoder follows.
     let wit = readFile(`${fixtures}/http-service.wit`);
-    let http = readFile('packages/stdlib/zena/wit/http.wit');
     let entry = `${fixtures}/http-service.zena`;
     let wrapperOpt = synthesizeExportWrapper(wit, 'http-service', entry,
-        parse(readFile(entry), entry), http);
+        parse(readFile(entry), entry), packagesWit());
     isTrue(wrapperOpt != null, 'the http service world gets no wrapper');
     let source = (wrapperOpt as ComponentEntryWrapper).source;
     isTrue(source.contains('@external("canon", "task.return#handle", ' +
@@ -471,7 +482,7 @@ export let tests = suite('Component emission', (): void => {
     let wit = readFile(`${fixtures}/compose.wit`);
     let entry = `${fixtures}/compose-provider.zena`;
     let wrapperOpt = synthesizeExportWrapper(wit, 'provider', entry,
-        parse(readFile(entry), entry));
+        parse(readFile(entry), entry), packagesWit());
     isTrue(wrapperOpt != null, 'the provider world gets no wrapper');
     let source = (wrapperOpt as ComponentEntryWrapper).source;
     isTrue(source.contains(
@@ -766,11 +777,16 @@ world only {
     // core-shaped declarations, and not just the slice the program
     // touched.
     let viaWit = compileFor(`${fixtures}/clock-wit.zena`, 'component');
-    isTrue(containsName(sectionPayload(viaWit, 10),
+    // The clock `use`s `wasi:clocks/types`, so that instance is imported
+    // first and the clock's import is the second import section.
+    isTrue(containsName(sectionPayloadAfter(viaWit, 10, 0),
+        'wasi:clocks/types@0.3.0'),
+      "the `use`d types interface is not imported first");
+    isTrue(containsName(sectionPayloadAfter(viaWit, 10, 1),
         'wasi:clocks/monotonic-clock@0.3.0'),
       'the interface import is missing');
-    let instanceTypes = sectionPayload(viaWit, 7);
-    isTrue(containsName(instanceTypes, 'instant'),
+    let instanceTypes = sectionPayloadAfter(viaWit, 7, 1);
+    isTrue(containsName(instanceTypes, 'mark'),
       "the interface's named alias is not exported from its instance type");
     isTrue(containsName(instanceTypes, 'wait-for'),
       'the whole interface should be imported, not just the used slice');
@@ -785,7 +801,7 @@ world only {
     // wrapper stages before the call, releases after it, and lifts the
     // result through zena:wasi.
     let source = synthesizeWitModule(
-        `wit:${fixtures}/wit-pkg#wasi:text/transform`);
+        `wit:${fixtures}/wit-pkg#fixture:text/transform`);
     isTrue(source.contains(
         'declare function upper_raw(p0: i32, l0: i32, ret: i32): void;'),
       'the raw string->string declaration is misflattened:\n' + source);
@@ -827,7 +843,7 @@ world only {
     // out-of-range discriminant is a loud error rather than a value
     // that defeats exhaustive matching later.
     let source = synthesizeWitModule(
-        `wit:${fixtures}/wit-pkg#wasi:codes/status`);
+        `wit:${fixtures}/wit-pkg#fixture:codes/status`);
     isTrue(source.contains('export enum Level {'),
       'no synthesized enum:\n' + source);
     isTrue(source.contains('FatalError = 2,'),
@@ -849,7 +865,7 @@ world only {
     // interface.
     let bytes = compileFor(`${fixtures}/codes-wit.zena`, 'component');
     isTrue(containsName(sectionPayload(bytes, 10),
-        'wasi:codes/status@1.0.0'),
+        'fixture:codes/status@1.0.0'),
       'the codes interface import is missing');
   });
 
@@ -861,7 +877,7 @@ world only {
     // a spilled return area — offsets computed per the canonical
     // ABI's size-and-alignment rules.
     let source = synthesizeWitModule(
-        `wit:${fixtures}/wit-pkg#wasi:geo/survey`);
+        `wit:${fixtures}/wit-pkg#fixture:geo/survey`);
     isTrue(source.contains(
         'export class Point(x: f64, y: f64, label: String)'),
       'the record is not a case class:\n' + source);
@@ -895,7 +911,7 @@ world only {
     // interface.
     let bytes = compileFor(`${fixtures}/geo-wit.zena`, 'component');
     isTrue(containsName(sectionPayload(bytes, 10),
-        'wasi:geo/survey@1.0.0'),
+        'fixture:geo/survey@1.0.0'),
       'the geo interface import is missing');
   });
 
@@ -910,9 +926,9 @@ world only {
     // wrote — into Outcome, because a future's payload must be
     // storable and the inline Result is return-position-only.
     let source = synthesizeWitModule(
-        `wit:${fixtures}/wit-pkg#wasi:geo/survey`);
+        `wit:${fixtures}/wit-pkg#fixture:geo/survey`);
     isTrue(source.contains(
-        '@external("wasi:geo/survey@1.0.0", "fetch-point", "async")'),
+        '@external("fixture:geo/survey@1.0.0", "fetch-point", "async")'),
       'the raw import is not async-lowered:\n' + source);
     isTrue(source.contains(
         'declare function fetchPoint_raw(p0: i32, l0: i32, ret: i32): i32;'),
@@ -949,7 +965,7 @@ world only {
     // after the call. A list parameter stages an element buffer and
     // writes each element at its canonical stride.
     let source = synthesizeWitModule(
-        `wit:${fixtures}/wit-pkg#wasi:geo/survey`);
+        `wit:${fixtures}/wit-pkg#fixture:geo/survey`);
     // point flattens to [f64, f64, i32, i32].
     isTrue(source.contains(
         'declare function labelOf_raw(s0_0: f64, s0_1: f64, s0_2: i32, ' +
@@ -988,7 +1004,7 @@ world only {
     // and a bare resource in value position — implicit `own` — wraps
     // the returned handle.
     let source = synthesizeWitModule(
-        `wit:${fixtures}/wit-pkg#wasi:store/kv`);
+        `wit:${fixtures}/wit-pkg#fixture:store/kv`);
     isTrue(source.contains(
         'export final class Bucket implements Disposable {'),
       'the resource is not a Disposable class:\n' + source);
@@ -996,7 +1012,7 @@ world only {
       'dispose does not drop the handle:\n' + source);
     isTrue(source.contains(
         '@external("canon", "resource.drop", ' +
-        '"resource:wasi:store/kv@1.0.0#bucket")'),
+        '"resource:fixture:store/kv@1.0.0#bucket")'),
       'the drop builtin is not typed by the imported resource:\n' +
       source);
     isTrue(source.contains(
@@ -1023,7 +1039,7 @@ world only {
     // the resource's name.
     let bytes = compileFor(`${fixtures}/store-wit.zena`, 'component');
     isTrue(containsName(sectionPayload(bytes, 10),
-        'wasi:store/kv@1.0.0'),
+        'fixture:store/kv@1.0.0'),
       'the store interface import is missing');
   });
 
@@ -1036,7 +1052,7 @@ world only {
     // coming out. Streams inside aggregates ride the same expression
     // forms as any handle. Non-u8 elements and future values refuse.
     let source = synthesizeWitModule(
-        `wit:${fixtures}/wit-pkg#wasi:pipe/pipes`);
+        `wit:${fixtures}/wit-pkg#fixture:pipe/pipes`);
     isTrue(source.contains("import { Stream } from 'zena:stream';"),
       'the stream type is not imported:\n' + source);
     isTrue(source.contains(
@@ -1085,7 +1101,7 @@ world only {
     // interface.
     let bytes = compileFor(`${fixtures}/pipe-wit.zena`, 'component');
     isTrue(containsName(sectionPayload(bytes, 10),
-        'wasi:pipe/pipes@1.0.0'),
+        'fixture:pipe/pipes@1.0.0'),
       'the pipe interface import is missing');
   });
 
@@ -1100,7 +1116,7 @@ world only {
     // `Outcome`, and a bare arm — in a future payload or a plain
     // sync result — is a `void` lane filled by `witUnit()`.
     let source = synthesizeWitModule(
-        `wit:${fixtures}/wit-pkg#wasi:pipe/pipes`);
+        `wit:${fixtures}/wit-pkg#fixture:pipe/pipes`);
     // A scalar-payload future result, lifted directly.
     isTrue(source.contains('export function finish(): Future<u32> {'),
       'a future result should be a Future:\n' + source);
@@ -1115,7 +1131,7 @@ world only {
       'the deferred read helper is missing:\n' + source);
     isTrue(source.contains(
         '@external("canon", "future.read#0", ' +
-        '"future:wasi:pipe/pipes@1.0.0#u32,async")'),
+        '"future:fixture:pipe/pipes@1.0.0#u32,async")'),
       "the read builtin is not typed by the payload:\n" + source);
     // The future parameter: an Outcome payload with a bare ok arm.
     isTrue(source.contains(
@@ -1128,7 +1144,7 @@ world only {
       source);
     isTrue(source.contains(
         '@external("canon", "future.write#1", ' +
-        '"future:wasi:pipe/pipes@1.0.0#result<_, pipe-error>,async")'),
+        '"future:fixture:pipe/pipes@1.0.0#result<_, pipe-error>,async")'),
       "the write builtin is not typed by the payload:\n" + source);
     isTrue(source.contains('return new Ok<void, PipeError>(witUnit());'),
       "the bare ok arm should lift as witUnit:\n" + source);
@@ -1153,7 +1169,7 @@ world only {
     // And the consumer fixture compiles to a component.
     let bytes = compileFor(`${fixtures}/pipe-wit.zena`, 'component');
     isTrue(containsName(sectionPayload(bytes, 10),
-        'wasi:pipe/pipes@1.0.0'),
+        'fixture:pipe/pipes@1.0.0'),
       'the pipe interface import is missing');
   });
 
@@ -1167,10 +1183,10 @@ world only {
     // `zena:wasi`, one identity for every synthesized
     // module, rather than per-module.
     let source = synthesizeWitModule(
-        `wit:${fixtures}/wit-pkg#wasi:relay/forwarding`);
+        `wit:${fixtures}/wit-pkg#fixture:relay/forwarding`);
     isTrue(source.contains(
         "import { Level, Packet, Fault, FaultLost, FaultGarbled, " +
-        "Channel } from 'wasi:relay/data';"),
+        "Channel } from 'fixture:relay/data';"),
       'the used types are not imported from the sibling module:\n' +
       source);
     isTrue(!source.contains('export class Packet'),
@@ -1188,7 +1204,7 @@ world only {
     isTrue(source.contains('function liftLevel(disc: i32): Level {'),
       'the enum lift should name the imported enum:\n' + source);
     isTrue(source.contains(
-        '"future:wasi:relay/forwarding@1.0.0#result<_, fault>'),
+        '"future:fixture:relay/forwarding@1.0.0#result<_, fault>'),
       "the future's canon type should name the using interface:\n" +
       source);
     // A bare `-> result` has two outcomes and no payloads: a boolean.
@@ -1199,7 +1215,7 @@ world only {
     // The declaring module still declares, importing the shared
     // marshaling symbols from the abi.
     let dataSource = synthesizeWitModule(
-        `wit:${fixtures}/wit-pkg#wasi:relay/data`);
+        `wit:${fixtures}/wit-pkg#fixture:relay/data`);
     isTrue(dataSource.contains(
         'export class Packet(level: Level, body: String)'),
       "the declaring module lost its record:\n" + dataSource);
@@ -1213,10 +1229,10 @@ world only {
     // the forwarding import is the second import section.
     let bytes = compileFor(`${fixtures}/relay-wit.zena`, 'component');
     isTrue(containsName(sectionPayload(bytes, 10),
-        'wasi:relay/data@1.0.0'),
+        'fixture:relay/data@1.0.0'),
       'the data interface import is missing');
     isTrue(containsName(sectionPayloadAfter(bytes, 10, 1),
-        'wasi:relay/forwarding@1.0.0'),
+        'fixture:relay/forwarding@1.0.0'),
       'the forwarding interface import is missing');
   });
 
@@ -1240,7 +1256,7 @@ world only {
     // the component imports the interface by its qualified name.
     let bytes = compileFor(`${fixtures}/text-wit.zena`, 'component');
     isTrue(containsName(sectionPayload(bytes, 10),
-        'wasi:text/transform@1.0.0'),
+        'fixture:text/transform@1.0.0'),
       'the interface import is missing');
     let lowers = sectionPayload(bytes, 8);
     isTrue(lowers.length > 0, 'no canon lower section');

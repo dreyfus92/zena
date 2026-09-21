@@ -5,10 +5,8 @@
 // future that another component settles, across the composed
 // boundary, rather than one its own program completes.
 //
-// The clock is vendored: the compiler carries only wasi:cli's WIT for
-// a declared world to import by name. TODO: vendor the whole WASI 0.3
-// WIT into the stdlib from the pinned corpus (wit-corpus.json's
-// `wasi` source is the v0.3.0 release) so no fixture carries a copy.
+// The clock and stdio are the stdlib's vendored WASI WIT, imported by
+// name.
 package test:compose@1.0.0;
 
 interface oracle {
@@ -27,14 +25,4 @@ world consumer {
   import oracle;
 
   export main: async func();
-}
-
-package wasi:clocks@0.3.0 {
-  interface monotonic-clock {
-    type instant = u64;
-    type duration = u64;
-
-    now: func() -> instant;
-    wait-for: async func(how-long: duration);
-  }
 }

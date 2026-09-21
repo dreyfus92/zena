@@ -201,6 +201,13 @@ final class Scope {
   resourceIndices = new HashMap<i32, boolean>();
   /** Structural key of an anonymous type → its index here. */
   anon = new HashMap<String, i32>();
+  /**
+   * The interface's type definitions not encoded yet, by name: a
+   * reference to one encodes it on the spot, so an interface may
+   * declare its types in any order — upstream WASI does, and the
+   * encoding's own order is first use.
+   */
+  pending = new HashMap<String, TypeDef>();
   var atComponentLevel = false;
   /**
    * Component-level only: the interface whose declarations resolve
@@ -369,10 +376,20 @@ export final class ComponentTypeEncoder {
   #importNamedInterface(reg: RegisteredInterface): void {
     let scope = new Scope();
     for (let item in reg.items) {
+      if (item.tag == InterfaceItemTag.TypeDef) {
+        let td = item.typeDef as TypeDef;
+        scope.pending[td.name.name] = td;
+      }
+    }
+    for (let item in reg.items) {
       if (item.tag == InterfaceItemTag.Use) {
         this.#encodeUse(scope, item.use as Use, reg.packageName);
       } else if (item.tag == InterfaceItemTag.TypeDef) {
-        this.#encodeTypeDef(scope, item.typeDef as TypeDef);
+        let td = item.typeDef as TypeDef;
+        // Unless a reference already encoded it.
+        if (scope.pending.has(td.name.name)) {
+          this.#encodeTypeDef(scope, td);
+        }
       } else {
         this.#encodeInterfaceFunc(scope, item.func as NamedFunc, "", -1);
       }
@@ -719,6 +736,7 @@ export final class ComponentTypeEncoder {
 
   #encodeTypeDef(scope: Scope, td: TypeDef): void {
     let name = td.name.name;
+    scope.pending.delete(name);
     if (td.tag == TypeDefTag.Resource) {
       // A resource has no structure to declare — the export itself is
       // the declaration, and `sub resource` is its bound.
@@ -1059,6 +1077,12 @@ export final class ComponentTypeEncoder {
     if (let (true, index) = scope.named.get(name)) {
       return index;
     }
+    if (let (true, td) = scope.pending.get(name)) {
+      // Declared later in the interface: encode it now, first use
+      // being the encoding order.
+      this.#encodeTypeDef(scope, td);
+      return scope.named[name];
+    }
     let source = scope.aliasSource;
     if (source != null) {
       let reg = source as RegisteredInterface;
@@ -1098,8 +1122,7 @@ export final class ComponentTypeEncoder {
           name + "', which needs world-level `use` encoding");
     }
     throw new EncodeError("type '" + name +
-        "' is not defined before its first use; declaration order " +
-        "is encoding order");
+        "' is not declared in this interface");
   }
 
   /** Whether `reg` declares `name` — as a type definition or a `use`d

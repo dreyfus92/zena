@@ -2,7 +2,7 @@
 // (staged params, lifted results, a void setter, a plain scalar), a
 // static returning an optional handle, and a free function returning
 // a bare resource — implicit `own` in value position.
-package wasi:store@1.0.0;
+package fixture:store@1.0.0;
 
 interface kv {
   resource bucket {

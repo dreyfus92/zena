@@ -48,6 +48,7 @@
         "zena/**/*.zena",
         "bootstrap/cli.wasm",
         "../stdlib/zena/**/*.zena",
+        "../stdlib/zena/wit/*.wit",
         "../wit-parser/zena/**/*.zena"
       ],
       "output": [
@@ -63,6 +64,7 @@
       "files": [
         "zena/**/*.zena",
         "../stdlib/zena/**/*.zena",
+        "../stdlib/zena/wit/*.wit",
         "../wit-parser/zena/**/*.zena"
       ],
       "output": [
@@ -153,6 +155,7 @@
         "scripts/run-wasmtime.js",
         "test-files/snapshots/**/*.snap",
         "../stdlib/zena/**/*.zena",
+        "../stdlib/zena/wit/*.wit",
         "../stdlib/stdlib-manifest.json"
       ],
       "output": [],
@@ -168,6 +171,7 @@
         "../../tests/language/syntax/**/*.ast.json",
         "scripts/run-wasmtime.js",
         "../stdlib/zena/**/*.zena",
+        "../stdlib/zena/wit/*.wit",
         "../stdlib/stdlib-manifest.json"
       ],
       "output": [],
@@ -182,6 +186,7 @@
         "../../tests/language/semantics/**/*.zena",
         "scripts/run-wasmtime.js",
         "../stdlib/zena/**/*.zena",
+        "../stdlib/zena/wit/*.wit",
         "../stdlib/stdlib-manifest.json"
       ],
       "output": [],
@@ -196,6 +201,7 @@
         "../../tests/language/execution/**/*.zena",
         "scripts/run-wasmtime.js",
         "../stdlib/zena/**/*.zena",
+        "../stdlib/zena/wit/*.wit",
         "../stdlib/stdlib-manifest.json"
       ],
       "output": [],

@@ -2,8 +2,8 @@
 // service shape — the `handler` interface exported as an instance,
 // its `handle` implemented by the program's exported async function,
 // its `request`, `response` and `error-code` the types interface's,
-// aliased out of the imported instance. The wasi:http package comes
-// from the manifest's WIT-backed `wasi` package, not vendored here.
+// aliased out of the imported instance. The wasi:http and wasi:clocks
+// packages are the stdlib's vendored WASI WIT, imported by name.
 package test:http-service@1.0.0;
 
 world http-service {
@@ -11,17 +11,4 @@ world http-service {
   import wasi:clocks/monotonic-clock@0.3.0;
 
   export wasi:http/handler@0.3.0;
-}
-
-// The clock the handler sleeps on, so that requests overlap: the
-// compiler carries wasi:cli's WIT, and the manifest's wasi package
-// carries http, but neither carries clocks.
-package wasi:clocks@0.3.0 {
-  interface monotonic-clock {
-    type instant = u64;
-    type duration = u64;
-
-    now: func() -> instant;
-    wait-for: async func(how-long: duration);
-  }
 }

@@ -2,7 +2,7 @@
 // enum and option fields), a variant whose payloads span unit, record,
 // string and scalar cases, and the container shapes around them —
 // option, list, tuple and a top-level result.
-package wasi:geo@1.0.0;
+package fixture:geo@1.0.0;
 
 interface survey {
   enum quality {

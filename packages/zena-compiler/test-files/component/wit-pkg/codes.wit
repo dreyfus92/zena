@@ -1,7 +1,7 @@
 // Enums and flags for the WIT-typed-module tests: the two single-flat
 // named types. `level` exercises both directions plus composition with
 // the string machinery; `modes` is the bitset shape.
-package wasi:codes@1.0.0;
+package fixture:codes@1.0.0;
 
 interface status {
   enum level {

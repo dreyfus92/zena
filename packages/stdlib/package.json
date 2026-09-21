@@ -16,7 +16,9 @@
     "build": "wireit",
     "lib": "wireit",
     "test": "wireit",
-    "test:cli": "wireit"
+    "test:cli": "wireit",
+    "vendor:wasi-wit": "node dev/vendor-wasi-wit.js",
+    "check:wasi-wit": "wireit"
   },
   "wireit": {
     "build": {
@@ -42,7 +44,8 @@
     },
     "test": {
       "dependencies": [
-        "test:cli"
+        "test:cli",
+        "check:wasi-wit"
       ]
     },
     "test:cli": {
@@ -58,6 +61,17 @@
         "../zena-cli:build",
         "../zena-compiler:precompile:cli"
       ]
+    },
+    "check:wasi-wit": {
+      "command": "node dev/vendor-wasi-wit.js --check",
+      "//": "The vendored WASI WIT under zena/wit/ must match what the corpus wit-corpus.json pins renders to: a difference means a vendored file was edited by hand, or the pin moved without the script being re-run.",
+      "files": [
+        "dev/vendor-wasi-wit.js",
+        "zena/wit/**/*.wit",
+        "../wit-parser/dev/wit-corpus.js",
+        "../wit-parser/wit-corpus.json"
+      ],
+      "output": []
     }
   },
   "dependencies": {

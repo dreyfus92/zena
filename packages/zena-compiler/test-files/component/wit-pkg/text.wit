@@ -3,7 +3,7 @@
 // byte-list parameters, spilled string / byte-list / string-list
 // results, and a scalar mixed in so pass-through and staging coexist
 // in one call.
-package wasi:text@1.0.0;
+package fixture:text@1.0.0;
 
 interface transform {
   upper: func(input: string) -> string;

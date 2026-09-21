@@ -1,10 +1,10 @@
 // Strings and lists through a WIT-typed module: the signatures come
 // from the package's WIT, and the synthesized wrappers stage arguments
 // into linear memory and lift spilled results back out. Compile-level
-// coverage — no host serves `wasi:text` — with the emitted component's
+// coverage — no host serves `fixture:text` — with the emitted component's
 // import surface and memory-carrying lowers asserted by the unit
 // tests.
-import { upper, measure, describe, checksum, fill, split } from 'wasi:text/transform';
+import { upper, measure, describe, checksum, fill, split } from 'fixture:text/transform';
 
 export function main(): u32 {
   let shouted = upper('hello');

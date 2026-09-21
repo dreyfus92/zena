@@ -4,7 +4,7 @@
 // reaches them through `use`, in parameters, results and a future
 // payload. The consumer imports classes from BOTH synthesized
 // modules and passes values across.
-package wasi:relay@1.0.0;
+package fixture:relay@1.0.0;
 
 interface data {
   enum level {

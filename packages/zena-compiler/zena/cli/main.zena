@@ -27,13 +27,15 @@ import { readWitSource } from 'wit-parser:document';
 class WasiHost implements CompilerHost {
   testMode: boolean;
   entryPath: String;
+  /** The WIT-backed packages' source, once the driver has read it. */
+  var packagesWit = "";
   new(this.testMode, this.entryPath);
 
   readFile(path: String): String {
     // A WIT-backed package's module: no file exists — the source is
     // synthesized from the package's WIT.
     if (isWitModulePath(path)) {
-      return synthesizeWitModule(path);
+      return synthesizeWitModule(path, this.packagesWit);
     }
     var actualPath = path;
     // If it's a zena: package import, map it to the wasi /stdlib dir
@@ -245,6 +247,7 @@ export let main = (): i32 => {
       packagesWit = packagesWit +
           readWitSource(allPackages[packageName].witRoot as String) + "\n";
     }
+    host.packagesWit = packagesWit;
   }
   if (witSource != "") {
     // Against a declared world the entry wrapper also implements the

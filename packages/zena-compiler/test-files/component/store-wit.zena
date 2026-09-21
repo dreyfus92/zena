@@ -2,9 +2,9 @@
 // Disposable class owning the imported handle, its methods lead their
 // raw calls with the handle, the WIT constructor is `static create`,
 // and disposal is the canonical `resource.drop`. Compile-level
-// coverage — no host serves `wasi:store` — the unit tests assert the
+// coverage — no host serves `fixture:store` — the unit tests assert the
 // synthesized source.
-import { Bucket, defaultBucket } from 'wasi:store/kv';
+import { Bucket, defaultBucket } from 'fixture:store/kv';
 import { Some, Disposable } from 'zena:core';
 
 export function main(): u32 {
