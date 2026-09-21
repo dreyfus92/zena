@@ -333,5 +333,5 @@ serve`: `http-service.zena` implements `handle`, builds a
    from such a document gets the compiler's WASI WIT spliced in, as
    the encoder's parse already did, since the document's worlds
    import `wasi:cli` by name; and a declared world's `export main:
-   async func()` is the entry itself — the wrapper synthesizer skips
+async func()` is the entry itself — the wrapper synthesizer skips
    it rather than exporting `main` twice.

@@ -70,7 +70,7 @@ grep foo`).
   in an NPM monorepo. The Cargo workspace is the repository root
   (`Cargo.toml` and `Cargo.lock` there); use `cargo build -p zena-cli`,
   `cargo check`, and `cargo clippy` from the root, and `cargo test -p
-  zena-runtime -p zena-cli -p zena-run` for all three crates.
+zena-runtime -p zena-cli -p zena-run` for all three crates.
 - **Tests**: When expanding standard library tests that interact with this CLI,
   remember that test environments map different paths (like `/tmp`), which rely
   entirely on `wasmtime_wasi::Dir` mappings being present in the CLI

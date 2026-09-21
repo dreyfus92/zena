@@ -489,17 +489,17 @@ record that: every second-class value (a `Borrow<R>`, and a `Scoped<T>`,
 which is bounded the same way) carries a set of **roots**, the owners
 whose extent bounds it. That set is computed from the expression:
 
-| expression                      | roots                                                    |
-| ------------------------------- | -------------------------------------------------------- |
-| a borrow or scoped parameter    | the parameter itself                                     |
-| `this`                          | the receiver                                             |
-| an `Own` binding, read as a borrow | that binding                                          |
-| a local borrow or scoped binding | the roots recorded when it was bound (a `var`: the union over its assignments) |
-| `e.field`, `e[i]`, `e?.field`   | the roots of `e`, with the path appended                 |
-| a call                          | the union of the roots of every borrow or scoped argument, and of the receiver when the callee is a resource's method |
-| `if`, `match`, `??`, a value block | the union over the arms                               |
-| `await e`                       | the roots of `e`                                         |
-| `new R(…)`, a call returning `Own<R>` | a temporary: an owner whose extent is the enclosing statement |
+| expression                            | roots                                                                                                                 |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| a borrow or scoped parameter          | the parameter itself                                                                                                  |
+| `this`                                | the receiver                                                                                                          |
+| an `Own` binding, read as a borrow    | that binding                                                                                                          |
+| a local borrow or scoped binding      | the roots recorded when it was bound (a `var`: the union over its assignments)                                        |
+| `e.field`, `e[i]`, `e?.field`         | the roots of `e`, with the path appended                                                                              |
+| a call                                | the union of the roots of every borrow or scoped argument, and of the receiver when the callee is a resource's method |
+| `if`, `match`, `??`, a value block    | the union over the arms                                                                                               |
+| `await e`                             | the roots of `e`                                                                                                      |
+| `new R(…)`, a call returning `Own<R>` | a temporary: an owner whose extent is the enclosing statement                                                         |
 
 Each root has an extent: the whole body for a parameter or the receiver,
 the declaring block for a local owner (ending early on a path where it

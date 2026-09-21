@@ -468,7 +468,9 @@ for (const fixture of FIXTURES) {
     // stderr and the status says whether the composition happened.
     const composed = spawnSync('wasm-tools', args, {encoding: 'utf8'});
     if (composed.status !== 0) {
-      fail(`does not compose with ${fixture.compose.join(', ')}:\n${composed.stderr}`);
+      fail(
+        `does not compose with ${fixture.compose.join(', ')}:\n${composed.stderr}`,
+      );
       continue;
     }
     console.log(`  ${GREEN}✓${NC} composes with ${fixture.compose.join(', ')}`);
