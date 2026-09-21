@@ -20,7 +20,7 @@
 import { URL } from 'zena:url';
 import { Completer } from 'zena:async';
 import { Outcome, Ok, Err } from 'zena:core';
-import { readAllBytes } from 'zena:stream';
+import { Stream, readAllBytes, readAllText } from 'zena:stream';
 import {
   Fields, Request, Response as WireResponse, ErrorCode, Scheme,
   SchemeHTTP, SchemeHTTPS, SchemeOther, ErrorCodeDNSError,
@@ -68,26 +68,35 @@ export class Response {
 
   /** The response body, decoded as text. */
   async text(): Future<String> {
-    return String.fromBytes(await this.bytes());
+    let text = await readAllText(this.#body());
+    this.#received.complete(new Ok<void, ErrorCode>(unit()));
+    return text;
   }
 
   /** The response body's bytes. */
   async bytes(): Future<FixedArray<u8>> {
+    let bytes = await readAllBytes(this.#body());
+    this.#received.complete(new Ok<void, ErrorCode>(unit()));
+    return bytes;
+  }
+
+  /** The future the reader settles to say how receiving went, the
+   * mirror of a request's trailers future: settled with success once
+   * the stream has ended. */
+  #received = new Completer<Outcome<void, ErrorCode>>();
+
+  /** The body stream, consumed once: `consume-body` takes the
+   * receiving future; the trailers future that comes back is left
+   * unobserved. */
+  #body(): Stream<u8> {
     if (this.#bodyUsed) {
       throw new Error(
         'zena:fetch: the response body has already been read');
     }
     this.#bodyUsed = true;
-    // `consume-body` takes a future the reader settles to say how
-    // receiving went, the mirror of a request's trailers future. It
-    // is settled with success once the stream has ended; the trailers
-    // future that comes back is left unobserved.
-    let received = new Completer<Outcome<void, ErrorCode>>();
     let (body, trailers) =
-        WireResponse.consumeBody(this.#wire, received.future);
-    let bytes = await readAllBytes(body);
-    received.complete(new Ok<void, ErrorCode>(unit()));
-    return bytes;
+        WireResponse.consumeBody(this.#wire, this.#received.future);
+    return body;
   }
 }
 

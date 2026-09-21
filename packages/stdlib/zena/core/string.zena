@@ -110,6 +110,19 @@ export final class String implements Hashable {
   }
 
   /**
+   * A copy of this string's bytes, as they are stored — WTF-8 for
+   * every string a component builds. The inverse of `fromBytes`: what
+   * a `list<u8>` position wants, a header value or a body.
+   */
+  toBytes(): FixedArray<u8> {
+    let out = new FixedArray<u8>(this.length, 0);
+    for (var i = 0; i < this.length; i += 1) {
+      out[i] = this.getByteAt(i) as u8;
+    }
+    return out;
+  }
+
+  /**
    * The encoding of the backing bytes. Encoding is deliberately an
    * internal detail almost everywhere; this exists for boundary code —
    * canonical-ABI marshaling, host interop — that copies the bytes

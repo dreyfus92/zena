@@ -305,3 +305,33 @@ export async function readAllBytes(stream: Stream<u8>): Future<FixedArray<u8>> {
   }
   return FixedArray.from(collected);
 }
+
+/**
+ * Every byte of `stream` to end-of-stream, decoded as text. Zena
+ * strings are WTF-8 views over byte arrays, so nothing is re-encoded:
+ * the bytes are collected and wrapped.
+ */
+export async function readAllText(stream: Stream<u8>): Future<String> {
+  return String.fromBytes(await readAllBytes(stream));
+}
+
+/**
+ * A byte stream carrying `text`, then end-of-stream: a response or
+ * request body built from a string. The bytes are written by a
+ * background task as the reader takes them, so the stream is handed
+ * out at once and the caller never awaits the write.
+ */
+export function textStream(text: String): Stream<u8> {
+  let writer = new StreamWriter<u8>();
+  pumpText(writer, text);
+  return writer.stream;
+}
+
+async function pumpText(writer: StreamWriter<u8>, text: String): Future<void> {
+  let bytes = text.toBytes();
+  // A write of nothing is refused; an empty text is end-of-stream.
+  if (bytes.length > 0) {
+    await writer.writeAll(bytes, bytes.length);
+  }
+  writer.close();
+}

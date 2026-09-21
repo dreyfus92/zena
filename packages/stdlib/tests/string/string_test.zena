@@ -2,6 +2,14 @@ import { suite, test } from 'zena:test';
 import {equal} from 'zena:assert';
 
 export let tests = suite('String', () => {
+  test('toBytes and fromBytes round-trip the stored bytes', () => {
+    let bytes = 'héllo'.toBytes();
+    equal(bytes.length, 6);
+    equal(bytes[0], 104 as u8);
+    equal(String.fromBytes(bytes), 'héllo');
+    equal(''.toBytes().length, 0);
+  });
+
   suite('startsWith', () => {
     test('returns true for matching prefix', () => {
       equal("hello world".startsWith("hello"), true);

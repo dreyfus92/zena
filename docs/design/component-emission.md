@@ -1249,14 +1249,17 @@ came with it: the import encoder now splices WIT-backed packages' real
 source into the derived document (so their instance types are the
 interface's own, and the flattening metadata sees the true types —
 deriving from the synthesized declarations would have declared the
-flattening as the interface), and the first real WASI WIT is vendored
-at `packages/stdlib/zena/wit/` (`wasi:random@0.3.0`, versions pinned to
-what wasmtime registers), where the baked stdio blocks will eventually
-join it. That directory ships with the stdlib, and the compiler
-registers it as the `wasi` package itself (`withBuiltinPackages`), so
-`import { send } from 'wasi:http/client'` needs no manifest entry —
-and the stdlib's own modules can import it, which is how `zena:fetch`
-on the component target speaks `wasi:http`. A manifest that declares
+flattening as the interface), and the whole of WASI 0.3 is vendored
+at `packages/stdlib/zena/wit/`, one file per proposal, written from
+the pinned corpus by `dev/vendor-wasi-wit.js` and checked against it
+by the stdlib's tests (the release's packages are versioned plain
+`0.3.0`, which is what wasmtime registers). That directory ships with
+the stdlib, and the compiler registers it as the `wasi` package itself
+(`withBuiltinPackages`), so `import { send } from 'wasi:http/client'`
+needs no manifest entry — and the stdlib's own modules can import it,
+which is how `zena:fetch` on the component target speaks `wasi:http`
+as a client and `zena:http` (`textResponse`, `requestText`) as a
+service, over the same synthesized bindings. A manifest that declares
 `wasi` keeps its own. End-to-end: `get-random-bytes` lifts its spilled
 `list<u8>` under stock `wasmtime -S p3=y`.
 

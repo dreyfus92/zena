@@ -6,7 +6,7 @@
 import {suite, test, TestContext} from 'zena:test';
 import {equal, isTrue, isFalse} from 'zena:assert';
 import {drainMicrotasks, runFuture} from 'zena:async';
-import {Stream, StreamWriter} from 'zena:stream';
+import {Stream, StreamWriter, readAllText, textStream} from 'zena:stream';
 
 class Item {
   n: i32;
@@ -30,6 +30,15 @@ let sumAll = async (s: Stream<Item>, buf: FixedArray<Item>): Future<i32> => {
 };
 
 export let tests = suite('Stream', (): void => {
+  test('a text stream carries the text to end-of-stream', (ctx: TestContext): void => {
+    equal(runFuture(readAllText(textStream('hello, stream'))), 'hello, stream');
+  });
+
+  test('an empty text stream is end-of-stream at once', (ctx: TestContext): void => {
+    equal(runFuture(readAllText(textStream(''))), '');
+  });
+
+
   test('a write with no reader parks; a read drains it', (ctx: TestContext): void => {
     let w = new StreamWriter<String>();
     let buf = new Array<String>.fixed(4, '');

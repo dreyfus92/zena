@@ -129,6 +129,14 @@ export let buildStdlibConfig = (stdlibRoot: String): PackageConfig => {
   fetchVirtual["component"] = "fetch/component.zena";
   exports["fetch"] = new ModuleExport(fetchVirtual);
 
+  // Virtual module: http → the service side of wasi:http, a handler's
+  // request and response helpers over the same synthesized bindings.
+  // Component target only: the resources it handles have no host
+  // elsewhere.
+  let httpVirtual = new Map<String, String>();
+  httpVirtual["component"] = "http/index.zena";
+  exports["http"] = new ModuleExport(httpVirtual);
+
   // Virtual module: time → sleeping and the monotonic clock. Both
   // entries park synchronously and share time/queue.zena; only the
   // clock differs (poll_oneoff vs a host import). See async.md §4.

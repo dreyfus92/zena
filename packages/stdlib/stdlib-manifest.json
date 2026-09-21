@@ -91,6 +91,11 @@
     },
     "wasi": {
       "path": "wasi/index.zena"
+    },
+    "http": {
+      "virtual": {
+        "component": "http/index.zena"
+      }
     }
   }
 }
