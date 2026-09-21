@@ -51,9 +51,13 @@ COPY packages/vscode-zena/package.json packages/vscode-zena/
 COPY packages/website/package.json packages/website/
 COPY packages/website-client/package.json packages/website-client/
 COPY packages/wit-parser/package.json packages/wit-parser/
+COPY packages/workflow/package.json packages/workflow/
+COPY packages/zb/package.json packages/zb/
 COPY packages/zena-cli/package.json packages/zena-cli/
 COPY packages/zena-compiler/package.json packages/zena-compiler/
 COPY packages/zena-formatter/package.json packages/zena-formatter/
+COPY packages/zena-run/package.json packages/zena-run/
+COPY packages/zenadoc/package.json packages/zenadoc/
 
 RUN npm ci
 

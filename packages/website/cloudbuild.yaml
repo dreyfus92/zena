@@ -25,8 +25,9 @@ images:
   - $_IMAGE
 
 options:
-  # The build runs the whole toolchain, so give it more than the default
-  # machine and a timeout with room to spare.
-  machineType: E2_HIGHCPU_8
+  # The build runs the whole toolchain (Rust, self-hosted compiler, Eleventy),
+  # which needs more memory than 8GB when compiling lsp.wasm and stdlib doc
+  # APIs. E2_HIGHCPU_32 provides 32 vCPUs and 32 GB RAM in the default pool.
+  machineType: E2_HIGHCPU_32
 
 timeout: 1800s

@@ -51,7 +51,7 @@
       "command": "node scripts/generate-api.js",
       "dependencies": [
         "../zena-cli:build",
-        "../zena-compiler:build:cli"
+        "../zena-compiler:precompile:cli"
       ],
       "files": [
         "scripts/generate-api.js",
