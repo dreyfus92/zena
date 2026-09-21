@@ -713,11 +713,11 @@ const reference = [
         link: '/reference/ownership/',
         outline: [
           'Resource classes',
-          'The Disposable protocol',
-          'Deterministic cleanup with using',
           'Handles: Own, Borrow, and Unmanaged',
           'Second-class borrows',
           'Scoped values and the scoped modifier',
+          'The Disposable protocol',
+          'Deterministic cleanup with using',
           'Regime transitions: disown and adopt',
         ],
       },

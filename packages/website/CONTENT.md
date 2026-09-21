@@ -381,13 +381,13 @@ To add a page: add it to the sidebar with an `outline`, then run
     - Monomorphization and reification
     - Variance
     - Type argument inference
-  - 📝 [Ownership and Resources](src/reference/ownership.md) — `/reference/ownership/`
+  - ✅ [Ownership and Resources](src/reference/ownership.md) — `/reference/ownership/`
     - Resource classes
-    - The Disposable protocol
-    - Deterministic cleanup with using
     - Handles: Own, Borrow, and Unmanaged
     - Second-class borrows
     - Scoped values and the scoped modifier
+    - The Disposable protocol
+    - Deterministic cleanup with using
     - Regime transitions: disown and adopt
   - 📝 [Type Testing and Narrowing](src/reference/type-testing.md) — `/reference/type-testing/`
     - The is operator
@@ -623,4 +623,4 @@ To add a page: add it to the sidebar with an `outline`, then run
 
 ---
 
-53 of 96 pages written; 43 still placeholders.
+54 of 96 pages written; 42 still placeholders.
