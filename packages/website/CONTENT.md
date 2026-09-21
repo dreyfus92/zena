@@ -389,7 +389,7 @@ To add a page: add it to the sidebar with an `outline`, then run
     - The Disposable protocol
     - Deterministic cleanup with using
     - Regime transitions: disown and adopt
-  - 📝 [Type Testing and Narrowing](src/reference/type-testing.md) — `/reference/type-testing/`
+  - ✅ [Type Testing and Narrowing](src/reference/type-testing.md) — `/reference/type-testing/`
     - The is operator
     - The as operator
     - Control-flow narrowing
@@ -623,4 +623,4 @@ To add a page: add it to the sidebar with an `outline`, then run
 
 ---
 
-54 of 96 pages written; 42 still placeholders.
+55 of 96 pages written; 41 still placeholders.

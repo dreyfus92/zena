@@ -193,16 +193,11 @@ lattice:
 
 ::: note `Scoped<T>` is not a handle
 
-Notice that `Scoped<T>` occupies the fourth corner of this lattice (affine +
-second-class), but **`Scoped<T>` is not a resource handle**. The three handles
-(`Own`, `Borrow`, `Unmanaged`) apply strictly to `@resource` classes.
-`Scoped<T>` is a general-purpose type wrapper that can apply to _any_ value
-(such as an ordinary `Future<String>` or `Iterator<i32>`), placing it into the
-fourth corner of the lattice. Notice that while `Own<R>`, `Borrow<R>`, and
-`Unmanaged<R>` are handles that apply specifically to `@resource` classes,
-**`Scoped<T>` is not a resource handle**. It is a general-purpose type wrapper
-from `zena:core` that applies to computations like `Future<T>` or `Iterator<T>`
-to place them into the fourth corner of the lattice.
+Notice that while `Own<R>`, `Borrow<R>`, and `Unmanaged<R>` are handles that
+apply specifically to `@resource` classes, **`Scoped<T>` is not a resource
+handle**. It is a general-purpose type wrapper from `zena:core` that applies to
+computations like `Future<T>` or `Iterator<T>` to place them into the fourth
+corner of the lattice.
 
 :::
 
