@@ -394,43 +394,39 @@ To add a page: add it to the sidebar with an `outline`, then run
     - The as operator
     - Control-flow narrowing
 - **Control Flow**
-  - 📝 [Control Flow](src/reference/control-flow.md) — `/reference/control-flow/`
-    - if
-    - match
-    - Blocks
-    - return
-    - throw
-  - 📝 [Loops](src/reference/loops.md) — `/reference/loops/`
+  - ✅ [Conditionals](src/reference/conditionals.md) — `/reference/conditionals/`
+    - if statements
+    - if-else and else-if
+    - if as an expression
+    - Pattern matching with if let
+    - Strict boolean evaluation
+  - ✅ [Loops](src/reference/loops.md) — `/reference/loops/`
     - while
     - for
     - for-in
     - break and continue
-    - Labels
     - while let
-  - 📝 [Pattern Matching](src/reference/pattern-matching.md) — `/reference/pattern-matching/`
+  - ✅ [Pattern Matching](src/reference/pattern-matching.md) — `/reference/pattern-matching/`
     - match expressions
-    - Pattern forms
-    - Guards
+    - Pattern forms and destructuring
+    - Pattern guards
     - Or patterns
     - Exhaustiveness checking
-    - if let
-  - 📝 [Destructuring](src/reference/destructuring.md) — `/reference/destructuring/`
-    - Record patterns
-    - Tuple patterns
-    - Class patterns
-    - Rest and defaults
-  - 📝 [Exceptions](src/reference/exceptions.md) — `/reference/exceptions/`
+    - Pattern conditions with if let and while let
+  - ✅ [Blocks and Exits](src/reference/blocks-and-exits.md) — `/reference/blocks-and-exits/`
+    - Blocks and lexical scope
+    - return
+    - throw and exception unwinding
+    - Deterministic cleanup with using
+    - Cancellation unwinding
+    - Reverse cleanup order
+  - ✅ [Exceptions](src/reference/exceptions.md) — `/reference/exceptions/`
+    - The Error class
     - throw
     - try/catch
     - finally
     - try as an expression
-    - The Error class
     - Representation
-  - 📝 [Cancellation](src/reference/cancellation.md) — `/reference/cancellation/`
-    - The cancellation channel
-    - Cancel scopes
-    - Cleanup on cancellation
-    - Structured concurrency
 - **Classes**
   - 📝 [Introduction](src/reference/classes/index.md) — `/reference/classes/`
     - Declaring a class
@@ -482,6 +478,31 @@ To add a page: add it to the sidebar with an `outline`, then run
     - operator ==
     - operator hash
     - Other operators
+- **Concurrency**
+  - 📝 [Async Functions](src/reference/async-functions.md) — `/reference/async-functions/`
+    - async functions
+    - await expressions
+    - Execution model and eager start
+    - The microtask loop
+    - Future and Completer
+    - Async main
+  - 📝 [Task Groups](src/reference/task-groups.md) — `/reference/task-groups/`
+    - TaskGroup
+    - Spawning tasks
+    - join and race
+    - Error propagation
+    - Structured concurrency invariants
+  - ✅ [Cancellation](src/reference/cancellation.md) — `/reference/cancellation/`
+    - The cancellation channel
+    - Cancel scopes
+    - Cleanup on cancellation
+    - Structured concurrency
+  - 📝 [Streams](src/reference/streams.md) — `/reference/streams/`
+    - The Stream interface
+    - Producing streams
+    - Consuming streams
+    - Transformations and combinators
+    - Backpressure
 - **Attributes**
   - 📝 [Decorators and Intrinsics](src/reference/decorators.md) — `/reference/decorators/`
     - @intrinsic
@@ -623,4 +644,4 @@ To add a page: add it to the sidebar with an `outline`, then run
 
 ---
 
-55 of 96 pages written; 41 still placeholders.
+61 of 99 pages written; 38 still placeholders.

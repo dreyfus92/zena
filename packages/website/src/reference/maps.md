@@ -254,7 +254,7 @@ destructured directly in `for-in` loops:
 let users = {'u101' => 'Alice', 'u102' => 'Bob'};
 
 for (let {key, value} in users) {
-  println(key + ': ' + value);
+  println(`${key}: ${value}`);
 }
 ```
 
@@ -291,7 +291,7 @@ The `forEach` method executes a callback for each key-value pair in the map:
 
 ```zena
 users.forEach((key: String, value: String): void => {
-  println(key + ' -> ' + value);
+  println(`${key} -> ${value}`);
 });
 ```
 

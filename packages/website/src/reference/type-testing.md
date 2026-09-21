@@ -500,7 +500,7 @@ Standard library operations such as `Map.get(key)` and `Iterator.next()` return
 unboxed, zero-cost **inline tuple unions**:
 
 - **`Map.get(key)`** returns `inline (true, V) | inline (false, _)` -
-**`Iterator.next()`** returns `inline (true, T) | inline (false, _)`
+  **`Iterator.next()`** returns `inline (true, T) | inline (false, _)`
 
 When destructuring these unions with a pattern containing a literal `true` tag,
 the compiler's `narrowTypeByPattern` analysis filters out the `(false, _)`

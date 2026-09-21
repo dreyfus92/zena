@@ -308,7 +308,7 @@ let greet = (name: String, greeting?: String) => {
   if (greeting == null) {
     return 'Hello, ' + name;
   }
-  return greeting + ', ' + name;
+  return `${greeting}, ${name}`;
 };
 
 greet('Alice'); // "Hello, Alice"

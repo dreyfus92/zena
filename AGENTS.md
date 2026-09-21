@@ -407,6 +407,7 @@ Do not skip step 1. A test that was never seen to fail proves nothing.
 - Use JSDoc-style multi-like comments (`/** */`)
 - Document classes with their own JSDoc comment, do not use a big comment
   section divider above each class.
+- Use template literals when concatenating more than two strings
 
 ### Testing
 
