@@ -563,9 +563,81 @@ The options are:
   thrown error rather than a silent use of a closed handle. The check
   is one field load per call, and the static rules become best effort.
 
-The first keeps the language's promise that a released resource is not
-reachable, at the price of some ceremony; the third is the cheapest to
-live with. Which one to take is open question 1.
+The first is the rule (§"Affine fields"), and the runtime check is not
+wanted: a released resource stays unreachable by construction. What
+takes the ceremony away later is an exclusive borrow, spelled
+`Lease<T>`.
+
+**Leases: exclusive borrows.** A lease is temporary ownership: for its
+extent the holder of the lease has every right the owner has except
+releasing the value and moving it out, since either would leave the
+owner holding nothing. Rust's `&mut T` is this, and its `mem::replace`
+exists because "take the value out, leave another in its place" is the
+one move a lease may make. Exclusivity is what makes the temporary
+ownership sound. An ordinary `Borrow` is duplicable, so while a method
+runs, another borrow of the same holder can point at the field value a
+store releases; a lease is unique for its extent, which rules that out,
+and a store through it releases the old value exactly as a store
+through `Own<this>` does. Inside the method nothing changes: a read of
+`this.current` is a borrow rooted at `this`, and a store into that path
+kills it (rule 2). What changes is the caller's side. A consumed
+receiver kills the caller's binding, and the method hands the value
+back for the caller to rebind. A lease cannot outlive its extent, so
+nothing is handed back: the caller's binding is frozen during the call
+and usable again after it, which is what removes the `var` form of
+§"Implicit drop".
+
+In the universe table it sits beside `Scoped`: no duplication while
+live, no outliving its extent, and no consumption obligation. `Scoped`
+owns a frame that must be consumed; a lease owns nothing and lapses.
+Handing it to another leasing receiver freezes it the way the owner is
+frozen, and that sublease is the only duplication.
+
+It is declared in the signature, since an interface or virtual call has
+nothing else to go on — `replace(this: Lease<this>, next: Own<R>): void`
+for a method, `h: Lease<Holder>` for a parameter — and the caller
+enforces it with the provenance rules:
+
+1. Taking one requires no live borrow rooted at the owner on any path,
+   and an argument rooted at the same owner in the same call is an
+   error: `h.f(h.current)` with `f` taking `this: Lease<this>`.
+2. The call counts as a move of the owner's paths for rule 2: a borrow
+   derived before it is dead after it, since the method may have
+   released what it pointed at.
+3. A module-level owner is reachable from every function, and a
+   callee's exclusive call on it moves nothing the caller can see, so a
+   borrow of a module-level owner may not be bound across a call.
+
+This lands after provenance, as an addition: consuming receivers keep
+working, and the two forms coexist.
+
+**Naming the two borrows.** The languages with both kinds of temporary
+access name them along two lines. Rust, Swift and Mojo call every
+temporary access a borrow and mark the exclusive one by the mutation it
+permits: `&mut`, `inout`, `mut`. SPARK reserves "borrow" for the
+exclusive kind and calls the shared, read-only kind an observe; Austral
+says read and write references. Dada, by Rust's own designer, says
+`leased` for the exclusive kind and `shared` for the other, chosen
+because `&mut` names the wrong property: what it guarantees is that no
+other reference exists, and mutation is what that guarantee permits.
+That guarantee is what the handle here has to name, and a lease names
+it by itself. A lease is exclusive by nature, it runs for a term, and
+at the end of the term the thing reverts to the owner without being
+handed back. A `mut` modifier would name the permitted mutation instead
+of the guarantee, and read as Rust. So the handles are `Own<T>`,
+`Borrow<T>`, `Lease<T>`, `Scoped<T>` and `Unmanaged<T>`, five names and
+no modifiers.
+
+The pair `Borrow`/`Lease` is lopsided. `Lease` says on its face that it
+is exclusive; `Borrow` does not say that it is shared and freely copied,
+and the older English sense, like SPARK's, is the opposite, so its doc
+line has to say it. A rename that makes both self-describing is
+possible: `Share<T>` or `View<T>` for the copyable kind. `View`, like
+Austral's and Mojo's "read", says read-only, which a borrow is not, and
+`Share` reads as a stock certificate. Open question 10 keeps the
+rename; it is not worth the churn while "borrow means shared" is what
+Rust and Swift readers expect and every signature in the stdlib and the
+tests says `Borrow`.
 
 #### Borrows and suspension
 
@@ -2402,10 +2474,10 @@ case into the general rule and re-declare the handles as
    superseded by §"Borrow provenance": the checker reads what the result
    derives from off the callee's body, and the caller bounds it by every
    borrow argument.
-   What is open in its place is how `var` owner fields interact with
-   borrows of the field: stores need an owner receiver (the current rule),
-   or stores through borrows with a runtime lifecycle check on every
-   resource method.
+   The `var` owner field question it left — stores through borrows, or a
+   runtime check — is decided too: stores need an owner receiver, with no
+   runtime check, and exclusive borrows (§"Borrow provenance") are the
+   relaxation to build once provenance is in.
 2. `try`/`catch` and the branch-join rule: a runtime drop flag inside `try`
    bodies, or split the try region at each acquisition?
 3. Child-before-parent drop ordering: recorded on the wrapper, or inferred?
@@ -2424,8 +2496,10 @@ case into the general rule and re-declare the handles as
 9. Should bindgen synthesize `dispose()` for generated WIT wrappers? The release
    is always "call the imported drop function with `this.#handle`", so it can;
    hand-written resource classes still write their own.
-10. Naming: `disown`/`adopt`, `Unmanaged<T>`, `scoped T`. Cheap to change until
-    `zena:ownership` has clients.
+10. Naming: `disown`/`adopt`, `Unmanaged<T>`, `scoped T`, and whether
+    `Borrow<T>` becomes `Share<T>` or `View<T>` once `Lease<T>` sits beside
+    it (§"Borrow provenance", "Naming the two borrows"). Cheap to change
+    until `zena:ownership` has clients.
 11. ~~Should a resource's release consume its receiver?~~ — **decided**: yes,
     `[Disposable.dispose](this: Own<this>): void`. It does split `Disposable`
     into two contracts sharing one symbol; see
