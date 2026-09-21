@@ -357,6 +357,13 @@ export final class ComponentExportFunc {
    */
   var needsMemoryLift = false;
   /**
+   * For a WIT-typed synchronous export: whether its result flattens
+   * past one core value and so comes back through a return area the
+   * wrapper stages, which `post-return` releases. Decided by the
+   * encoder from the WIT.
+   */
+  var needsPostReturnLift = false;
+  /**
    * The qualified name of the exported interface this function belongs
    * to (`wasi:http/handler@0.3.0`), or empty for a world-level export.
    * Exports of one interface are grouped into a component instance
@@ -386,7 +393,8 @@ export final class ComponentExportFunc {
    * out. Arguments are the host's own buffers.
    */
   needsPostReturn(): boolean {
-    return componentTypeNeedsMemory(this.signature.result);
+    return this.needsPostReturnLift ||
+        componentTypeNeedsMemory(this.signature.result);
   }
 }
 

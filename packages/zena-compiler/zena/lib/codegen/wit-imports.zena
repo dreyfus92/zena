@@ -704,7 +704,12 @@ final class DeclaredWorldEncoder implements ImportTypeEncoder {
             e.exportName);
       }
       if (meta != null) {
-        e.needsMemoryLift = (meta as WitFuncMeta).needsMemory;
+        let m = meta as WitFuncMeta;
+        e.needsMemoryLift = m.needsMemory;
+        // A synchronous lift returns at most one core value; a result
+        // flattening past that comes back as a return area's address,
+        // which the host reads and then hands to `post-return`.
+        e.needsPostReturnLift = !m.isAsync && m.resultFlatCount > 1;
       }
     }
     let out = mirrorEncodedWorld(world);
@@ -839,6 +844,11 @@ final class DeclaredWorldEncoder implements ImportTypeEncoder {
       if (e.callbackCoreName != "") {
         throw new Error("The program's '" + e.exportName + "' is async, " +
             "and the declared world exports it as a synchronous function.");
+      }
+      if (e.witTyped) {
+        // A synchronous export richer than scalars and strings: the
+        // wrapper the compiler wrote marshals it, typed from the WIT.
+        continue;
       }
       this.#checkExportSignature(declared, e);
     }

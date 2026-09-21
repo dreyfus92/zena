@@ -8,7 +8,9 @@ import { ByteBuffer } from 'zena:core';
 import { ReachabilityAnalysis } from './reachability/analysis.zena';
 import { prepareGenerators } from './ir/generators.zena';
 import { prepareAsyncFunctions } from './ir/async.zena';
-import { prepareComponentEntry, prepareComponentExports } from './ir/component-adapters.zena';
+import {
+  prepareComponentEntry, prepareComponentExports, prepareSyncExports
+} from './ir/component-adapters.zena';
 import { getClassKey, getInterfaceKey, getInterfaceMemberKey, sortStringsByLengthDescending, parseI64OrU64Literal, parseI32WithHex } from './codegen-utils.zena';
 import { ClassType } from '../types.zena';
 import { Program } from '../program.zena';
@@ -217,6 +219,11 @@ export final class ModuleGenerator {
         exports.push(new WasmExport(adapterName as String,
             asyncExport.adapter));
       }
+    }
+    // The sync export wrappers, likewise: lifted directly under the
+    // WIT's type.
+    for (let syncExport in wasm.componentSyncExports) {
+      exports.push(new WasmExport(syncExport.coreName, syncExport.func));
     }
     // The wrappers, and the two functions the canonical options name.
     // They are core-module exports and not component ones: the component
@@ -534,6 +541,7 @@ export final class ModuleGenerator {
     // whether `main` is still an export to wrap.
     if (targetEmitsComponent(this.target)) {
       prepareComponentEntry(wasm, pass);
+      prepareSyncExports(wasm, pass);
       prepareComponentExports(wasm, pass);
     }
 

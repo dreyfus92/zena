@@ -329,6 +329,25 @@ const FIXTURES: Fixture[] = [
     ],
   },
   {
+    name: 'greeter',
+    wasi: ['p3=y'],
+    wit: ['greeter.wit', 'provider'],
+    // Synchronous functions in an exported interface, beside an async
+    // one. `count` and `shout` are lifted directly; `describe` and
+    // `locate` go through the compiler-written wrapper, `describe`'s
+    // `result<string, string>` coming back through a return area the
+    // host reads and then releases with `post-return`.
+    invocations: [
+      {invoke: 'test:greeter/greeter.count@1.0.0(41)', expect: '42'},
+      {invoke: 'test:greeter/greeter.shout@1.0.0("hi")', expect: '"hi!"'},
+      {invoke: 'test:greeter/greeter.describe@1.0.0(1)', expect: 'ok("one")'},
+      {invoke: 'test:greeter/greeter.describe@1.0.0(9)', expect: 'err("too big")'},
+      {invoke: 'test:greeter/greeter.locate@1.0.0("two")', expect: 'some(2)'},
+      {invoke: 'test:greeter/greeter.locate@1.0.0("nine")', expect: 'none'},
+      {invoke: 'test:greeter/greeter.ask@1.0.0(21)', expect: '42'},
+    ],
+  },
+  {
     name: 'compose-provider',
     wasi: ['p3=y'],
     wit: ['compose.wit', 'provider'],

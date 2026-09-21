@@ -58,6 +58,14 @@ export let componentEntryRunName = 'run';
  * an underscore and the suffix cannot collide.
  */
 export let componentExportSuffix = '_export';
+/**
+ * The suffix of a declared world's synchronous export wrapper — one
+ * whose parameters or result are richer than the flat scalars and
+ * strings a program export lifts on its own. Lifted directly, no
+ * callback: the value comes back from the call, through a return
+ * area when it flattens past one core value.
+ */
+export let componentSyncExportSuffix = '_export_sync';
 
 /**
  * A wrapper to load beside the entry. `entrySpecifier` is how the

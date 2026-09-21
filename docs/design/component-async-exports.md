@@ -309,9 +309,8 @@ serve`: `http-service.zena` implements `handle`, builds a
    `Response` around a `Stream<u8>` a background task writes, and the
    e2e fetches a path and reads the body back (the stream is pumped
    after `task.return`, from callback re-entries). Remaining: provider
-   components for the fixture interfaces (composition tests), the
-   self-wake future for concurrent tasks, and sync functions in
-   exported interfaces.
+   components for the fixture interfaces (composition tests), and the
+   self-wake future for concurrent tasks.
 7. Two Zena components composed — landed as the `compose` fixtures.
    `compose.wit` declares an `oracle` interface whose `ask` is
    `async func(n: s32) -> future<s32>`, a `provider` world exporting
@@ -335,3 +334,22 @@ serve`: `http-service.zena` implements `handle`, builds a
    import `wasi:cli` by name; and a declared world's `export main:
 async func()` is the entry itself — the wrapper synthesizer skips
    it rather than exporting `main` twice.
+8. Synchronous exports, at world level and in exported interfaces —
+   landed as the `greeter` fixture. Flat scalars and strings lifted
+   already: a program export of those is lifted directly (a string
+   result through the IR-built wrapper and its `stringResultArea`),
+   and the declared world assigns it to its interface's instance.
+   Anything richer now goes through the same wrapper module the async
+   exports use, as `<name>_export_sync`: parameters lift as they do
+   for an async export, the program's function is called, and the
+   result comes back the way a synchronous lift takes one — the one
+   core value it flattens to, returned; or, past one, the canonical
+   layout written into a return area the wrapper stages, whose address
+   is returned. The area and whatever it points into stay staged until
+   the host has read them: the wrapper notes the staged range
+   (`notePostReturn`), the lift carries `post-return`, and `postReturn`
+   releases the range. One pending range suffices, since a synchronous
+   lift runs to completion and the host calls `post-return` before
+   re-entering. The encoder types the lift from the WIT and decides the
+   options from the flattening: memory when anything crosses through
+   it, `post-return` when the result flattens past one core value.

@@ -1,0 +1,22 @@
+// An exported interface of synchronous functions: `greeter.zena`
+// implements each with a plain exported function, and the compiler
+// lifts them into the `greeter` instance — no callback, no typed
+// `task.return`, the value comes back from the call. `count` and
+// `shout` lift on their own; `describe` and `locate` are richer than
+// a program export can carry, so the compiler-written wrapper
+// marshals them, and both results flatten past one core value, so
+// they come back through a return area the host reads and then
+// releases with `post-return`.
+package test:greeter@1.0.0;
+
+interface greeter {
+  count: func(n: u32) -> u32;
+  shout: func(name: string) -> string;
+  describe: func(n: u32) -> result<string, string>;
+  locate: func(name: string) -> option<u32>;
+  ask: async func(n: u32) -> u32;
+}
+
+world provider {
+  export greeter;
+}

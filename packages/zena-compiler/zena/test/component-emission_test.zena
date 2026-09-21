@@ -497,6 +497,36 @@ export let tests = suite('Component emission', (): void => {
       `the pump's park on the write is not imported:\n${source}`);
   });
 
+  test('a synchronous export richer than a string wraps and returns through a return area',
+      (ctx: TestContext): void => {
+    // The greeter interface: `count` and `shout` lift on their own and
+    // get no wrapper; `describe`'s `result<string, string>` flattens
+    // to three core values, so its wrapper stages the result in a
+    // return area, notes the staged range for `post-return`, and
+    // returns the address; `locate`'s `option<u32>`... flattens to
+    // two, the same way. Neither declares a `task.return`.
+    let wit = readFile(`${fixtures}/greeter.wit`);
+    let entry = `${fixtures}/greeter.zena`;
+    let wrapperOpt = synthesizeExportWrapper(wit, 'provider', entry,
+        parse(readFile(entry), entry), packagesWit());
+    isTrue(wrapperOpt != null, 'the greeter world gets no wrapper');
+    let source = (wrapperOpt as ComponentEntryWrapper).source;
+    isTrue(!source.contains('count_export'),
+      `a flat-scalar export should lift on its own:\n${source}`);
+    isTrue(!source.contains('shout_export'),
+      `a string export should lift on its own:\n${source}`);
+    isTrue(source.contains(`export function describe_export_sync(a0: u32): i32 {`),
+      `the sync wrapper returns the return area's address:\n${source}`);
+    isTrue(source.contains(`let ret = stageBuffer(`),
+      `the result is not staged in a return area:\n${source}`);
+    isTrue(source.contains(`notePostReturn(m0);`),
+      `the staged range is not handed to post-return:\n${source}`);
+    isTrue(!source.contains('task.return#describe'),
+      `a synchronous export must not declare a task.return:\n${source}`);
+    isTrue(source.contains(`export function ask_export(a0: u32): void {`),
+      `the async export beside them still wraps with the callback:\n${source}`);
+  });
+
   test('a component with no imports carries no import machinery', (ctx: TestContext): void => {
     // No instance type, no import, no lowering, no synthesized instance
     // — just the module, its instantiation, and the lifted export. This

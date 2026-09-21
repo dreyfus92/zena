@@ -1,0 +1,35 @@
+// The `greeter` interface `greeter.wit` exports: synchronous functions
+// beside an async one, in the same instance — two the component lifts
+// directly, two through the wrapper the compiler writes.
+import { Future } from 'zena:async';
+import { Outcome, Ok, Err, Option, some, none } from 'zena:core';
+
+let names = ['zero', 'one', 'two'];
+
+export function describe(n: u32): Outcome<String, String> {
+  if (n >= (names.length as u32)) {
+    return new Err<String, String>('too big');
+  }
+  return new Ok<String, String>(names[n as i32]);
+}
+
+export function locate(name: String): Option<u32> {
+  for (var i = 0; i < names.length; i += 1) {
+    if (names[i] == name) {
+      return some(i as u32);
+    }
+  }
+  return none;
+}
+
+export function count(n: u32): u32 {
+  return n + (1 as u32);
+}
+
+export function shout(name: String): String {
+  return name + '!';
+}
+
+export async function ask(n: u32): Future<u32> {
+  return n * (2 as u32);
+}

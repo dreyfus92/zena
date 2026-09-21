@@ -469,6 +469,20 @@ export let buildComponentShape = (
     shape.exports.push(lifted);
   }
 
+  // The declared world's wrapped synchronous exports: the wrapper's
+  // core signature is the canonical flattening of the WIT's, which
+  // the encoder types; a result past one core value comes back as the
+  // address of a return area, and the lift then carries the memory
+  // options and a `post-return`.
+  for (let syncExport in wasm.componentSyncExports) {
+    let lifted = new ComponentExportFunc(
+      syncExport.coreName, syncExport.exportName,
+      new ComponentFuncType(new GrowableArray<i32>(), new GrowableArray<String>(),
+          noComponentResult, false));
+    lifted.witTyped = true;
+    shape.exports.push(lifted);
+  }
+
   let exportKeys = wasm.exportMap.keys();
   while (let (true, key) = exportKeys.next()) {
     let f = wasm.exportMap[key];
@@ -476,11 +490,14 @@ export let buildComponentShape = (
     if (entry != null && coreName == "main") {
       continue;
     }
-    // The program's own async function behind a wrapped export: the
-    // adapter above is what the host reaches, not the function.
+    // The program's own function behind a wrapped export: the adapter
+    // or wrapper above is what the host reaches, not the function.
     var wrapped = false;
     for (let asyncExport in wasm.componentAsyncExports) {
       if (asyncExport.exportName == toKebabName(coreName)) { wrapped = true; }
+    }
+    for (let syncExport in wasm.componentSyncExports) {
+      if (syncExport.exportName == toKebabName(coreName)) { wrapped = true; }
     }
     if (wrapped) {
       continue;

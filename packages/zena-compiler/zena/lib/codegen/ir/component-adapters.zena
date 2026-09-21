@@ -52,7 +52,7 @@
  */
 
 import {
-  WasmModule, WasmFunction, ComponentAsyncExport
+  WasmModule, WasmFunction, ComponentAsyncExport, ComponentSyncExport
 } from '../wasm-module.zena';
 import { ValType, ValTypeI32 } from '../wasm.zena';
 import { FunctionDeclaration } from '../../ast.zena';
@@ -67,7 +67,8 @@ import {
 import { componentTypeOf, declaredTypeOf } from '../component-shape.zena';
 import { ClassType, VoidType } from '../../types.zena';
 import {
-  isComponentEntryPath, componentEntryRunName, componentExportSuffix
+  isComponentEntryPath, componentEntryRunName, componentExportSuffix,
+  componentSyncExportSuffix
 } from '../../component-entry.zena';
 
 /** Bodies for the synthesized entry, by function uid. */
@@ -301,6 +302,62 @@ let prepareAsyncExports = (
   }
 };
 
+/**
+ * Register the entry wrapper's synchronous export wrappers — a
+ * `<name>_export_sync` per declared sync export whose types are
+ * richer than a program export lifts on its own. No adapter: the
+ * wrapper's own core signature is the lift's, and the component lifts
+ * it directly, typed from the WIT. Runs whether or not the program
+ * links the async driver: a provider of plain functions has no entry
+ * and never awaits.
+ */
+export let prepareSyncExports = (
+  wasm: WasmModule,
+  pass: ReachabilityAnalysis
+): void => {
+  let prog = wasm.program;
+  if (prog == null) {
+    return;
+  }
+  for (let unit in prog.units) {
+    if (!isComponentEntryPath(unit.ast.path)) { continue; }
+    for (let stmt in unit.ast.body) {
+      if (stmt is FunctionDeclaration) {
+        let name = stmt.name.name;
+        if (!name.endsWith(componentSyncExportSuffix)) { continue; }
+        let found = wasm.getUnitFunc(unit.ast.path, name);
+        if (found == null) {
+          throw new Error('The entry wrapper declares ' + name +
+              ' and codegen registered no function for it.');
+        }
+        let target = found as WasmFunction;
+        pass.markFunctionReached(target);
+        let exportName = toKebabName(name.sliceBytes(0,
+            name.length - componentSyncExportSuffix.length));
+        wasm.componentSyncExports.push(new ComponentSyncExport(
+            exportName, name + '$componentLift', target));
+      }
+    }
+  }
+  if (wasm.componentSyncExports.length == 0) {
+    return;
+  }
+  // A result past one core value comes back through a return area the
+  // wrapper stages; `post-return` releases it once the host has read
+  // it, and the lift's memory options name the runtime module's
+  // allocator, both as the string wrappers below arrange.
+  let realloc = wasm.getStdlibFunc(componentAbiModule, 'realloc');
+  let postReturn = wasm.getStdlibFunc(componentAbiModule, 'postReturn');
+  if (realloc == null || postReturn == null) {
+    throw new Error('The component target has a wrapped synchronous ' +
+        'export, and zena:wasi was not linked.');
+  }
+  pass.markFunctionReached(realloc as WasmFunction);
+  pass.markFunctionReached(postReturn as WasmFunction);
+  wasm.componentReallocFunc = realloc as WasmFunction;
+  wasm.componentPostReturnFunc = postReturn as WasmFunction;
+};
+
 let i32Results = (): GrowableArray<ValType> => {
   let results = new GrowableArray<ValType>();
   results.push(new ValTypeI32());
@@ -335,6 +392,15 @@ export let prepareComponentExports = (
       // Replaced by the async entry, which returns a callback code and
       // takes nothing. Wrapping it would wrap a function that is not
       // lifted.
+      continue;
+    }
+    // An export the entry wrapper already marshals, richer than a
+    // string: the component lifts the wrapper, not the function.
+    var bySyncWrapper = false;
+    for (let s in wasm.componentSyncExports) {
+      if (s.exportName == toKebabName(coreName)) { bySyncWrapper = true; }
+    }
+    if (bySyncWrapper) {
       continue;
     }
     let declared = declaredTypeOf(f, 'export');

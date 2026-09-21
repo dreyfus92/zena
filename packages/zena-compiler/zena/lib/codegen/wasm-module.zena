@@ -832,6 +832,18 @@ export final class ComponentAsyncExport {
   new(this.exportName, this.adapter);
 }
 
+/**
+ * One of a declared world's synchronous exports that goes through a
+ * compiler-written wrapper: its kebab-case export name, the core
+ * export name the wrapper is lifted under, and the wrapper itself.
+ */
+export final class ComponentSyncExport {
+  exportName: String;
+  coreName: String;
+  func: WasmFunction;
+  new(this.exportName, this.coreName, this.func);
+}
+
 export final class WasmModule {
   /**
    * Per-class substitution memos for this compile. Keyed by
@@ -1158,6 +1170,9 @@ export final class WasmModule {
    * the order the entry wrapper declares them.
    */
   componentAsyncExports = new GrowableArray<ComponentAsyncExport>();
+  /** The declared world's wrapped synchronous exports, on the
+   * component target. */
+  componentSyncExports = new GrowableArray<ComponentSyncExport>();
   /**
    * The `$componentExport` wrapper for each export whose signature
    * carries a `string`, keyed by the export's own name. An export with

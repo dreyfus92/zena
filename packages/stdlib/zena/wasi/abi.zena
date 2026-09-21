@@ -159,13 +159,39 @@ export function stringResultArea(s: String): i32 {
 }
 
 /**
- * The `post-return` option: free what `stringResultArea` allocated.
+ * The staged range a synchronous export wrapper's return area sits
+ * in, waiting for `post-return`, or -1. One is enough: a synchronous
+ * lift runs to completion and the host calls `post-return` before it
+ * enters the component again.
+ */
+var pendingPostReturn = -1;
+
+/**
+ * Note that the return area a wrapper is about to return, and
+ * everything staged since `mark` (a string's bytes, a list's
+ * elements — what the area points into), stays allocated until the
+ * host's `post-return`.
+ */
+export function notePostReturn(mark: i32): void {
+  pendingPostReturn = mark;
+}
+
+/**
+ * The `post-return` option: free the return area the host has just
+ * read — a staged range a wrapper noted, or else what
+ * `stringResultArea` allocated.
  *
  * The host calls this after it has read the result out, which is the
  * only moment at which the guest can know the buffer is dead. Without
- * it the component still works and leaks a string per call.
+ * it the component still works and leaks a result per call.
  */
 export function postReturn(area: i32): void {
+  if (pendingPostReturn >= 0) {
+    let mark = pendingPostReturn;
+    pendingPostReturn = -1;
+    releaseStagedFrom(mark);
+    return;
+  }
   let ptr = mem.getI32(area);
   if (ptr != 0) {
     defaultAllocator.free(ptr);

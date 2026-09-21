@@ -69,7 +69,8 @@ import { withWasiPackages } from './codegen/wit-imports.zena';
 import {
   ComponentEntryWrapper, componentEntryPathFor,
   componentEntrySpecifierFor, componentExportSuffix,
-  mainScalarResultOf, hasAsyncMain, renderMainWrapper, renderWrapperHeader
+  mainScalarResultOf, hasAsyncMain, renderMainWrapper, renderWrapperHeader,
+  componentSyncExportSuffix
 } from './component-entry.zena';
 
 
@@ -2768,13 +2769,16 @@ export function synthesizeExportWrapper(
   let exports = new GrowableArray<AsyncWorldExport>();
   let interfaces = new GrowableArray<FoundInterface>();
   let interfaceExports = new GrowableArray<AsyncWorldExport>();
+  let noItemsForWorld = new GrowableArray<InterfaceItem>();
   if (world != null) {
     for (let wi in (world as WorldDef).items) {
       if (wi.tag != WorldItemTag.Export) { continue; }
       let kind = (wi.exportItem as Export).kind;
       if (kind.tag == ExternKindTag.Func) {
         let func = kind.funcDef as Func;
-        if (!func.isAsync) { continue; }
+        if (!func.isAsync && !needsSyncWrapper(func, noItemsForWorld)) {
+          continue;
+        }
         let name = (kind.name as Id).name;
         // The world's async `main` is the entry: the component lifts
         // the program's async main on its own, with its typed return
@@ -2809,7 +2813,10 @@ export function synthesizeExportWrapper(
         for (let item in iface.def.items) {
           if (item.tag != InterfaceItemTag.Func) { continue; }
           let nf = item.func as NamedFunc;
-          if (!nf.func.isAsync) { continue; }
+          if (!nf.func.isAsync &&
+              !needsSyncWrapper(nf.func, iface.def.items)) {
+            continue;
+          }
           let e = new AsyncWorldExport(nf.name.name, nf.func);
           e.interfaceIndex = interfaces.length;
           e.qualifiedInterface = qualified;
@@ -2844,7 +2851,11 @@ export function synthesizeExportWrapper(
     let zenaName = camelName(e.name);
     imported.push(zenaName);
     body.append("\n");
-    renderExportWrapper(body, e.name, zenaName, e.func, noItems, uses, "");
+    if (e.func.isAsync) {
+      renderExportWrapper(body, e.name, zenaName, e.func, noItems, uses, "");
+    } else {
+      renderSyncExportWrapper(body, e.name, zenaName, e.func, noItems, uses);
+    }
     // A world-level export's future is structural: its canon type
     // names no interface.
     drainHelpers(body, uses, "");
@@ -2859,8 +2870,13 @@ export function synthesizeExportWrapper(
     let zenaName = camelName(e.name);
     imported.push(zenaName);
     body.append("\n");
-    renderExportWrapper(body, e.name, zenaName, e.func, iface.def.items,
-        uses, e.qualifiedInterface);
+    if (e.func.isAsync) {
+      renderExportWrapper(body, e.name, zenaName, e.func, iface.def.items,
+          uses, e.qualifiedInterface);
+    } else {
+      renderSyncExportWrapper(body, e.name, zenaName, e.func,
+          iface.def.items, uses);
+    }
     // A future this export moves — a `future<T>` result the program's
     // `Future<T>` lowers into — gets its helpers here, typed against
     // the exporting interface.
@@ -2950,18 +2966,44 @@ export function synthesizeExportWrapper(
 }
 
 /**
- * One async export's typed return and `<name>_export` wrapper. Throws
- * with the reason on a parameter or result this cannot marshal.
+ * Whether a declared synchronous export needs a wrapper: a parameter
+ * or result that is not a flat scalar or a string. Those two a
+ * program export lifts on its own (component-adapters wraps the
+ * string); anything richer is marshaled here, typed from the WIT.
  */
-function renderExportWrapper(sb: StringBuilder, witName: String,
-    zenaName: String, func: Func, items: Array<InterfaceItem>,
-    uses: SynthUses, returnScope: String): void {
+function needsSyncWrapper(func: Func, items: Array<InterfaceItem>): boolean {
+  let plain = (ty: Ty): boolean =>
+      ty.kind == TyKind.Scalar || ty.kind == TyKind.Str;
+  for (let p in func.params) {
+    if (!plain(classifyType(p.type, items))) { return true; }
+  }
+  let result = func.result;
+  if (result != null && !plain(classifyType(result as Type, items))) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * The parameters of an export wrapper, async or sync: the core-shaped
+ * signature the lift calls with, the statements lifting each into its
+ * Zena value, and the arguments to call the program's function with.
+ * Throws with the reason on a parameter this cannot marshal.
+ */
+final class WrapperParams {
+  rawSig = new StringBuilder();
+  liftStmts = new StringBuilder();
+  callArgs = new StringBuilder();
+  new();
+}
+
+function renderWrapperParams(witName: String, func: Func,
+    items: Array<InterfaceItem>, uses: SynthUses): WrapperParams {
   let refuse = (what: String, why: String): Error =>
-      new Error("The declared world's async export '" + witName + "', " +
+      new Error("The declared world's export '" + witName + "', " +
           what + ": " + why);
-  let rawSig = new StringBuilder();
-  let liftStmts = new StringBuilder();
-  let callArgs = new StringBuilder();
+  let out = new WrapperParams();
+  let {rawSig, liftStmts, callArgs} = out;
   for (var i = 0; i < func.params.length; i += 1) {
     let p = func.params[i];
     let ty = classifyType(p.type, items);
@@ -2997,10 +3039,114 @@ function renderExportWrapper(sb: StringBuilder, witName: String,
       throw refuse("parameter '" + p.name.name + "'", ty.reason);
     } else {
       throw refuse("parameter '" + p.name.name + "'",
-          "only flat scalars, strings and owned resources cross into an " +
-          "async export yet");
+          "only flat scalars, strings and owned resources cross into a " +
+          "wrapped export yet");
     }
   }
+  return out;
+}
+
+/**
+ * One synchronous export's `<name>_export_sync` wrapper: the lift
+ * calls it with the WIT's flattened parameters, it calls the program's
+ * function, and it returns the result the way a synchronous lift
+ * takes one — the one core value a result flattens to, or, past one,
+ * the address of a return area holding the result in its canonical
+ * layout, staged until the host has read it and `post-return` runs.
+ * Throws with the reason on a parameter or result this cannot marshal.
+ */
+function renderSyncExportWrapper(sb: StringBuilder, witName: String,
+    zenaName: String, func: Func, items: Array<InterfaceItem>,
+    uses: SynthUses): void {
+  let refuse = (what: String, why: String): Error =>
+      new Error("The declared world's export '" + witName + "', " +
+          what + ": " + why);
+  let params = renderWrapperParams(witName, func, items, uses);
+  let result = func.result;
+  if (result == null) {
+    sb.append("export function ").append(zenaName)
+        .append(componentSyncExportSuffix).append("(")
+        .append(params.rawSig.toString()).append("): void {\n");
+    sb.append(params.liftStmts.toString());
+    sb.append("  ").append(zenaName).append("(")
+        .append(params.callArgs.toString()).append(");\n}\n");
+    return;
+  }
+  let resultType = result as Type;
+  let resultTy = classifyType(resultType, items);
+  if (resultTy.kind == TyKind.Unsupported) {
+    throw refuse("the result", resultTy.reason);
+  }
+  if (resultTy.kind == TyKind.ResultT) {
+    for (let child in resultTy.children) {
+      if (isVoid(child)) { continue; }
+      let blocked = lowerBlocker(child);
+      if (blocked != "") { throw refuse("the result", blocked); }
+    }
+  } else {
+    let blocked = lowerBlocker(resultTy);
+    if (blocked != "") { throw refuse("the result", blocked); }
+  }
+  let slots = flatCoreSlots(resultTy);
+  if (slots == null) {
+    throw refuse("the result", "its variant payloads join across " +
+        "core types, which waits on the interop stages");
+  }
+  let slotTypes = slots as GrowableArray<String>;
+  let zenaResult = futurePayloadZenaType(resultTy, uses);
+  if (slotTypes.length == 1) {
+    // One core value: returned as the call's result.
+    sb.append("export function ").append(zenaName)
+        .append(componentSyncExportSuffix).append("(")
+        .append(params.rawSig.toString()).append("): ")
+        .append(slotTypes[0]).append(" {\n");
+    sb.append(params.liftStmts.toString());
+    sb.append("  let value = ").append(zenaName).append("(")
+        .append(params.callArgs.toString()).append(");\n");
+    let zero = if (slotTypes[0] == "f32" || slotTypes[0] == "f64") "0.0"
+        else "0";
+    sb.append("  var s0: ").append(slotTypes[0]).append(" = ")
+        .append(zero).append(";\n");
+    let slotNames = new GrowableArray<String>();
+    slotNames.push("s0");
+    currentSlotTypes = slotTypes;
+    lowerFlatStmts(sb, resultTy, "value", slotNames, 0, "  ", uses);
+    sb.append("  return s0;\n}\n");
+    return;
+  }
+  // Past one core value: the canonical layout in a return area. The
+  // area and everything the value stages inside it (a string's bytes,
+  // a list's elements) stay allocated until the host has read them
+  // and calls `post-return`, which releases the staged range.
+  uses.useAbi("stagedMark");
+  uses.useAbi("stageBuffer");
+  uses.useAbi("notePostReturn");
+  sb.append("export function ").append(zenaName)
+      .append(componentSyncExportSuffix).append("(")
+      .append(params.rawSig.toString()).append("): i32 {\n");
+  sb.append(params.liftStmts.toString());
+  sb.append("  let value = ").append(zenaName).append("(")
+      .append(params.callArgs.toString()).append(");\n");
+  sb.append("  let m0 = stagedMark();\n");
+  sb.append("  let ret = stageBuffer(")
+      .append(i32ToString(resultTy.size)).append(");\n");
+  lowerMemStmts(sb, resultTy, "value", "ret", "  ", uses);
+  sb.append("  notePostReturn(m0);\n");
+  sb.append("  return ret;\n}\n");
+}
+
+/**
+ * One async export's typed return and `<name>_export` wrapper. Throws
+ * with the reason on a parameter or result this cannot marshal.
+ */
+function renderExportWrapper(sb: StringBuilder, witName: String,
+    zenaName: String, func: Func, items: Array<InterfaceItem>,
+    uses: SynthUses, returnScope: String): void {
+  let refuse = (what: String, why: String): Error =>
+      new Error("The declared world's async export '" + witName + "', " +
+          what + ": " + why);
+  let params = renderWrapperParams(witName, func, items, uses);
+  let {rawSig, liftStmts, callArgs} = params;
 
   let result = func.result;
   var hasResult = false;
