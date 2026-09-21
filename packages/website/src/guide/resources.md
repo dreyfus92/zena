@@ -389,7 +389,7 @@ let ownedFile: Own<FileDescriptor> = openFile('log.txt');
 let unmanagedFile: Unmanaged<FileDescriptor> = disown(ownedFile);
 
 // Store in an ordinary collection:
-let fileList = new GrowableArray<Unmanaged<FileDescriptor>>();
+let fileList = new Array<Unmanaged<FileDescriptor>>();
 fileList.push(unmanagedFile);
 
 // Re-enter the Affine regime:

@@ -1272,7 +1272,7 @@ increment(10, 5); // 15
 
    class Processor {
      // A new array is created for each call that uses the default
-     process(items: GrowableArray<i32> = new GrowableArray<i32>()): i32 {
+     process(items: GrowableArray<i32> = new Array<i32>()): i32 {
        let len = items.length;
        items.push(1);
        return len;
@@ -4531,13 +4531,13 @@ either direction, so they do not interchange. See
 storage. (`Array<T>` is the read-only interface every array implements.)
 `growable([...])` builds one from a literal without copying — the literal
 becomes the backing storage; `GrowableArray.from(seq)` copies from any array,
-and `new GrowableArray<T>()` makes an empty one.
+and `new Array<T>()` makes an empty one.
 
 ```zena
 let grow = growable([1, 2, 3]);     // GrowableArray<i32>, no copy
 grow.push(4);                       // [1, 2, 3, 4]
 
-let empty = new GrowableArray<i32>();  // empty growable array
+let empty = new Array<i32>();  // empty growable array
 ```
 
 ### Map<K, V>

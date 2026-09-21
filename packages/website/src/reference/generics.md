@@ -159,7 +159,7 @@ a compile-time error:
 ```zena
 class Item {}
 
-let set = new HashSet<Item>();
+let set = new Set<Item>();
 // Compile error: Type 'Item' does not satisfy constraint 'Hashable'
 ```
 
@@ -307,7 +307,7 @@ class Animal {}
 class Dog extends Animal {}
 
 // Compile error: 'Array<Dog>' is not assignable to 'Array<Animal>'
-let pets: Array<Animal> = new GrowableArray<Dog>();
+let pets: Array<Animal> = new Array<Dog>();
 ```
 
 Even though `Dog` is a subtype of `Animal`, `Array<Dog>` is not a subtype of
@@ -411,12 +411,12 @@ Type arguments must be supplied explicitly when:
 2. **Empty collections without contextual target**: An empty array constructor
    has no elements to infer from:
    ```zena
-   let list = new GrowableArray<String>();
+   let list = new Array<String>();
    ```
 3. **Ambiguous constraints**: Multiple possible types satisfy the call, or an
    explicit supertype is intended:
    ```zena
-   let animals = new GrowableArray<Animal>();
+   let animals = new Array<Animal>();
    animals.push(new Dog());
    animals.push(new Cat());
    ```

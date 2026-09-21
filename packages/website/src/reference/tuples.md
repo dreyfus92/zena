@@ -169,7 +169,7 @@ Immutability is shallow: if an element holds a reference to a mutable object
 tuple element cannot be rebound to point to another object:
 
 ```zena
-let t = (new GrowableArray<i32>(), "queue");
+let t = (new Array<i32>(), "queue");
 t[0].push(10); // Permitted: mutating referenced object
 ```
 

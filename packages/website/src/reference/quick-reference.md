@@ -1865,7 +1865,7 @@ WebAssembly GC array of mutable elements (`array<var T>`).
 
 ```zena
 let nums = fixed([1, 2, 3]); // FixedArray<i32>
-let arr = new FixedArray<i32>(10, 0); // Size 10, initialized to 0
+let arr = new Array<i32>.fixed(10, 0); // Size 10, initialized to 0
 arr[0] = 42;
 let len = arr.length; // 10
 ```
@@ -1874,7 +1874,7 @@ let len = arr.length; // 10
 
 `GrowableArray<T>` is a dynamic, resizable array. `growable([...])` adopts a
 literal as its storage without copying; `GrowableArray.from(seq)` copies from
-any array; `new GrowableArray<T>()` makes an empty one.
+any array; `new Array<T>()` makes an empty one.
 
 ```zena
 let arr = growable([1, 2, 3]);
@@ -1883,7 +1883,7 @@ let len = arr.length; // 4
 let first = arr[0]; // 1
 let last = arr.pop(); // 4
 
-let empty = new GrowableArray<i32>(); // Empty growable array
+let empty = new Array<i32>(); // Empty growable array
 ```
 
 ### ImmutableArray

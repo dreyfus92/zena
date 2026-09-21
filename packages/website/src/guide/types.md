@@ -226,7 +226,7 @@ When a type parameter cannot be determined from arguments, specify the type
 arguments explicitly:
 
 ```zena
-let list = new GrowableArray<String>();
+let list = new Array<String>();
 ```
 
 ### Constraints

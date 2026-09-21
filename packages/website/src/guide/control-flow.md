@@ -114,7 +114,7 @@ Using `if let` tests the first boolean element and extracts the second value in
 a single step:
 
 ```zena
-let scores = new HashMap<String, i32>();
+let scores = new Map<String, i32>();
 scores['Alice'] = 95;
 
 if (let (true, score) = scores.get('Alice')) {

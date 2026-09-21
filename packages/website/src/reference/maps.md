@@ -26,8 +26,8 @@ file without an import statement. `OrderedHashMap` is imported from
 import { OrderedHashMap } from 'zena:collections';
 
 // Map and HashMap are available directly from the prelude:
-let scores = new HashMap<String, i32>();
-let ordered = new OrderedHashMap<String, i32>();
+let scores = new Map<String, i32>();
+let ordered = new Map<String, i32>.ordered();
 ```
 
 The `Map` interface has constructors of its own, so code that does not
@@ -116,7 +116,7 @@ An empty pair of braces `{}` is reserved for record types and empty blocks. To
 create an empty map, use the explicit constructor:
 
 ```zena
-let emptyMap = new HashMap<String, i32>();
+let emptyMap = new Map<String, i32>();
 ```
 
 ### Reading values
@@ -216,7 +216,7 @@ the key already exists, its associated value is updated; otherwise, a new entry
 is added:
 
 ```zena
-let cache = new HashMap<String, i32>();
+let cache = new Map<String, i32>();
 
 cache['hits'] = 1;      // Inserts 'hits' => 1
 cache['hits'] = 2;      // Updates 'hits' => 2
@@ -304,7 +304,7 @@ which keys were inserted:
 ```zena
 import { OrderedHashMap } from 'zena:collections';
 
-let ordered = new OrderedHashMap<String, i32>();
+let ordered = new Map<String, i32>.ordered();
 ordered['banana'] = 1;
 ordered['apple'] = 2;
 ordered['cherry'] = 3;
@@ -326,7 +326,7 @@ for (let {key, value} in ordered) {
    inserting it again appends it to the end of the iteration sequence.
 
 ```zena
-let steps = new OrderedHashMap<String, i32>();
+let steps = new Map<String, i32>.ordered();
 steps['setup'] = 1;
 steps['build'] = 2;
 steps['test'] = 3;
@@ -364,8 +364,8 @@ insertion-ordered set implementations in `'zena:collections'`:
 ```zena
 import { HashSet, OrderedHashSet } from 'zena:collections';
 
-let ids = new HashSet<i32>();
-let sequence = new OrderedHashSet<String>();
+let ids = new Set<i32>();
+let sequence = new Set<String>.ordered();
 ```
 
 As with maps, the `Set` interface's own constructors build the standard
@@ -387,7 +387,7 @@ The `add(value)` method inserts a value into the set. It returns `true` if the
 value was newly added, and `false` if the value was already present:
 
 ```zena
-let visited = new HashSet<String>();
+let visited = new Set<String>();
 
 let isNew1 = visited.add('alpha'); // true
 let isNew2 = visited.add('beta');  // true
@@ -402,7 +402,7 @@ A set supports membership testing via both the `has(value)` method and the
 indexer operator `s[value]`. Both return a `boolean`:
 
 ```zena
-let activeRoles = new HashSet<String>();
+let activeRoles = new Set<String>();
 activeRoles.add('admin');
 activeRoles.add('editor');
 
@@ -440,7 +440,7 @@ activeRoles.clear();
 directly:
 
 ```zena
-let fruits = new OrderedHashSet<String>();
+let fruits = new Set<String>.ordered();
 fruits.add('mango');
 fruits.add('peach');
 fruits.add('kiwi');
@@ -529,7 +529,7 @@ all constructor parameters:
 ```zena
 class Point(x: i32, y: i32)
 
-let grid = new HashMap<Point, String>();
+let grid = new Map<Point, String>();
 grid[new Point(0, 0)] = 'origin';
 grid[new Point(1, 2)] = 'target';
 

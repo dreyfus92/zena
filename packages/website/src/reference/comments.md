@@ -191,7 +191,7 @@ export class HashMap<K, V> {
    * @throws KeyNotFoundError Thrown when `key` is absent and no fallback is given.
    * @example
    * ```zena
-   * let map = new HashMap<String, i32>();
+   * let map = new Map<String, i32>();
    * map.set('apples', 5);
    * let count = map.get('apples', 0); // 5
    * ```

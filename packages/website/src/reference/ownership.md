@@ -306,7 +306,7 @@ captured:
 ```zena
 // Ordinary generic function
 let store = <T>(x: T) => {
-  let list = new GrowableArray<T>();
+  let list = new Array<T>();
   list.push(x); // Permitted for first-class T
 };
 ```
@@ -352,7 +352,7 @@ discipline:
    arrays, or records:
    ```zena
    let invalidStore = <scoped T>(x: T): i32 => {
-     let list = new GrowableArray<T>();
+     let list = new Array<T>();
      // Compile error: scoped type parameter 'T' may not be stored in containers
      list.push(x);
      return 0;

@@ -81,7 +81,7 @@ point;`.
 
 - **Array literals create FixedArrays**: FixedArray is the lowest-cost array
   type in Zena, mapping directly to unwrapped Wasm GC arrays, so the literal
-  syntax creates them. Growable arrays are created with `new GrowableArray()`
+  syntax creates them. Growable arrays are created with `new Array()`
   (soon to be available with a short macro).
 
 - **Map Literals**: Map literal syntax with fat arrows:

@@ -203,7 +203,7 @@ individual elements can be read and mutated in place.
 1. **Default-value allocation**: Creates an array of the specified length with
    every slot initialized to `value`:
    ```zena
-   let table = new FixedArray<i32>(10, 0); // 10 elements, all 0
+   let table = new Array<i32>.fixed(10, 0); // 10 elements, all 0
    ```
 2. **From sequence**: Copies elements from any `Array<T>` into a new
    `FixedArray<T>`:
@@ -216,7 +216,7 @@ individual elements can be read and mutated in place.
 Elements are read with `arr[i]` and mutated with `arr[i] = value`:
 
 ```zena
-let counts = new FixedArray<i32>(4, 0);
+let counts = new Array<i32>.fixed(4, 0);
 counts[0] = 10;
 counts[1] += 5;
 ```
@@ -227,7 +227,7 @@ counts[1] += 5;
 safety:
 
 ```zena
-let dogs = new FixedArray<Dog>(2, new Dog());
+let dogs = new Array<Dog>.fixed(2, new Dog());
 // let animals: FixedArray<Animal> = dogs; // @error: FixedArray is invariant
 ```
 
@@ -247,10 +247,10 @@ export final class GrowableArray<T> implements MutableArray<T>, Iterable<T>
 
 ```zena
 // Empty growable array with default capacity (8):
-let list = new GrowableArray<String>();
+let list = new Array<String>();
 
 // With explicit initial capacity:
-let preallocated = new GrowableArray<i32>(64);
+let preallocated = new Array<i32>(64);
 
 // Copied from an existing array:
 let cloned = GrowableArray.from([1, 2, 3]);
@@ -282,7 +282,7 @@ let names: Array<String> = new Array(); // T from the context
   (distinct from the backing buffer's capacity).
 
 ```zena
-let stack = new GrowableArray<i32>();
+let stack = new Array<i32>();
 stack.push(100);
 stack.push(200);
 
@@ -427,7 +427,7 @@ Arrays can be instantiated with narrow integer types (`u8`, `i8`, `u16`, `i16`).
 Narrow arrays share the same generic collection API as all other arrays:
 
 ```zena
-let bytes = new FixedArray<u8>(4, 0);
+let bytes = new Array<u8>.fixed(4, 0);
 bytes[0] = 0x48;
 bytes[1] = 0x65;
 bytes[2] = 0x6c;

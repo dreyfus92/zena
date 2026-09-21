@@ -105,7 +105,7 @@ as an array or class instance), the referenced object can still be mutated, but
 the record field itself cannot be reassigned:
 
 ```zena
-let container = {items: new GrowableArray<i32>()};
+let container = {items: new Array<i32>()};
 container.items.push(42); // Permitted: mutating referenced object
 ```
 
