@@ -527,6 +527,74 @@ export let tests = suite('Component emission', (): void => {
       `the async export beside them still wraps with the callback:\n${source}`);
   });
 
+  test('an export\'s rich parameters lift out of flat core values',
+      (ctx: TestContext): void => {
+    // The params world: a list arrives as two core values and lifts
+    // through the list helper's element half; a tuple, an option and a
+    // result through a generated flat-lift helper taking their slots;
+    // `many`'s seventeen core values spill, so its wrapper takes one
+    // address, lifts each parameter at its aligned offset, and frees
+    // the buffer.
+    let wit = readFile(`${fixtures}/params.wit`);
+    let entry = `${fixtures}/params.zena`;
+    let wrapperOpt = synthesizeExportWrapper(wit, 'provider', entry,
+        parse(readFile(entry), entry), packagesWit());
+    isTrue(wrapperOpt != null, 'the params world gets no wrapper');
+    let source = (wrapperOpt as ComponentEntryWrapper).source;
+    isTrue(source.contains(`export function total_export_sync(a0_0: i32, a0_1: i32): i32 {`),
+      `a list parameter is not two core values:\n${source}`);
+    isTrue(source.contains(`let v0 = liftVal0Elems(a0_0, a0_1);`),
+      `the list is not lifted through the element helper:\n${source}`);
+    isTrue(source.contains(`function liftFlatVal0(s0: i32, s1: i32, s2: i32): (u32, String) {`),
+      `the tuple has no flat lift helper:\n${source}`);
+    isTrue(source.contains(`return (\n      (s0 as u32),\n      takeStringArgument(s1, s2));`),
+      `the tuple is not built from its slots:\n${source}`);
+    isTrue(source.contains(`if (s0 == 0) {\n    return none;\n  }\n  return some(takeStringArgument(s1, s2));`),
+      `the option is not lifted from its discriminant and payload:\n${source}`);
+    isTrue(source.contains(`return new Err<u32, String>(takeStringArgument(s1, s2));`),
+      `the result's string arm is not lifted from the shared payload slots:\n${source}`);
+    isTrue(source.contains(`export function many_export_sync(args: i32): i32 {`),
+      `seventeen core values should spill to one address:\n${source}`);
+    isTrue(source.contains(`let v16 = liftStringAt(args + 64);`),
+      `the spilled string is not lifted at its offset:\n${source}`);
+    isTrue(source.contains(`freeLifted(args);`),
+      `the spilled buffer is not freed:\n${source}`);
+    isTrue(source.contains(`export function tally_export(a0_0: i32, a0_1: i32): void {`),
+      `the async export does not take the list's core values:\n${source}`);
+  });
+
+  test('a wrapped export lifts a record and a variant parameter from their slots',
+      (ctx: TestContext): void => {
+    // Named types through `use`, as the relay fixture's forwarding
+    // interface declares them: a record's fields take consecutive
+    // slots, a variant's cases share the payload slots after the
+    // discriminant.
+    let wit = readFile(`${fixtures}/wit-pkg/relay.wit`) + `
+world provider {
+  import fixture:relay/data@1.0.0;
+  export fixture:relay/forwarding@1.0.0;
+}
+`;
+    let entry = `${fixtures}/relay-provider.zena`;
+    let program = parse(`
+export function forward(p: Packet): Outcome<Packet, Fault> { return new Ok<Packet, Fault>(p); }
+export function attach(c: Channel): u32 { return 1 as u32; }
+export function grade(): Level { return Level.High; }
+export function confirm(): Future<Outcome<void, Fault>> { return Future.of<Outcome<void, Fault>>(new Ok<void, Fault>(witUnit())); }
+export function reset(): boolean { return true; }
+`, entry);
+    let wrapperOpt = synthesizeExportWrapper(wit, 'provider', entry, program,
+        packagesWit());
+    isTrue(wrapperOpt != null, 'the relay provider world gets no wrapper');
+    let source = (wrapperOpt as ComponentEntryWrapper).source;
+    isTrue(source.contains(`export function forward_export(a0_0: i32, a0_1: i32, a0_2: i32): void {`),
+      `the record parameter is not three core values:\n${source}`);
+    isTrue(source.contains(`let v0 = liftFlatPacket(a0_0, a0_1, a0_2);`),
+      `the record is not lifted through its flat helper:\n${source}`);
+    isTrue(source.contains(`function liftFlatPacket(s0: i32, s1: i32, s2: i32): Packet {\n  return new Packet(\n      liftLevel(s0),\n      takeStringArgument(s1, s2));`),
+      `the record is not built from its slots:\n${source}`);
+  });
+
   test('a component with no imports carries no import machinery', (ctx: TestContext): void => {
     // No instance type, no import, no lowering, no synthesized instance
     // — just the module, its instantiation, and the lifted export. This

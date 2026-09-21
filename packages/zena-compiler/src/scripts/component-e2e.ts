@@ -348,6 +348,31 @@ const FIXTURES: Fixture[] = [
     ],
   },
   {
+    name: 'params',
+    wasi: ['p3=y'],
+    wit: ['params.wit', 'provider'],
+    // Rich parameters on wrapped exports: lists, tuples, options and
+    // results lifted out of the lift's flat core values by the
+    // compiler-written wrapper, nested (`list<tuple<u32, string>>`),
+    // on an async export too, and `many`, whose seventeen core values
+    // the host spills into memory for the wrapper to lift from and
+    // free.
+    invocations: [
+      {invoke: 'total([1, 2, 3])', expect: '6'},
+      {invoke: 'window((7, "a"))', expect: '"7:a"'},
+      {invoke: 'maybe-name(some("x"))', expect: '"some x"'},
+      {invoke: 'maybe-name(none)', expect: '"none"'},
+      {invoke: 'check(ok(5))', expect: '"ok 5"'},
+      {invoke: 'check(err("bad"))', expect: '"err bad"'},
+      {invoke: 'labels([(1, "a"), (2, "b")])', expect: '["1:a", "2:b"]'},
+      {invoke: 'tally([4, 5])', expect: '9'},
+      {
+        invoke: 'many(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, "z")',
+        expect: '"136 z"',
+      },
+    ],
+  },
+  {
     name: 'compose-provider',
     wasi: ['p3=y'],
     wit: ['compose.wit', 'provider'],

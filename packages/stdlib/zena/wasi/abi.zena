@@ -131,6 +131,27 @@ export function releaseStringArgument(ptr: i32, len: i32): void {
 }
 
 /**
+ * A `string` argument taken whole: copied out, its buffer released.
+ * For a string inside an aggregate parameter, where the generated
+ * lift is one expression.
+ */
+export function takeStringArgument(ptr: i32, len: i32): String {
+  let s = stringFromMemory(ptr, len);
+  releaseStringArgument(ptr, len);
+  return s;
+}
+
+/** A `list<u8>` argument taken whole, with the same ownership story. */
+export function takeBytesArgument(ptr: i32, len: i32): FixedArray<u8> {
+  let bytes = new FixedArray<u8>(len, 0);
+  for (var i = 0; i < len; i += 1) {
+    bytes[i] = mem[ptr + i] as u8;
+  }
+  releaseStringArgument(ptr, len);
+  return bytes;
+}
+
+/**
  * A `string` result, as the host reads it: the bytes copied into linear
  * memory, and the address of an 8-byte area holding `(ptr, len)`.
  *

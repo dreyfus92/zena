@@ -1,0 +1,52 @@
+// The exports `params.wit` declares, each taking a value the wrapper
+// the compiler writes lifted out of the lift's flat core values — or,
+// for `many`, out of the memory the host spilled them into.
+import { Future } from 'zena:async';
+import { Outcome, Ok, Err, Option, Some, some } from 'zena:core';
+
+export function total(xs: Array<u32>): u32 {
+  var sum = 0 as u32;
+  for (let x in xs) {
+    sum += x;
+  }
+  return sum;
+}
+
+export function window(w: (u32, String)): String {
+  let (n, s) = w;
+  return `${n}:${s}`;
+}
+
+export function maybeName(n: Option<String>): String {
+  if (n is Some<String>) {
+    return `some ${(n as Some<String>).value}`;
+  }
+  return 'none';
+}
+
+export function check(r: Outcome<u32, String>): String {
+  if (r is Ok<u32, String>) {
+    return `ok ${(r as Ok<u32, String>).value}`;
+  }
+  return `err ${(r as Err<u32, String>).error}`;
+}
+
+export function labels(ps: Array<(u32, String)>): Array<String> {
+  let out = new GrowableArray<String>();
+  for (let p in ps) {
+    let (n, s) = p;
+    out.push(`${n}:${s}`);
+  }
+  return out;
+}
+
+export async function tally(xs: Array<u32>): Future<u32> {
+  return total(xs);
+}
+
+export function many(a: u32, b: u32, c: u32, d: u32, e: u32, f: u32,
+    g: u32, h: u32, i: u32, j: u32, k: u32, l: u32, m: u32, n: u32,
+    o: u32, p: u32, q: String): String {
+  let sum = a + b + c + d + e + f + g + h + i + j + k + l + m + n + o + p;
+  return `${sum} ${q}`;
+}

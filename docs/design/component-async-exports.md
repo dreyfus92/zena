@@ -353,3 +353,23 @@ async func()` is the entry itself — the wrapper synthesizer skips
    re-entering. The encoder types the lift from the WIT and decides the
    options from the flattening: memory when anything crosses through
    it, `post-return` when the result flattens past one core value.
+9. Rich parameters on wrapped exports — landed as the `params`
+   fixture. A wrapped export's parameters arrive as the canonical
+   flattening of their types, and the wrapper now lifts any of them:
+   `liftFlatExpr` is the mirror of `lowerFlatStmts`, one expression
+   per parameter, with a generated `liftFlat<Type>(s0..sN)` helper
+   per aggregate (a record's fields from consecutive slots, a
+   variant's cases from the discriminant and their prefix of the
+   shared payload slots, narrowing a joined `i64` back for an `i32`
+   arm) and the list helper split into its pair half and its element
+   half so a flat `(ptr, len)` reaches the elements directly. A string
+   inside an aggregate is taken whole (`takeStringArgument`, bytes
+   copied out and the host's buffer released); a bare string keeps the
+   two-statement shape. Past sixteen core values in all, the host
+   spills the parameters into memory and the lift takes one address:
+   the wrapper then lifts each parameter at its aligned offset through
+   the memory lift and frees the buffer. Borrowed handles are refused
+   by name: the wrapper cannot hand one to the program without also
+   owning its disposal, which is the ownership track's question. The
+   async wrapper shares the parameter rendering, so its parameters
+   widened at the same time.

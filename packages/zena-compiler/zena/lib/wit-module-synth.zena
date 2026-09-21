@@ -676,6 +676,10 @@ final class SynthUses {
    * tracks how many have been rendered so far. */
   lifts = new Array<LiftEntry>();
   var emittedLifts = 0;
+  /** Aggregate types lifted from flat core values — an export's
+   * parameters — each owed a helper taking the slots. */
+  flatLifts = new GrowableArray<LiftEntry>();
+  var emittedFlatLifts = 0;
   /** Whether anything was staged through the arena — the wrapper then
    * ends its call with `releaseStaged()`. */
   var stagedAny = false;
@@ -737,6 +741,21 @@ final class SynthUses {
     }
     this.error = true;
     this.enumLifts.push(ty);
+  }
+
+  /** The helper name for lifting `ty` from flat slots, registering it. */
+  flatLiftNameOf(ty: Ty): String {
+    let key = structuralKey(ty);
+    for (let existing in this.flatLifts) {
+      if (existing.key == key) { return existing.name; }
+    }
+    let name = if (ty.typeName != "") {
+      "liftFlat" + ty.typeName
+    } else {
+      "liftFlatVal" + i32ToString(this.flatLifts.length)
+    };
+    this.flatLifts.push(new LiftEntry(key, name, ty));
+    return name;
   }
 
   /** The helper name for lifting `ty` from memory, registering it. */
@@ -1558,15 +1577,22 @@ function emitLiftHelper(sb: StringBuilder, entry: LiftEntry,
     sb.append("  throw new Error('invalid ").append(ty.typeName)
         .append(" discriminant');\n");
   } else {
-    // ListT: the elements are laid out back to back at the element
-    // type's (already padding-inclusive) size, in a buffer that is
-    // ours to free once the last element is lifted.
+    // ListT: the `(base, count)` pair at `ptr`, then the elements. Two
+    // functions, because a list arrives either way: as a pair in
+    // memory (a result, a field), or as two flat core values (an
+    // export's parameter), and the elements lift the same.
     let element = ty.children[0];
     uses.useAbi("loadI32");
+    sb.append("  return ").append(entry.name)
+        .append("Elems(loadI32(ptr), loadI32(ptr + 4));\n}\n");
+    // The elements are laid out back to back at the element type's
+    // (already padding-inclusive) size, in a buffer that is ours to
+    // free once the last element is lifted.
     uses.useAbi("freeLifted");
     uses.array = true;
-    sb.append("  let base = loadI32(ptr);\n");
-    sb.append("  let count = loadI32(ptr + 4);\n");
+    sb.append("function ").append(entry.name)
+        .append("Elems(base: i32, count: i32): ")
+        .append(zenaTypeOf(ty, uses)).append(" {\n");
     sb.append("  let out = new GrowableArray<")
         .append(zenaTypeOf(element, uses)).append(">();\n");
     sb.append("  for (var i = 0; i < count; i += 1) {\n");
@@ -1575,6 +1601,155 @@ function emitLiftHelper(sb: StringBuilder, entry: LiftEntry,
         .append(");\n  }\n");
     sb.append("  if (count > 0) {\n    freeLifted(base);\n  }\n");
     sb.append("  return out;\n");
+  }
+  sb.append("}\n");
+}
+
+// ============================================================================
+// The flat lifting half: an export's parameters out of core values
+// ============================================================================
+
+/** A core value cast to its scalar spelling, as source text. */
+let castFromCore = (scalar: String, expr: String): String => {
+  if (scalar == "boolean") {
+    return "(" + expr + " != 0)";
+  }
+  if (scalar == "i32" || scalar == "i64" || scalar == "f32" ||
+      scalar == "f64") {
+    return expr;
+  }
+  return "(" + expr + " as " + scalar + ")";
+};
+
+/**
+ * The value of `ty` lifted from the flat core values `slots[base..]`,
+ * as one expression — the mirror of `lowerFlatStmts`. A slot whose
+ * core type is the join of several arms' (an i64 beside an i32) is
+ * narrowed back for the arm that wants the narrower one. Aggregates
+ * lift through a generated helper taking their slots.
+ */
+function liftFlatExpr(ty: Ty, slotTypes: GrowableArray<String>,
+    slots: GrowableArray<String>, base: i32, uses: SynthUses): String {
+  let slot = (i: i32, want: String): String => {
+    if (slotTypes[i] == "i64" && want == "i32") {
+      return "(" + slots[i] + " as i32)";
+    }
+    return slots[i];
+  };
+  if (ty.kind == TyKind.Scalar) {
+    return castFromCore(ty.scalar, slot(base, coreOf(ty.scalar)));
+  }
+  if (ty.kind == TyKind.Enumeration) {
+    uses.needEnumLift(ty);
+    return "lift" + ty.typeName + "(" + slot(base, "i32") + ")";
+  }
+  if (ty.kind == TyKind.Flags) {
+    return "((" + slot(base, "i32") + " as u32) as " + ty.typeName + ")";
+  }
+  if (ty.kind == TyKind.ResourceH) {
+    // An owned handle: the wrapper's class around it, which the
+    // program then owns and disposes. A borrow is refused before this.
+    return "new " + ty.typeName + "(" + slot(base, "i32") + ")";
+  }
+  if (ty.kind == TyKind.StreamH) {
+    uses.useComponentStream("liftByteStream");
+    return "liftByteStream(" + slot(base, "i32") + ")";
+  }
+  if (ty.kind == TyKind.FutureH) {
+    return "liftFuture" + i32ToString(uses.futureIndexOf(ty)) + "(" +
+        slot(base, "i32") + ")";
+  }
+  if (ty.kind == TyKind.Str) {
+    uses.useAbi("takeStringArgument");
+    return "takeStringArgument(" + slot(base, "i32") + ", " +
+        slot(base + 1, "i32") + ")";
+  }
+  if (ty.kind == TyKind.BytesList) {
+    uses.useAbi("takeBytesArgument");
+    return "takeBytesArgument(" + slot(base, "i32") + ", " +
+        slot(base + 1, "i32") + ")";
+  }
+  if (ty.kind == TyKind.ListT) {
+    return uses.liftNameOf(ty) + "Elems(" + slot(base, "i32") + ", " +
+        slot(base + 1, "i32") + ")";
+  }
+  // RecordT, TupleT, OptionT, ResultT, VariantT: a generated helper
+  // taking the slots.
+  let count = (flatCoreSlots(ty) as GrowableArray<String>).length;
+  var args = "";
+  for (var i = 0; i < count; i += 1) {
+    if (i > 0) { args = args + ", "; }
+    args = args + slots[base + i];
+  }
+  return uses.flatLiftNameOf(ty) + "(" + args + ")";
+}
+
+/** Emit the body of one registered flat lift helper: the aggregate
+ * built from its flat core values, `s0..sN`. */
+function emitFlatLiftHelper(sb: StringBuilder, entry: LiftEntry,
+    uses: SynthUses): void {
+  let ty = entry.ty;
+  let slotTypes = flatCoreSlots(ty) as GrowableArray<String>;
+  let slots = new GrowableArray<String>();
+  sb.append("function ").append(entry.name).append("(");
+  for (var i = 0; i < slotTypes.length; i += 1) {
+    let name = "s" + i32ToString(i);
+    slots.push(name);
+    if (i > 0) { sb.append(", "); }
+    sb.append(name).append(": ").append(slotTypes[i]);
+  }
+  sb.append("): ").append(futurePayloadZenaType(ty, uses)).append(" {\n");
+  if (ty.kind == TyKind.RecordT || ty.kind == TyKind.TupleT) {
+    var args = "";
+    var at = 0;
+    for (var i = 0; i < ty.children.length; i += 1) {
+      if (i > 0) { args = args + ",\n      "; }
+      args = args + liftFlatExpr(ty.children[i], slotTypes, slots, at, uses);
+      at += (flatCoreSlots(ty.children[i]) as GrowableArray<String>).length;
+    }
+    if (ty.kind == TyKind.RecordT) {
+      sb.append("  return new ").append(ty.typeName).append("(\n      ")
+          .append(args).append(");\n");
+    } else {
+      sb.append("  return (\n      ").append(args).append(");\n");
+    }
+  } else if (ty.kind == TyKind.OptionT) {
+    uses.option = true;
+    sb.append("  if (s0 == 0) {\n    return none;\n  }\n  return some(")
+        .append(liftFlatExpr(ty.children[0], slotTypes, slots, 1, uses))
+        .append(");\n");
+  } else if (ty.kind == TyKind.ResultT) {
+    uses.outcome = true;
+    let okZ = futurePayloadZenaType(ty.children[0], uses);
+    let errZ = futurePayloadZenaType(ty.children[1], uses);
+    let arm = (child: Ty): String => {
+      if (isVoid(child)) {
+        uses.unit = true;
+        return "witUnit()";
+      }
+      return liftFlatExpr(child, slotTypes, slots, 1, uses);
+    };
+    sb.append("  if (s0 == 0) {\n    return new Ok<").append(okZ)
+        .append(", ").append(errZ).append(">(").append(arm(ty.children[0]))
+        .append(");\n  }\n");
+    sb.append("  return new Err<").append(okZ).append(", ").append(errZ)
+        .append(">(").append(arm(ty.children[1])).append(");\n");
+  } else {
+    // VariantT: the discriminant picks the case, each reading its own
+    // prefix of the shared payload slots.
+    uses.error = true;
+    for (var i = 0; i < ty.children.length; i += 1) {
+      sb.append("  if (s0 == ").append(i32ToString(i))
+          .append(") {\n    return new ").append(ty.childNames[i]);
+      if (isVoid(ty.children[i])) {
+        sb.append("();\n  }\n");
+      } else {
+        sb.append("(").append(liftFlatExpr(ty.children[i], slotTypes,
+            slots, 1, uses)).append(");\n  }\n");
+      }
+    }
+    sb.append("  throw new Error('invalid ").append(ty.typeName)
+        .append(" discriminant');\n");
   }
   sb.append("}\n");
 }
@@ -2104,11 +2279,17 @@ export function synthesizeWitModule(canonicalPath: String,
 function drainHelpers(body: StringBuilder, uses: SynthUses,
     interfaceName: String): void {
   while (uses.emittedLifts < uses.lifts.length ||
+      uses.emittedFlatLifts < uses.flatLifts.length ||
       uses.emittedFutures < uses.futures.length) {
     while (uses.emittedLifts < uses.lifts.length) {
       let entry = uses.lifts[uses.emittedLifts];
       uses.emittedLifts += 1;
       emitLiftHelper(body, entry, uses);
+    }
+    while (uses.emittedFlatLifts < uses.flatLifts.length) {
+      let entry = uses.flatLifts[uses.emittedFlatLifts];
+      uses.emittedFlatLifts += 1;
+      emitFlatLiftHelper(body, entry, uses);
     }
     if (uses.emittedFutures < uses.futures.length) {
       emitFutureHelpers(body, uses.futures[uses.emittedFutures],
@@ -2974,9 +3155,16 @@ export function synthesizeExportWrapper(
 function needsSyncWrapper(func: Func, items: Array<InterfaceItem>): boolean {
   let plain = (ty: Ty): boolean =>
       ty.kind == TyKind.Scalar || ty.kind == TyKind.Str;
+  // Past sixteen core values the host spills the parameters into
+  // memory and the lift takes one address, which only the wrapper
+  // knows to read.
+  var flats = 0;
   for (let p in func.params) {
-    if (!plain(classifyType(p.type, items))) { return true; }
+    let ty = classifyType(p.type, items);
+    if (!plain(ty)) { return true; }
+    flats += if (ty.kind == TyKind.Str) 2 else 1;
   }
+  if (flats > 16) { return true; }
   let result = func.result;
   if (result != null && !plain(classifyType(result as Type, items))) {
     return true;
@@ -3004,18 +3192,72 @@ function renderWrapperParams(witName: String, func: Func,
           what + ": " + why);
   let out = new WrapperParams();
   let {rawSig, liftStmts, callArgs} = out;
+  // Every parameter classified and flattened first: past sixteen core
+  // values in all, the canonical ABI spills them into memory and the
+  // lift takes one address.
+  let tys = new GrowableArray<Ty>();
+  let slotLists = new GrowableArray<GrowableArray<String>>();
+  var totalFlats = 0;
   for (var i = 0; i < func.params.length; i += 1) {
     let p = func.params[i];
     let ty = classifyType(p.type, items);
-    let k = i32ToString(i);
-    if (i > 0) {
-      rawSig.append(", ");
-      callArgs.append(", ");
+    if (ty.kind == TyKind.Unsupported) {
+      throw refuse("parameter '" + p.name.name + "'", ty.reason);
     }
-    if (ty.kind == TyKind.Scalar) {
-      rawSig.append("a").append(k).append(": ").append(ty.scalar);
-      callArgs.append("a").append(k);
-    } else if (ty.kind == TyKind.Str) {
+    if (ty.kind == TyKind.ResourceH && ty.isBorrow) {
+      throw refuse("parameter '" + p.name.name + "'",
+          "a borrowed handle is the caller's for the call only, and a " +
+          "wrapper cannot hand it to the program without disposing it " +
+          "yet");
+    }
+    var blocked = liftBlocker(ty, false);
+    if (blocked == "") { blocked = paramLiftBlocker(ty); }
+    if (blocked != "") {
+      throw refuse("parameter '" + p.name.name + "'", blocked);
+    }
+    let slots = flatCoreSlots(ty);
+    if (slots == null) {
+      throw refuse("parameter '" + p.name.name + "'",
+          "its variant payloads join across core types, which waits " +
+          "on the interop stages");
+    }
+    tys.push(ty);
+    slotLists.push(slots as GrowableArray<String>);
+    totalFlats += (slots as GrowableArray<String>).length;
+  }
+  for (var i = 0; i < func.params.length; i += 1) {
+    if (i > 0) { callArgs.append(", "); }
+    // A flat scalar is passed as it arrived, unless spilled.
+    if (tys[i].kind == TyKind.Scalar && totalFlats <= 16) {
+      callArgs.append("a").append(i32ToString(i));
+    } else {
+      callArgs.append("v").append(i32ToString(i));
+    }
+  }
+  if (totalFlats > 16) {
+    // Spilled: the parameters in memory, back to back at their aligned
+    // offsets, in a buffer the host allocated through the lift's
+    // realloc and the guest frees once everything is lifted.
+    uses.useAbi("freeLifted");
+    rawSig.append("args: i32");
+    var offset = 0;
+    for (var i = 0; i < tys.length; i += 1) {
+      let ty = tys[i];
+      offset = alignTo(offset, ty.align);
+      let at = if (offset == 0) "args" else "args + " + i32ToString(offset);
+      liftStmts.append("  let v").append(i32ToString(i)).append(" = ")
+          .append(liftExprOf(ty, at, uses)).append(";\n");
+      offset += ty.size;
+    }
+    liftStmts.append("  freeLifted(args);\n");
+    return out;
+  }
+  for (var i = 0; i < tys.length; i += 1) {
+    let ty = tys[i];
+    let k = i32ToString(i);
+    let slotTypes = slotLists[i];
+    if (i > 0) { rawSig.append(", "); }
+    if (ty.kind == TyKind.Str) {
       // The host lowered the string into linear memory through the
       // lift's realloc; the guest owns that buffer and frees it once
       // the value is copied out.
@@ -3027,23 +3269,40 @@ function renderWrapperParams(witName: String, func: Func,
           .append(k).append(", l").append(k).append(");\n");
       liftStmts.append("  releaseStringArgument(p").append(k)
           .append(", l").append(k).append(");\n");
-      callArgs.append("v").append(k);
-    } else if (ty.kind == TyKind.ResourceH && !ty.isBorrow) {
-      // An owned handle: the wrapper's class around it, which the
-      // program then owns and disposes.
-      rawSig.append("a").append(k).append(": i32");
-      liftStmts.append("  let v").append(k).append(" = new ")
-          .append(ty.typeName).append("(a").append(k).append(");\n");
-      callArgs.append("v").append(k);
-    } else if (ty.kind == TyKind.Unsupported) {
-      throw refuse("parameter '" + p.name.name + "'", ty.reason);
-    } else {
-      throw refuse("parameter '" + p.name.name + "'",
-          "only flat scalars, strings and owned resources cross into a " +
-          "wrapped export yet");
+      continue;
     }
+    if (ty.kind == TyKind.Scalar) {
+      // Declared at its own spelling: a scalar's core type is its own.
+      rawSig.append("a").append(k).append(": ").append(ty.scalar);
+      continue;
+    }
+    // One core value keeps the plain `aK` name; several are `aK_j`.
+    let names = new GrowableArray<String>();
+    for (var j = 0; j < slotTypes.length; j += 1) {
+      let name = if (slotTypes.length == 1) "a" + k
+          else "a" + k + "_" + i32ToString(j);
+      names.push(name);
+      if (j > 0) { rawSig.append(", "); }
+      rawSig.append(name).append(": ").append(slotTypes[j]);
+    }
+    liftStmts.append("  let v").append(k).append(" = ")
+        .append(liftFlatExpr(ty, slotTypes, names, 0, uses)).append(";\n");
   }
   return out;
+}
+
+/** What `liftBlocker` does not ask: whether an export's parameter
+ * holds a borrowed handle, which a wrapper cannot hand to the program
+ * without also owning its disposal. The reason, or the empty string. */
+function paramLiftBlocker(ty: Ty): String {
+  if (ty.kind == TyKind.ResourceH && ty.isBorrow) {
+    return "a borrowed handle inside an aggregate cannot be lifted yet";
+  }
+  for (let child in ty.children) {
+    let inner = paramLiftBlocker(child);
+    if (inner != "") { return inner; }
+  }
+  return "";
 }
 
 /**
