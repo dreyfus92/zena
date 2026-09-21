@@ -80,7 +80,9 @@ const render = async (proposal) => {
     parts.push(`// ---- ${name}\n\n${body.trim()}\n`);
   }
   if (pkg == null) {
-    throw new Error(`no file under proposals/${proposal}/wit declares a package`);
+    throw new Error(
+      `no file under proposals/${proposal}/wit declares a package`,
+    );
   }
   // The provenance comment follows the header: a comment before a
   // `package` line reads as that package's doc comment, and a document

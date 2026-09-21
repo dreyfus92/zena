@@ -341,7 +341,10 @@ const FIXTURES: Fixture[] = [
       {invoke: 'test:greeter/greeter.count@1.0.0(41)', expect: '42'},
       {invoke: 'test:greeter/greeter.shout@1.0.0("hi")', expect: '"hi!"'},
       {invoke: 'test:greeter/greeter.describe@1.0.0(1)', expect: 'ok("one")'},
-      {invoke: 'test:greeter/greeter.describe@1.0.0(9)', expect: 'err("too big")'},
+      {
+        invoke: 'test:greeter/greeter.describe@1.0.0(9)',
+        expect: 'err("too big")',
+      },
       {invoke: 'test:greeter/greeter.locate@1.0.0("two")', expect: 'some(2)'},
       {invoke: 'test:greeter/greeter.locate@1.0.0("nine")', expect: 'none'},
       {invoke: 'test:greeter/greeter.ask@1.0.0(21)', expect: '42'},
@@ -367,7 +370,8 @@ const FIXTURES: Fixture[] = [
       {invoke: 'labels([(1, "a"), (2, "b")])', expect: '["1:a", "2:b"]'},
       {invoke: 'tally([4, 5])', expect: '9'},
       {
-        invoke: 'many(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, "z")',
+        invoke:
+          'many(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, "z")',
         expect: '"136 z"',
       },
     ],
