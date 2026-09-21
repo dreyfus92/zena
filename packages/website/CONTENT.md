@@ -360,11 +360,12 @@ To add a page: add it to the sidebar with an `outline`, then run
     - Generic type argument inference
     - Return type inference
     - When type annotations are required
-  - 📝 [Type Aliases and Distinct Types](src/reference/type-aliases.md) — `/reference/type-aliases/`
-    - type
-    - distinct type
-    - Generic aliases
-    - Conversions
+  - ✅ [Type Declarations](src/reference/type-declarations.md) — `/reference/type-declarations/`
+    - Defining types with type
+    - Generic type definitions
+    - Distinct types with distinct type
+    - Opaque types with opaque type
+    - Conversions and casting
   - 📝 [Unions](src/reference/unions.md) — `/reference/unions/`
     - Declaring a union
     - Nullability
@@ -612,4 +613,4 @@ To add a page: add it to the sidebar with an `outline`, then run
 
 ---
 
-50 of 95 pages written; 45 still placeholders.
+51 of 95 pages written; 44 still placeholders.

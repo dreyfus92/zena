@@ -673,9 +673,15 @@ const reference = [
         ],
       },
       {
-        text: 'Type Aliases and Distinct Types',
-        link: '/reference/type-aliases/',
-        outline: ['type', 'distinct type', 'Generic aliases', 'Conversions'],
+        text: 'Type Declarations',
+        link: '/reference/type-declarations/',
+        outline: [
+          'Defining types with type',
+          'Generic type definitions',
+          'Distinct types with distinct type',
+          'Opaque types with opaque type',
+          'Conversions and casting',
+        ],
       },
       {
         text: 'Unions',

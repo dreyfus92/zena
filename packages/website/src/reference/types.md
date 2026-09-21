@@ -192,20 +192,25 @@ type PointRecord = {x: f64, y: f64};
 let origin: PointRecord = {x: 0.0, y: 0.0}; // Matches by structure
 ```
 
+For defining structural type aliases, generic aliases, and function types, see
+[Type Declarations](/reference/type-declarations/).
+
 ### Runtime distinguishability and erased types
 
 An important distinction in Zena is between **runtime-distinguishable types**
 and **erased types**:
 
 - **Erased distinct types and extension classes**: Types declared with `distinct
-type` (such as `distinct type UserId = String`) or extension classes share the
+  type` (such as `distinct type UserId = String`) or extension classes share the
   exact runtime representation of their underlying type. They provide
-  compile-time safety with zero memory or performance overhead.
+  compile-time safety with zero memory or performance overhead. See
+  [Type Declarations](/reference/type-declarations/) for syntax and details.
 - **Domain invariant safety**: Because distinct types erase at runtime, an
   explicit `as` cast (such as `rawString as UserId`) bypasses compile-time
   checks without triggering a VM-level validation check. If an invariant must be
   validated at runtime (e.g., ensuring a string is a valid UUID), an unvalidated
-  cast can violate domain expectations.
+  cast can violate domain expectations. See how `opaque type` enforces file-level
+  boundaries in [Type Declarations](/reference/type-declarations/#opaque-types-with-opaque-type).
 - **Runtime-distinguishable wrapper classes**: When runtime verification is
   essential, use a nominal class (`class UserId { id: String; new(this.id); }`).
   A nominal class allocates a distinct WebAssembly GC struct with a unique
