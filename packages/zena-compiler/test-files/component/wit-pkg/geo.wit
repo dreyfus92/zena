@@ -51,3 +51,19 @@ interface survey {
   window: func(w: tuple<u32, u32>) -> u32;
   report: func(f: finding) -> u32;
 }
+
+// The two halves of the composition e2e: `geo-provider.zena` exports
+// `survey` — with the types the interface declares itself, encoded
+// at component level and exported from the instance — and
+// `geo-wit.zena` imports it. `wasm-tools compose` wires the two, and
+// every record, variant, enum, option, list, tuple and result above
+// crosses the composed boundary with both sides generated.
+world provider {
+  export survey;
+}
+
+world consumer {
+  import survey;
+
+  export main: func() -> u32;
+}

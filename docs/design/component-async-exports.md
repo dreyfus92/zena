@@ -373,3 +373,27 @@ async func()` is the entry itself — the wrapper synthesizer skips
    owning its disposal, which is the ownership track's question. The
    async wrapper shares the parameter rendering, so its parameters
    widened at the same time.
+10. Types an exported interface declares itself — landed with the
+    geo provider, which closes Part 3's composition test: a Zena
+    provider of `fixture:geo/survey` composed with the consumer
+    fixture runs the whole type matrix with both sides generated.
+    The encoder had only aliased an exported interface's types out
+    of an imported source through `use`; a type the interface
+    declares itself is now encoded at component level on first use
+    (`#encodeExportedOwnType`, resolving its named parts against the
+    interface the same way) and recorded on the encoded world, and
+    the exported instance exports each under its name ahead of its
+    functions, so the component reads back as the interface. An
+    exported resource is still refused: it is a class of the
+    program's, with a representation and a destructor the canon
+    `resource.new`/`resource.rep`/`resource.drop` builtins would
+    carry. On the source side the wrapper imports the interface's
+    own types from the interface's synthesized module, the module
+    the program itself gets them from — the wrapper has no
+    `selfSpecifier` now, since nothing is local to it. The fixture's
+    `finding` variant joins an `f64` payload with `i32` ones, which
+    the flat form had refused; the canonical join is spelled now — an
+    `f32` beside an `i32` is an `i32` slot, anything else an `i64`, a
+    float lowered as its bits and lifted back through the `zena:math`
+    reinterpret intrinsics, an integer widened and wrapped — so
+    `report(finding)` imports and exports alike.

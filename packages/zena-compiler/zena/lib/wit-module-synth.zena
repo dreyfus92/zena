@@ -1066,19 +1066,7 @@ function flatCoreSlots(ty: Ty): GrowableArray<String> | null {
     let arm = inner as GrowableArray<String>;
     for (var i = 0; i < arm.length; i += 1) {
       if (i < joined.length) {
-        if (joined[i] != arm[i]) {
-          // The canonical join of two arms' slot types: an i32 beside
-          // an i64 is an i64, which the narrower arm widens into
-          // (`writeSlot`). A float beside an integer joins through
-          // reinterpretation, not lowered here yet.
-          let a = joined[i];
-          let b = arm[i];
-          if ((a == "i32" && b == "i64") || (a == "i64" && b == "i32")) {
-            joined[i] = "i64";
-          } else {
-            return null;
-          }
-        }
+        joined[i] = joinCore(joined[i], arm[i]);
       } else {
         joined.push(arm[i]);
       }
@@ -1089,6 +1077,32 @@ function flatCoreSlots(ty: Ty): GrowableArray<String> | null {
   }
   return out;
 }
+
+/**
+ * The canonical ABI's join of two arms' slot types: the same type is
+ * itself, an f32 beside an i32 is an i32 (the float travels as its
+ * bits), and anything else is an i64 — an i32 widened, an f64 as its
+ * bits, an f32 as its bits widened. `writeSlot` lowers into the join
+ * and `liftFlatExpr` reads back out of it, through the `zena:math`
+ * reinterpret intrinsics when a float is involved.
+ */
+let joinCore = (a: String, b: String): String => {
+  if (a == b) { return a; }
+  if ((a == "i32" && b == "f32") || (a == "f32" && b == "i32")) {
+    return "i32";
+  }
+  return "i64";
+};
+
+/** Whether any generated lowering or lift reinterpreted float bits,
+ * which pulls the `zena:math` intrinsics into the module. Reset per
+ * rendered module. */
+var reinterpretUsed = false;
+
+/** The `zena:math` import a module that reinterpreted bits needs. */
+let reinterpretImport =
+    "import { i32_reinterpret_f32, i64_reinterpret_f64, " +
+    "f32_reinterpret_i32, f64_reinterpret_i64 } from 'zena:math';\n";
 
 /** Whether `ty` (or anything inside it) cannot be lowered yet. */
 function lowerBlocker(ty: Ty): String {
@@ -1378,9 +1392,24 @@ var currentSlotTypes = new Array<String>();
 let writeSlot = (sb: StringBuilder, indent: String, slot: String,
     slotIndex: i32, expr: String, haveCore: String): void => {
   var rhs = expr;
-  if (slotIndex < currentSlotTypes.length &&
-      currentSlotTypes[slotIndex] == "i64" && haveCore == "i32") {
-    rhs = "((" + expr + ") as i64)";
+  if (slotIndex < currentSlotTypes.length) {
+    let want = currentSlotTypes[slotIndex];
+    if (want != haveCore) {
+      // Into a joined slot: an integer widens, a float goes as its
+      // bits (widened too, for an f32 in an i64).
+      if (want == "i64" && haveCore == "i32") {
+        rhs = "((" + expr + ") as i64)";
+      } else if (want == "i32" && haveCore == "f32") {
+        reinterpretUsed = true;
+        rhs = "i32_reinterpret_f32(" + expr + ")";
+      } else if (want == "i64" && haveCore == "f32") {
+        reinterpretUsed = true;
+        rhs = "(i32_reinterpret_f32(" + expr + ") as i64)";
+      } else if (want == "i64" && haveCore == "f64") {
+        reinterpretUsed = true;
+        rhs = "i64_reinterpret_f64(" + expr + ")";
+      }
+    }
   }
   sb.append(indent).append(slot).append(" = ").append(rhs).append(";\n");
 };
@@ -1631,8 +1660,26 @@ let castFromCore = (scalar: String, expr: String): String => {
 function liftFlatExpr(ty: Ty, slotTypes: GrowableArray<String>,
     slots: GrowableArray<String>, base: i32, uses: SynthUses): String {
   let slot = (i: i32, want: String): String => {
-    if (slotTypes[i] == "i64" && want == "i32") {
+    let have = slotTypes[i];
+    if (have == want) {
+      return slots[i];
+    }
+    // Out of a joined slot: an i64 wraps to an i32, and a float comes
+    // back from its bits.
+    if (have == "i64" && want == "i32") {
       return "(" + slots[i] + " as i32)";
+    }
+    if (have == "i32" && want == "f32") {
+      reinterpretUsed = true;
+      return "f32_reinterpret_i32(" + slots[i] + ")";
+    }
+    if (have == "i64" && want == "f32") {
+      reinterpretUsed = true;
+      return "f32_reinterpret_i32((" + slots[i] + " as i32))";
+    }
+    if (have == "i64" && want == "f64") {
+      reinterpretUsed = true;
+      return "f64_reinterpret_i64(" + slots[i] + ")";
     }
     return slots[i];
   };
@@ -1674,12 +1721,13 @@ function liftFlatExpr(ty: Ty, slotTypes: GrowableArray<String>,
         slot(base + 1, "i32") + ")";
   }
   // RecordT, TupleT, OptionT, ResultT, VariantT: a generated helper
-  // taking the slots.
-  let count = (flatCoreSlots(ty) as GrowableArray<String>).length;
+  // taking the slots — at the aggregate's own slot types, which may
+  // be narrower than the joined ones it sits in.
+  let own = flatCoreSlots(ty) as GrowableArray<String>;
   var args = "";
-  for (var i = 0; i < count; i += 1) {
+  for (var i = 0; i < own.length; i += 1) {
     if (i > 0) { args = args + ", "; }
-    args = args + slots[base + i];
+    args = args + slot(base + i, own[i]);
   }
   return uses.flatLiftNameOf(ty) + "(" + args + ")";
 }
@@ -2125,6 +2173,7 @@ export function synthesizeWitModule(canonicalPath: String,
 
   // The splice appends, so the spans the type text is read from hold.
   let witSource = withWasiPackages(readWitSource(witRoot), packagesWit);
+  reinterpretUsed = false;
   currentWitSource = witSource;
   let ast = parse(witSource);
   let iface = findInterface(ast, namespace, interfacePath);
@@ -2254,6 +2303,9 @@ export function synthesizeWitModule(canonicalPath: String,
     sb.append("import { awaitPacked } from 'zena:wasi';\n");
   } else if (uses.awaitWaitable) {
     sb.append("import { awaitWaitable } from 'zena:wasi';\n");
+  }
+  if (reinterpretUsed) {
+    sb.append(reinterpretImport);
   }
   sb.append(body.toString());
   let skippedText = skipped.toString();
@@ -3019,6 +3071,7 @@ export function synthesizeExportWrapper(
   currentPackage = ast.packageName;
   selfSpecifier = "";
   currentSpecifier = "";
+  reinterpretUsed = false;
   usedTypeImports = new Array<UsedTypeImport>();
   let noItems = new Array<InterfaceItem>();
   let uses = new SynthUses();
@@ -3044,9 +3097,12 @@ export function synthesizeExportWrapper(
   for (let e in interfaceExports) {
     let iface = interfaces[e.interfaceIndex];
     // Types classify in the interface's own context: a `use`d type
-    // hops to its source module, which the wrapper then imports.
+    // hops to its source module, which the wrapper then imports — and
+    // so does a type the interface declares itself, from the
+    // interface's own synthesized module, since the wrapper is not
+    // that module. Hence no `selfSpecifier`: nothing is local here.
     currentPackage = iface.packageName;
-    selfSpecifier = e.specifier;
+    selfSpecifier = "";
     currentSpecifier = e.specifier;
     let zenaName = camelName(e.name);
     imported.push(zenaName);
@@ -3117,6 +3173,9 @@ export function synthesizeExportWrapper(
   }
   if (uses.awaitWaitable) {
     sb.append("import { awaitWaitable } from 'zena:wasi';\n");
+  }
+  if (reinterpretUsed) {
+    sb.append(reinterpretImport);
   }
   // The synthesized modules whose types the wrappers name: a resource
   // parameter lifts into its class, a result lowers out of one.
@@ -3346,12 +3405,7 @@ function renderSyncExportWrapper(sb: StringBuilder, witName: String,
     let blocked = lowerBlocker(resultTy);
     if (blocked != "") { throw refuse("the result", blocked); }
   }
-  let slots = flatCoreSlots(resultTy);
-  if (slots == null) {
-    throw refuse("the result", "its variant payloads join across " +
-        "core types, which waits on the interop stages");
-  }
-  let slotTypes = slots as GrowableArray<String>;
+  let slotTypes = flatCoreSlots(resultTy) as GrowableArray<String>;
   let zenaResult = futurePayloadZenaType(resultTy, uses);
   if (slotTypes.length == 1) {
     // One core value: returned as the call's result.

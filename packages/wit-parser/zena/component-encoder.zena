@@ -221,9 +221,25 @@ final class Scope {
 }
 
 /** What `encodeWorld` produced. */
+/** One type an exported interface declares itself: its name in the
+ * interface, and the component-level type index it was encoded at. */
+export final class ExportedTypeIndex {
+  name: String;
+  index: i32;
+  new(this.name, this.index);
+}
+
 export final class EncodedWorld {
   /** The component-head sections, in order. */
   pieces = new GrowableArray<SectionPiece>();
+  /**
+   * The types each exported interface declares itself, by the
+   * interface's qualified name, in encoding order. Encoded at
+   * component level as a function type of the interface first names
+   * them; the exported instance exports each under its name, so the
+   * interface reads back with its own types.
+   */
+  exportedTypes = new HashMap<String, GrowableArray<ExportedTypeIndex>>();
   /** How many component-level types the pieces defined. */
   var typeCount = 0;
   /** How many instances the pieces imported. */
@@ -756,6 +772,44 @@ export final class ComponentTypeEncoder {
     }
 
     var code = 0;
+    if (td.tag == TypeDefTag.Record || td.tag == TypeDefTag.Variant ||
+        td.tag == TypeDefTag.Enum || td.tag == TypeDefTag.Flags) {
+      code = this.#encodeTypeBody(scope, td);
+    } else {
+      // `type name = t`: encode the target, and export an index for it.
+      // A primitive target still needs a declared type to bound the
+      // export to — `eq` takes an index, not an opcode. A named target
+      // is looked up raw so that `type b = bucket` aliases the resource
+      // itself rather than an `own` of it.
+      let target = td.aliasType as Type;
+      var isResource = false;
+      if (target.tag == TypeTag.Name) {
+        code = this.#namedIndex(scope, (target.name as Id).name);
+        isResource = scope.resourceIndices.has(code);
+      } else {
+        let encoded = this.#encodeType(scope, target);
+        if (encoded < 0) {
+          let body = new ByteBuffer();
+          body.writeByte(0 - encoded);
+          code = this.#declareType(scope, body);
+        } else {
+          code = encoded;
+        }
+      }
+      let exportedAlias = this.#exportType(scope, name, code);
+      scope.named[name] = exportedAlias;
+      if (isResource) {
+        scope.resourceIndices[exportedAlias] = true;
+      }
+      return;
+    }
+    scope.named[name] = this.#exportType(scope, name, code);
+  }
+
+  /** The declared index of a record, variant, enum or flags body in
+   * `scope`, its parts encoded first. */
+  #encodeTypeBody(scope: Scope, td: TypeDef): i32 {
+    var code = 0;
     if (td.tag == TypeDefTag.Record) {
       let fields = td.fields as GrowableArray<Field>;
       let fieldCodes = new GrowableArray<i32>();
@@ -801,7 +855,7 @@ export final class ComponentTypeEncoder {
         writeName(body, c.name.name);
       }
       code = this.#declareType(scope, body);
-    } else if (td.tag == TypeDefTag.Flags) {
+    } else {
       let flags = td.flags as GrowableArray<FlagDef>;
       let body = new ByteBuffer();
       body.writeByte(0x6e);
@@ -810,35 +864,8 @@ export final class ComponentTypeEncoder {
         writeName(body, f.name.name);
       }
       code = this.#declareType(scope, body);
-    } else {
-      // `type name = t`: encode the target, and export an index for it.
-      // A primitive target still needs a declared type to bound the
-      // export to — `eq` takes an index, not an opcode. A named target
-      // is looked up raw so that `type b = bucket` aliases the resource
-      // itself rather than an `own` of it.
-      let target = td.aliasType as Type;
-      var isResource = false;
-      if (target.tag == TypeTag.Name) {
-        code = this.#namedIndex(scope, (target.name as Id).name);
-        isResource = scope.resourceIndices.has(code);
-      } else {
-        let encoded = this.#encodeType(scope, target);
-        if (encoded < 0) {
-          let body = new ByteBuffer();
-          body.writeByte(0 - encoded);
-          code = this.#declareType(scope, body);
-        } else {
-          code = encoded;
-        }
-      }
-      let exportedAlias = this.#exportType(scope, name, code);
-      scope.named[name] = exportedAlias;
-      if (isResource) {
-        scope.resourceIndices[exportedAlias] = true;
-      }
-      return;
     }
-    scope.named[name] = this.#exportType(scope, name, code);
+    return code;
   }
 
   /**
@@ -1100,13 +1127,13 @@ export final class ComponentTypeEncoder {
       } else {
         let hop = this.#useSourceOf(reg, name);
         if (hop == null) {
-          throw new EncodeError("'" + reg.qualifiedName +
-              "' is exported, and its own type '" + name +
-              "' is not encodable yet: only types it `use`s from an " +
-              "imported interface are");
+          // The exported interface's own declaration: encoded at
+          // component level, and exported from its instance.
+          index = this.#encodeExportedOwnType(reg, name);
+        } else {
+          let h = hop as UseHop;
+          index = this.#aliasTypeExport(h.source, h.typeName);
         }
-        let h = hop as UseHop;
-        index = this.#aliasTypeExport(h.source, h.typeName);
       }
       // The alias appended a component-level type; a component-level
       // scope counts the same index space, so it catches up.
@@ -1123,6 +1150,71 @@ export final class ComponentTypeEncoder {
     }
     throw new EncodeError("type '" + name +
         "' is not declared in this interface");
+  }
+
+  /**
+   * The component-level type index of `name`, a type the exported
+   * interface `reg` declares itself, encoding it on first use — its
+   * body as a component-level type, its named parts resolved against
+   * the interface the same way (a record's enum field, a variant's
+   * record payload) — and recording it for the instance to export. A
+   * resource is refused: an exported resource is a class of the
+   * program's, with a representation and a destructor the canon
+   * `resource.new`/`resource.rep`/`resource.drop` builtins would
+   * carry, which is its own piece of work.
+   */
+  #encodeExportedOwnType(reg: RegisteredInterface, name: String): i32 {
+    let key = reg.qualifiedName + "#own:" + name;
+    if (let (true, existing) = this.#aliasedTypes.get(key)) {
+      return existing;
+    }
+    var found: TypeDef | null = null;
+    for (let item in reg.items) {
+      if (item.tag != InterfaceItemTag.TypeDef) { continue; }
+      let td = item.typeDef as TypeDef;
+      if (td.name.name == name) { found = td; }
+    }
+    if (found == null) {
+      throw new EncodeError("'" + reg.qualifiedName +
+          "' declares no type '" + name + "'");
+    }
+    let td = found as TypeDef;
+    if (td.tag == TypeDefTag.Resource) {
+      throw new EncodeError("'" + reg.qualifiedName +
+          "' is exported, and its own resource '" + name +
+          "' is not encodable yet: an exported resource needs the " +
+          "program's class behind it");
+    }
+    let scope = new Scope();
+    scope.atComponentLevel = true;
+    scope.typeCount = this.#result.typeCount;
+    scope.aliasSource = reg;
+    var index = -1;
+    if (td.tag == TypeDefTag.Alias) {
+      let target = td.aliasType as Type;
+      if (target.tag == TypeTag.Name) {
+        index = this.#namedIndex(scope, (target.name as Id).name);
+      } else {
+        let encoded = this.#encodeType(scope, target);
+        if (encoded < 0) {
+          // A primitive alias still needs a declared type for the
+          // instance to export under the name.
+          let body = new ByteBuffer();
+          body.writeByte(0 - encoded);
+          index = this.#declareType(scope, body);
+        } else {
+          index = encoded;
+        }
+      }
+    } else {
+      index = this.#encodeTypeBody(scope, td);
+    }
+    this.#aliasedTypes[key] = index;
+    let list = if (let (true, l) = this.#result.exportedTypes.get(
+        reg.qualifiedName)) l else new GrowableArray<ExportedTypeIndex>();
+    list.push(new ExportedTypeIndex(name, index));
+    this.#result.exportedTypes[reg.qualifiedName] = list;
+    return index;
   }
 
   /** Whether `reg` declares `name` — as a type definition or a `use`d

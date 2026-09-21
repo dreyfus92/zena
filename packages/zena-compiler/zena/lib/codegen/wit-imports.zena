@@ -29,12 +29,12 @@ import {
 import {
   Ast, AstItemTag, WorldDef, WorldItemTag, Import, Export, ExternKind,
   ExternKindTag, UsePath, UsePathTag, Id, Func, Type, TypeTag, PackageName,
-  AstItem, InterfaceDef, InterfaceItem, InterfaceItemTag, NamedFunc
+  AstItem, InterfaceDef, InterfaceItem, InterfaceItemTag, NamedFunc, TypeDef, TypeDefTag
 } from 'wit-parser:parser';
 import {
   ComponentShape, ComponentImportFunc, ComponentExportFunc,
   ComponentFuncType, noComponentResult, EncodedImports, EncodedImportPiece,
-  ImportTypeEncoder
+  ImportTypeEncoder, ExportedInstanceType
 } from './component-emitter.zena';
 
 /** The WIT spelling of a flat-scalar component value type opcode. */
@@ -407,6 +407,14 @@ let mirrorEncodedWorld = (world: EncodedWorld): EncodedImports => {
   while (let (true, name) = names.next()) {
     out.instanceIndices[name] = world.instanceIndices[name];
   }
+  let exporting = world.exportedTypes.keys();
+  while (let (true, iface) = exporting.next()) {
+    let mirrored = new GrowableArray<ExportedInstanceType>();
+    for (let t in world.exportedTypes[iface]) {
+      mirrored.push(new ExportedInstanceType(t.name, t.index));
+    }
+    out.exportedTypes[iface] = mirrored;
+  }
   return out;
 };
 
@@ -641,10 +649,16 @@ final class DeclaredWorldEncoder implements ImportTypeEncoder {
           let nf = item.func as NamedFunc;
           this.#declaredExports.push(
               new DeclaredExport(nf.name.name, nf.func, qualified));
-        } else if (item.tag == InterfaceItemTag.TypeDef) {
+        } else if (item.tag == InterfaceItemTag.TypeDef &&
+            (item.typeDef as TypeDef).tag == TypeDefTag.Resource) {
+          // Its records, variants, enums, flags and aliases the encoder
+          // writes at component level and the instance exports; a
+          // resource is a class of the program's, with a
+          // representation and a destructor, and waits.
           throw new Error("The declared world exports '" + qualified +
-              "', which declares a type of its own; an exported " +
-              "interface can only `use` types from imported ones yet.");
+              "', which declares a resource of its own; an exported " +
+              "resource needs the program's class behind it, which is " +
+              "not built yet.");
         }
       }
       return;

@@ -40,10 +40,22 @@ export final class EncodedImportPiece {
   new(this.id, this.payload);
 }
 
+/** One type an exported interface declares itself, for its instance
+ * to export: the name, and the component-level type index. */
+export final class ExportedInstanceType {
+  name: String;
+  index: i32;
+  new(this.name, this.index);
+}
+
 export final class EncodedImports {
   pieces = new Array<EncodedImportPiece>();
   var typeCount = 0;
   var instanceCount = 0;
+  /** The types each exported interface declares itself, by the
+   * interface's qualified name, encoded by the encoder at component
+   * level; its instance exports each under its name. */
+  exportedTypes = new Map<String, Array<ExportedInstanceType>>();
   /** Each imported interface's component instance index, by name. */
   instanceIndices = new Map<String, i32>();
   /**
@@ -1357,11 +1369,23 @@ export let emitComponent = (
     instances.writeULEB128(instanceNames.length);
     for (let name in instanceNames) {
       instances.writeByte(0x01); // an instance from inline exports
-      var count = 0;
+      // The interface's own types first, so the instance reads back
+      // with them, then its functions.
+      var ownTypes: Array<ExportedInstanceType> =
+          new GrowableArray<ExportedInstanceType>();
+      if (let (true, ts) = encoded.exportedTypes.get(name)) {
+        ownTypes = ts;
+      }
+      var count = ownTypes.length;
       for (let e in shape.exports) {
         if (e.instanceName == name) { count += 1; }
       }
       instances.writeULEB128(count);
+      for (let t in ownTypes) {
+        writeExternName(instances, t.name);
+        instances.writeByte(0x03); // sort: type
+        instances.writeULEB128(t.index);
+      }
       for (var i = 0; i < shape.exports.length; i += 1) {
         let e = shape.exports[i];
         if (e.instanceName != name) { continue; }

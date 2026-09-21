@@ -595,6 +595,27 @@ export function reset(): boolean { return true; }
       `the record is not built from its slots:\n${source}`);
   });
 
+  test('an exported interface\'s own types are encoded and exported from its instance',
+      (ctx: TestContext): void => {
+    // The geo provider: `survey` declares `point`, `reading`,
+    // `quality`, `finding` and `note` itself. Each is encoded at
+    // component level as a function type first names it, and the
+    // exported instance exports it under its name — so the component
+    // reads back as the interface, types and all.
+    let wit = readFile(`${fixtures}/wit-pkg/geo.wit`);
+    let bytes = compileForWorld(`${fixtures}/geo-provider.zena`, wit,
+        'provider');
+    isTrue(containsName(bytes, 'fixture:geo/survey@1.0.0'),
+      'the survey instance is not exported');
+    let instances = sectionPayload(bytes, 5);
+    for (let name in ['point', 'reading', 'quality', 'finding', 'note']) {
+      isTrue(containsName(instances, name),
+        `the instance does not export its own type '${name}'`);
+    }
+    isTrue(containsName(instances, 'label-of'),
+      'the instance does not export its functions beside its types');
+  });
+
   test('a component with no imports carries no import machinery', (ctx: TestContext): void => {
     // No instance type, no import, no lowering, no synthesized instance
     // — just the module, its instantiation, and the lifted export. This
@@ -1086,11 +1107,14 @@ world only {
     isTrue(source.contains('releaseStagedFrom(m0);'),
       'staged lowerings must release after the call:\n' + source);
     // finding's payloads join f64 (at: point) against i32 (message:
-    // string), which the flat form cannot spell yet — refused loudly.
-    isTrue(source.contains(
-        'report: parameter \'f\': its variant payloads join across ' +
-        'core types'),
-      'the cross-type join should be refused:\n' + source);
+    // string): the canonical join is an i64 slot, which the float
+    // arm writes as its bits and the string arm widens into.
+    isTrue(source.contains('declare function report_raw(s0_0: i32, s0_1: i64, s0_2: i64, s0_3: i32, s0_4: i32): u32;'),
+      `the joined payload slots are not i64 where a float meets an integer:\n${source}`);
+    isTrue(source.contains('i64_reinterpret_f64('),
+      `the float arm should travel as its bits:\n${source}`);
+    isTrue(source.contains("from 'zena:math';"),
+      `the reinterpret intrinsics are not imported:\n${source}`);
   });
 
   test('a WIT-typed module synthesizes resource classes',

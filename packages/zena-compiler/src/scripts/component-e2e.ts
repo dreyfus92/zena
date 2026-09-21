@@ -377,6 +377,29 @@ const FIXTURES: Fixture[] = [
     ],
   },
   {
+    name: 'geo-provider',
+    wasi: ['p3=y'],
+    wit: ['wit-pkg/geo.wit', 'provider'],
+    // A Zena provider of the geo fixture's `survey` interface, whose
+    // records, variants and enum the interface declares itself: the
+    // encoder writes them at component level and the exported
+    // instance exports them under their names. Built and validated
+    // here; run composed, below.
+    invocations: [],
+  },
+  {
+    name: 'geo-wit',
+    wasi: ['p3=y'],
+    wit: ['wit-pkg/geo.wit', 'consumer'],
+    compose: ['geo-provider'],
+    // The whole type matrix across a composed boundary with both
+    // sides generated: the consumer's `main` calls twelve of the
+    // provider's functions with records, variants, enums, options,
+    // lists, tuples and results going both ways, and sums what comes
+    // back.
+    invocations: [{invoke: 'main()', expect: '49'}],
+  },
+  {
     name: 'compose-provider',
     wasi: ['p3=y'],
     wit: ['compose.wit', 'provider'],
