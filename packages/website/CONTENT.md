@@ -429,11 +429,13 @@ To add a page: add it to the sidebar with an `outline`, then run
     - try as an expression
     - Representation
 - **Classes**
-  - 📝 [Introduction](src/reference/classes/index.md) — `/reference/classes/`
-    - Declaring a class
-    - Instantiation
-    - Identity and equality
-    - Representation
+  - ✅ [Overview](src/reference/classes/index.md) — `/reference/classes/`
+    - Kinds of classes and types
+    - Declaring and instantiating classes
+    - Instance structs and memory layout
+    - Interfaces and fat references
+    - Virtual vs direct dispatch
+    - Devirtualization and monomorphization
   - 📝 [Fields and Constructors](src/reference/classes/fields.md) — `/reference/classes/fields/`
     - Field declarations
     - var and let fields
@@ -652,4 +654,4 @@ To add a page: add it to the sidebar with an `outline`, then run
 
 ---
 
-65 of 100 pages written; 35 still placeholders.
+66 of 100 pages written; 34 still placeholders.

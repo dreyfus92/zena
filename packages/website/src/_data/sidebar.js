@@ -800,13 +800,15 @@ const reference = [
     text: 'Classes',
     items: [
       {
-        text: 'Introduction',
+        text: 'Overview',
         link: '/reference/classes/',
         outline: [
-          'Declaring a class',
-          'Instantiation',
-          'Identity and equality',
-          'Representation',
+          'Kinds of classes and types',
+          'Declaring and instantiating classes',
+          'Instance structs and memory layout',
+          'Interfaces and fat references',
+          'Virtual vs direct dispatch',
+          'Devirtualization and monomorphization',
         ],
       },
       {
