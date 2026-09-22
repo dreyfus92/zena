@@ -815,6 +815,7 @@ const reference = [
         text: 'Fields and Constructors',
         link: '/reference/classes/fields/',
         outline: [
+          'Instance creation',
           'Field declarations',
           'var and let fields',
           'Private fields',
@@ -832,6 +833,7 @@ const reference = [
           'Getters and setters',
           'Static members',
           'Generic methods',
+          'Operator overloads',
         ],
       },
       {
@@ -886,11 +888,6 @@ const reference = [
           'Extending primitives',
           'Limitations',
         ],
-      },
-      {
-        text: 'Operator Overloads',
-        link: '/reference/classes/operators/',
-        outline: ['operator ==', 'operator hash', 'Other operators'],
       },
     ],
   },

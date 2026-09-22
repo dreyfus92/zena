@@ -436,7 +436,8 @@ To add a page: add it to the sidebar with an `outline`, then run
     - Interfaces and fat references
     - Virtual vs direct dispatch
     - Devirtualization and monomorphization
-  - 📝 [Fields and Constructors](src/reference/classes/fields.md) — `/reference/classes/fields/`
+  - ✅ [Fields and Constructors](src/reference/classes/fields.md) — `/reference/classes/fields/`
+    - Instance creation
     - Field declarations
     - var and let fields
     - Private fields
@@ -444,43 +445,40 @@ To add a page: add it to the sidebar with an `outline`, then run
     - Constructors
     - this. parameters
     - Initializer lists
-  - 📝 [Methods and Accessors](src/reference/classes/methods.md) — `/reference/classes/methods/`
+  - ✅ [Methods and Accessors](src/reference/classes/methods.md) — `/reference/classes/methods/`
     - Methods
     - Getters and setters
     - Static members
     - Generic methods
-  - 📝 [Inheritance](src/reference/classes/inheritance.md) — `/reference/classes/inheritance/`
+    - Operator overloads
+  - ✅ [Inheritance](src/reference/classes/inheritance.md) — `/reference/classes/inheritance/`
     - extends
     - Overriding
     - abstract and final
     - Method resolution
     - Virtual dispatch
-  - 📝 [Interfaces](src/reference/classes/interfaces.md) — `/reference/classes/interfaces/`
+  - ✅ [Interfaces](src/reference/classes/interfaces.md) — `/reference/classes/interfaces/`
     - Declaring an interface
     - implements
     - Interface inheritance
     - Default members
     - Representation
-  - 📝 [Mixins](src/reference/classes/mixins.md) — `/reference/classes/mixins/`
+  - ✅ [Mixins](src/reference/classes/mixins.md) — `/reference/classes/mixins/`
     - Declaring a mixin
     - on constraints
     - with clauses
     - Linearization
-  - 📝 [Sealed and Case Classes](src/reference/classes/sealed.md) — `/reference/classes/sealed/`
+  - ✅ [Sealed and Case Classes](src/reference/classes/sealed.md) — `/reference/classes/sealed/`
     - sealed class
     - case declarations
     - Case class shorthand
     - Generated members
     - Exhaustive matching
-  - 📝 [Extension Classes](src/reference/classes/extensions.md) — `/reference/classes/extensions/`
+  - ✅ [Extension Classes](src/reference/classes/extensions.md) — `/reference/classes/extensions/`
     - Declaring an extension
     - Resolution rules
     - Extending primitives
     - Limitations
-  - 📝 [Operator Overloads](src/reference/classes/operators.md) — `/reference/classes/operators/`
-    - operator ==
-    - operator hash
-    - Other operators
 - **Concurrency**
   - ✅ [Async Functions](src/reference/async-functions.md) — `/reference/async-functions/`
     - async functions
@@ -654,4 +652,4 @@ To add a page: add it to the sidebar with an `outline`, then run
 
 ---
 
-66 of 100 pages written; 34 still placeholders.
+73 of 99 pages written; 26 still placeholders.

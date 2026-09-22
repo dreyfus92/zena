@@ -40,7 +40,7 @@ behavior:
   and accessors without defining instance state. A class can implement multiple
   interfaces (`implements`), enabling polymorphism across unrelated hierarchies
   (see [Interfaces](/reference/classes/interfaces/)).
-- **Extension classes (`extension class ... for ...`)**: Zero-overhead static
+- **Extension classes (`extension class ... on ...`)**: Zero-overhead static
   extensions that add methods to existing types (including primitives and
   external library classes) without modifying their runtime representation (see
   [Extension Classes](/reference/classes/extensions/)).
@@ -226,7 +226,7 @@ compiler to devirtualize calls to that specific method.
 Extension classes define methods that extend an existing type:
 
 ```zena
-extension class StringUtils for String {
+extension class StringUtils on String {
   shout(): String {
     return this + '!';
   }

@@ -82,7 +82,7 @@ counter += 1;
 
 Classes can overload `+` and `**` by defining `operator +` and `operator **` methods.
 Extension classes over primitives can similarly define `+`, `-`, and `*` (such as
-lane-wise SIMD vector operations). See [Operator Overloads](/reference/classes/operators/).
+lane-wise SIMD vector operations). See [Operator Overloads](/reference/classes/methods/#operator-overloads).
 
 ## Comparison and equality
 
