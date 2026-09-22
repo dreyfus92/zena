@@ -749,7 +749,14 @@ const reference = [
       {
         text: 'Loops',
         link: '/reference/loops/',
-        outline: ['while', 'for', 'for-in', 'break and continue', 'while let'],
+        outline: [
+          'while',
+          'for',
+          'for-in',
+          'for await',
+          'break and continue',
+          'while let',
+        ],
       },
       {
         text: 'Pattern Matching',
@@ -912,6 +919,17 @@ const reference = [
         ],
       },
       {
+        text: 'Tasks',
+        link: '/reference/tasks/',
+        outline: [
+          'The Task class',
+          'Task states',
+          'Running and supersession',
+          'Operations and combinators',
+          'Observing state changes',
+        ],
+      },
+      {
         text: 'Cancellation',
         link: '/reference/cancellation/',
         outline: [
@@ -930,6 +948,7 @@ const reference = [
           'Consuming streams',
           'Transformations and combinators',
           'Backpressure',
+          'References',
         ],
       },
     ],

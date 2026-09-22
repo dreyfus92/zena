@@ -158,6 +158,69 @@ for (let i in 1..5) {
 }
 ```
 
+## for await
+
+::: note In Progress
+Async iteration (`for await`, `async gen`, and the `Step<T>` protocol) is an
+unfinished feature under active development on the Zena roadmap (see `PLAN.md`).
+The syntax is recognized by the compiler, but runtime stream iteration is not
+yet fully implemented.
+:::
+
+The `for await` loop iterates asynchronously over streams and asynchronous
+iterables. It is valid only inside an [`async` function](/reference/async-functions/).
+
+### Syntax
+
+```zena
+for await (let item in stream) {
+  // Body executed for each element as it arrives
+}
+```
+
+Like synchronous `for-in`, the loop variable is declared with `let` and is
+scoped fresh to each iteration.
+
+### Destructuring in the header
+
+If the asynchronous sequence produces tuples or records, pattern destructuring
+can be written directly in the header:
+
+```zena
+for await (let (id, message) in messageStream) {
+  println(`Message ${id}: ${message}`);
+}
+```
+
+### Suspension semantics
+
+In Zena, `for await` consumes iterators using the `Step<T>` protocol:
+
+- **Suspending only when pending**: The loop pauses and yields to the microtask
+  queue only when the next element is not yet ready.
+- **Synchronous execution of ready elements**: When a batch of elements is
+  already available in a stream buffer or memory slice, `for await` processes
+  consecutive elements synchronously without introducing unnecessary microtask
+  hops.
+- **End-of-stream**: When the stream closes or the iterator signals completion,
+  the loop terminates cleanly.
+
+### Early termination
+
+A `for await` loop supports standard `break` and `continue` statements:
+
+```zena
+for await (let item in stream) {
+  if (item == 'STOP') {
+    break;
+  }
+}
+```
+
+Terminating early with `break` (or returning from the enclosing function)
+releases the iterator or reader end of the stream, disclaiming remaining
+elements.
+
 ## break and continue
 
 The `break` and `continue` statements allow early termination or advancement of

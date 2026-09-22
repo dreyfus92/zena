@@ -404,6 +404,7 @@ To add a page: add it to the sidebar with an `outline`, then run
     - while
     - for
     - for-in
+    - for await
     - break and continue
     - while let
   - ✅ [Pattern Matching](src/reference/pattern-matching.md) — `/reference/pattern-matching/`
@@ -479,30 +480,37 @@ To add a page: add it to the sidebar with an `outline`, then run
     - operator hash
     - Other operators
 - **Concurrency**
-  - 📝 [Async Functions](src/reference/async-functions.md) — `/reference/async-functions/`
+  - ✅ [Async Functions](src/reference/async-functions.md) — `/reference/async-functions/`
     - async functions
     - await expressions
     - Execution model and eager start
     - The microtask loop
     - Future and Completer
     - Async main
-  - 📝 [Task Groups](src/reference/task-groups.md) — `/reference/task-groups/`
+  - ✅ [Task Groups](src/reference/task-groups.md) — `/reference/task-groups/`
     - TaskGroup
     - Spawning tasks
     - join and race
     - Error propagation
     - Structured concurrency invariants
+  - ✅ [Tasks](src/reference/tasks.md) — `/reference/tasks/`
+    - The Task class
+    - Task states
+    - Running and supersession
+    - Operations and combinators
+    - Observing state changes
   - ✅ [Cancellation](src/reference/cancellation.md) — `/reference/cancellation/`
     - The cancellation channel
     - Cancel scopes
     - Cleanup on cancellation
     - Structured concurrency
-  - 📝 [Streams](src/reference/streams.md) — `/reference/streams/`
+  - ✅ [Streams](src/reference/streams.md) — `/reference/streams/`
     - The Stream interface
     - Producing streams
     - Consuming streams
     - Transformations and combinators
     - Backpressure
+    - References
 - **Attributes**
   - 📝 [Decorators and Intrinsics](src/reference/decorators.md) — `/reference/decorators/`
     - @intrinsic
@@ -644,4 +652,4 @@ To add a page: add it to the sidebar with an `outline`, then run
 
 ---
 
-61 of 99 pages written; 38 still placeholders.
+65 of 100 pages written; 35 still placeholders.

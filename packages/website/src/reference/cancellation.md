@@ -3,6 +3,12 @@ title: 'Cancellation'
 description: 'Structured cancellation in Zena: the cancellation channel, cancel scopes, checkpoints, and cleanup.'
 ---
 
+::: warning Active Development
+Concurrency and asynchronous APIs in Zena are under active development.
+Specifications, runtime behaviors, and standard library interfaces described on
+this page are incomplete and evolving.
+:::
+
 Cancellation terminates in-flight asynchronous operations when their results
 are no longer needed.
 
