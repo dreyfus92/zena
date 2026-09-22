@@ -511,12 +511,12 @@ To add a page: add it to the sidebar with an `outline`, then run
     - Transformations and combinators
     - Backpressure
     - References
-- **Attributes**
-  - 📝 [Decorators and Intrinsics](src/reference/decorators.md) — `/reference/decorators/`
+- **Decorators**
+  - ✅ [Built-in Decorators](src/reference/decorators.md) — `/reference/decorators/`
     - @intrinsic
-    - @pure
-    - Other attributes
-    - Status
+    - @external
+    - Status of @pure
+    - Future user-defined decorators
 - **Standard Library**
   - ✅ [Overview](src/reference/stdlib/index.md) — `/reference/stdlib/`
     - What ships with Zena
@@ -652,4 +652,4 @@ To add a page: add it to the sidebar with an `outline`, then run
 
 ---
 
-73 of 99 pages written; 26 still placeholders.
+74 of 99 pages written; 25 still placeholders.

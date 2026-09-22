@@ -953,12 +953,17 @@ const reference = [
     ],
   },
   {
-    text: 'Attributes',
+    text: 'Decorators',
     items: [
       {
-        text: 'Decorators and Intrinsics',
+        text: 'Built-in Decorators',
         link: '/reference/decorators/',
-        outline: ['@intrinsic', '@pure', 'Other attributes', 'Status'],
+        outline: [
+          '@intrinsic',
+          '@external',
+          'Status of @pure',
+          'Future user-defined decorators',
+        ],
       },
     ],
   },
