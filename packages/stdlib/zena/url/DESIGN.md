@@ -69,7 +69,7 @@ packages/stdlib/zena/url/
   idna.zena              # UTS 46 host processing
   idna-table.zena        # GENERATED mapping table
   pattern-parts.zena     # pattern-string parser, shared by the two below
-  pattern.zena           # URLPattern (later)
+  pattern.zena           # URLPattern (construction; exec/test later)
   pattern-list.zena      # URLPatternList (later)
 ```
 
@@ -617,11 +617,62 @@ wpt_percent_encoding_test.zena`, 7 cases). Only each fixture's `utf-8`
    conformant implementation would reject — so nothing here is silently
    wrong in the way a wrong host would be.
 
-7. **`URLPattern`** (`pattern.zena`): constructor-string and init-record forms,
-   path-to-regexp pattern compilation, `test`/`exec`. Depends on `zena:regex`
-   maturity (needs capture groups — present — and named-group bookkeeping we
-   can layer on top).
-   _Tests_: generated `urlpatterntestdata.json` suite.
+7. **`URLPattern`** — **construction DONE** (`pattern-parts.zena` for the
+   pattern parser, `pattern.zena` for the rest); `test`/`exec` and the
+   constructor-STRING form still open.
+
+   What landed: init-object construction, the component defaulting and
+   base-URL inheritance the spec calls `applyInit`, per-component
+   canonicalization, and the eight component pattern strings.
+   _Tests_: generated `urlpatterntestdata.json` suite — **160/160 emitted
+   cases passing, 22 skipped**. A further 71 cases give the pattern as a
+   string and 6 cannot be spelled in Zena at all (lone surrogates; an init
+   object passed alongside a base URL, which is a JavaScript overload). Those
+   are never emitted and are reported as counts with reasons at the end of a
+   generation run — they are not expected failures, because there is no test
+   for an entry to silence. The 22 skips are 21 non-ASCII group names and one
+   regex-validity case, both described in `expected-failures.txt`.
+
+   The shape worth remembering: **a component pattern is canonicalized by
+   round-tripping it.** Parse to `Part`s, percent-encode the literal text,
+   serialize back. That is why the constructor reports `/foo/*` for
+   `/foo/(.*)` and `/caf%C3%A9` for `/café`. Two rules make it work:
+   - Encoding applies to literal text ONLY — fixed values, prefixes, suffixes
+     — never to a regex source or a group name. Running an encoder over the
+     whole pattern string would encode the syntax that makes it a pattern.
+   - The pending run is encoded BEFORE it is split into per-segment parts. A
+     path encoder resolves `.` and `..` against the rest of the path, so
+     `/foo/../bar` collapses to `/bar` only while it is still one string.
+     Encoding segment by segment leaves all three, which is exactly what the
+     conformance data caught.
+
+   Three places where the reference polyfill is simply wrong, and WPT says so:
+   - Its hostname check rejects `#`, `/`, `\` and tab/LF/CR. Those are not
+     invalid, they are terminators — the host parser stops at the first three
+     and strips the last three, so `bad#hostname` is the host `bad` and
+     `bad\nhostname` is `badhostname`. Nine cases.
+   - Its port check rejects `"80 "`, where a URL strips surrounding C0
+     controls and spaces and reads the port 80.
+   - `bad?hostname` must still fail, but for a syntax reason rather than an
+     encoding one: an unescaped `?` is a modifier with nothing to modify.
+     Rejecting that in the parser is what lets `\?` through as the literal
+     the host parser truncates at.
+
+   zena:regex shaped two details: it reads `[^]` as an unterminated character
+   class, so the segment wildcard is emitted as `[\s\S]` (same set, portable);
+   and URLPattern always compiles in strict mode with no `endsWith`
+   characters, which is what keeps the emitted regex free of the lookahead
+   zena:regex does not have.
+
+   Only the PROTOCOL pattern is compiled to a regex so far, because choosing a
+   pathname canonicalization means asking whether the protocol pattern admits
+   a special scheme — a question only a matcher can answer, since a protocol
+   alternation is special whenever any one of its alternatives is.
+   `partsToRegexp` is written in full so that `exec` is a use of it rather
+   than a rewrite. There is deliberately no `ignoreCase` option yet: it would
+   only flag matchers that do not exist, and an option accepted but ignored
+   is worse than one not offered.
+
 8. **`URLPatternList`** (`pattern-list.zena`): port of
    [url-pattern-list](https://github.com/justinfagnani/url-pattern-list)'s
    prefix trie (`addPattern(pattern, value)` / `match(url)`, first-match-wins).

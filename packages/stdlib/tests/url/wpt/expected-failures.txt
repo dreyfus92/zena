@@ -51,3 +51,46 @@
 ["toascii","xn--ls8h="]
 ["toascii","xn--0.com"]
 
+# ---------------------------------------------------------------------------
+# urlpatterntestdata.json, keyed ["urlpattern", <the case's pattern array>].
+#
+# Only cases that are EMITTED and fail belong here. The pattern forms the Zena
+# API cannot express at all — a pattern given as a string, a lone surrogate, an
+# init object passed alongside a base URL — are never emitted, and are reported
+# as counts with their reasons at the end of a generation run instead. See
+# README.md.
+# ---------------------------------------------------------------------------
+
+# A group name may be any \p{ID_Start} followed by \p{ID_Continue}, and this
+# parser accepts ASCII identifiers only: zena:regex has no property escapes,
+# and the tables to decide it properly are the size of the IDNA one. Note that
+# "is it a letter" would not be enough either — `é` and `㐀` are letters, but
+# `℘` qualifies only through Other_ID_Start.
+["urlpattern",[{"protocol":":café"}]]
+["urlpattern",[{"username":":café"}]]
+["urlpattern",[{"password":":café"}]]
+["urlpattern",[{"hostname":":café"}]]
+["urlpattern",[{"pathname":"/:café"}]]
+["urlpattern",[{"search":":café"}]]
+["urlpattern",[{"hash":":café"}]]
+["urlpattern",[{"protocol":":℘"}]]
+["urlpattern",[{"username":":℘"}]]
+["urlpattern",[{"password":":℘"}]]
+["urlpattern",[{"hostname":":℘"}]]
+["urlpattern",[{"pathname":"/:℘"}]]
+["urlpattern",[{"search":":℘"}]]
+["urlpattern",[{"hash":":℘"}]]
+["urlpattern",[{"protocol":":㐀"}]]
+["urlpattern",[{"username":":㐀"}]]
+["urlpattern",[{"password":":㐀"}]]
+["urlpattern",[{"hostname":":㐀"}]]
+["urlpattern",[{"pathname":"/:㐀"}]]
+["urlpattern",[{"search":":㐀"}]]
+["urlpattern",[{"hash":":㐀"}]]
+
+# zena:regex reads `\m` as a literal `m`; a JavaScript RegExp with the `u`
+# flag rejects it. The constructor compiles the protocol pattern only, so
+# nothing here even reaches the regex engine yet — this case will keep failing
+# until exec() compiles every component and the engine rejects the source.
+["urlpattern",[{"pathname":"/(\\m)"}]]
+

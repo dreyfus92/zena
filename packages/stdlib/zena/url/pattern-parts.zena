@@ -34,9 +34,8 @@
 // collide with one — which is also what lets `#parseRegex` reject a non-ASCII
 // character by testing a single lead byte.
 
-import { HashSet } from 'zena:set';
-import { StringBuilder } from 'zena:string-builder';
-import { StringReader } from 'zena:string-reader';
+import {StringBuilder, StringReader} from 'zena:core';
+import {HashSet} from 'zena:collections';
 
 // The pattern syntax's own punctuation, as bytes.
 let COLON = 0x3A;
@@ -52,6 +51,15 @@ let SLASH = 0x2F;
 let FULL_STOP = 0x2E;
 let DOLLAR = 0x24;
 let UNDERSCORE = 0x5F;
+
+/**
+ * The regex a `*` stands for.
+ *
+ * Written out by hand often enough that `(.*)` has to fold into the same
+ * part a bare `*` produces: a pattern is reported back in its canonical
+ * spelling, and `/foo/(.*)` is canonically `/foo/*`.
+ */
+let FULL_WILDCARD_SOURCE = '.*';
 
 /** How many times a part may repeat. */
 export enum Modifier {
@@ -158,6 +166,30 @@ let isIdentifierStart = (b: i32): boolean =>
 let isIdentifierPart = (b: i32): boolean =>
   isIdentifierStart(b) || (b >= 0x30 && b <= 0x39);
 
+/**
+ * Whether `name` was written by the pattern author rather than assigned
+ * positionally.
+ *
+ * Serializing a part back to pattern text needs this: `:id` may be written as
+ * itself, while a positional part must be spelled out as a group. The original
+ * tells them apart by type — a positional name is a number there, an author's
+ * is a string — which a `String`-typed name erases.
+ *
+ * It is recoverable without carrying a flag: `#parseName` demands an
+ * identifier start, so an author's name always begins with `$`, `_`, or a
+ * letter, and a positional name is digits throughout.
+ */
+export let isCustomName = (name: String): boolean => {
+  if (name.length == 0) return false;
+  var i = 0;
+  while (i < name.length) {
+    let b = name.getByteAt(i);
+    if (b < 0x30 || b > 0x39) return true;
+    i += 1;
+  }
+  return false;
+};
+
 final class Parser {
   #reader: StringReader;
   #componentType: URLComponentType;
@@ -178,8 +210,32 @@ final class Parser {
   /** Next index to hand an unnamed part. */
   var #positional: i32 = 0;
 
-  new(path: String, componentType: URLComponentType)
-    : #reader = new StringReader(path), #componentType = componentType;
+  /**
+   * Whether the last byte of `#pending` arrived through an escape.
+   *
+   * An escaped separator is text the author insisted on rather than
+   * structure, so it cannot be claimed as a part's prefix the way a bare one
+   * can. Escaping the slash in a wildcard-slash-wildcard pattern is what
+   * keeps that slash as fixed text, which in turn forces the wildcard
+   * following it to be serialized as a braced group rather than a bare star.
+   */
+  var #pendingEscaped: boolean = false;
+
+  /**
+   * Applied to literal text — fixed values, prefixes and suffixes — and never
+   * to a regex source or a group name.
+   *
+   * Each URL component percent-encodes differently, and the encoding has to
+   * happen here rather than over the finished pattern string: running it over
+   * the whole pattern would mangle the syntax characters that make it a
+   * pattern in the first place.
+   */
+  #encode: (s: String) => String;
+
+  new(path: String, componentType: URLComponentType,
+      encode: (s: String) => String)
+    : #reader = new StringReader(path), #componentType = componentType,
+      #encode = encode;
 
   /** Consumes the current byte and returns it as a one-byte string. */
   #takeByteAsString(): String {
@@ -188,6 +244,7 @@ final class Parser {
     return this.#reader.sliceFrom(start);
   }
 
+  /** Pushes an already-encoded run of literal text as one part. */
   #pushFixed(value: String): void {
     this.#result.push(
       new FixedPart(value, '', '', Modifier.None, this.#componentType)
@@ -224,36 +281,32 @@ final class Parser {
   #flushFixedPart(): void {
     if (this.#pending.length == 0) return;
 
-    // The root path is a segment in its own right.
-    if (this.#pending == '/') {
-      this.#pushFixed('/');
-      this.#pending = '';
-      return;
-    }
-
-    let segments = this.#pending.split('/');
-    if (this.#pending.startsWith('/')) {
-      // A leading slash puts an empty string first; every later segment
-      // carries the separator that preceded it.
-      for (var j = 1; j < segments.length; j += 1) {
-        let segment = segments[j];
-        if (segment.length > 0) this.#pushFixed('/' + segment);
-      }
-      // A trailing slash is its own segment, but only when it is not the
-      // leading one counted above.
-      if (this.#pending.endsWith('/') && this.#pending.length > 1) {
-        this.#pushFixed('/');
-      }
-    } else {
-      for (var j = 0; j < segments.length; j += 1) {
-        let segment = segments[j];
-        if (segment.length > 0) {
-          this.#pushFixed(if (j == 0) segment else '/' + segment);
-        }
-      }
-    }
-
+    // Encoded as one run BEFORE being split, never segment by segment. A
+    // path encoder resolves `.` and `..` against the rest of the path, so
+    // `/foo/../bar` collapses to `/bar` only while it is still one string;
+    // encoding `/foo`, `/..` and `/bar` separately leaves all three.
+    let text = this.#encode(this.#pending);
     this.#pending = '';
+    this.#pendingEscaped = false;
+    if (text.length == 0) return;
+
+    // Cut before each separator, so every part carries the separator that
+    // precedes it and the parts concatenate back to `text` exactly. That
+    // last property is what matters: the serializer just joins them, so a
+    // trailing separator has to survive as a part of its own rather than
+    // falling off the end of a split.
+    var start = 0;
+    var i = 0;
+    while (i < text.length) {
+      if (text.getByteAt(i) == SLASH && i > start) {
+        this.#pushFixed(text.sliceBytes(start, i));
+        start = i;
+      }
+      i += 1;
+    }
+    if (start < text.length) {
+      this.#pushFixed(text.sliceBytes(start, text.length));
+    }
   }
 
   #parseModifier(): Modifier {
@@ -355,19 +408,40 @@ final class Parser {
     return text;
   }
 
+  /** The part a `(regex)` group denotes, folding `(.*)` into a wildcard. */
+  #regexOrWildcardPart(
+    name: String,
+    source: String,
+    prefix: String,
+    suffix: String,
+    modifier: Modifier
+  ): Part {
+    if (source == FULL_WILDCARD_SOURCE) {
+      return new FullWildcardPart(
+        name, prefix, suffix, modifier, this.#componentType);
+    }
+    return new RegexPart(
+      name, source, prefix, suffix, modifier, this.#componentType);
+  }
+
   /**
    * Takes a trailing `/` or `.` off the pending text to use as a part's
    * prefix, so an absent optional part takes its separator with it.
    */
   #extractPrefix(): String {
     if (this.#pending.length == 0) return '';
+    // An escaped separator stays in the fixed run: escaping it is exactly
+    // how a pattern says "this is a character, not a separator".
+    if (this.#pendingEscaped) return '';
     let last = this.#pending.getByteAt(this.#pending.length - 1);
     if (last == SLASH || last == FULL_STOP) {
       let prefix = this.#pending.sliceBytes(
         this.#pending.length - 1, this.#pending.length
       );
       this.#pending = this.#pending.sliceBytes(0, this.#pending.length - 1);
-      return prefix;
+      // Encoded here so that every part built from a claimed prefix gets it,
+      // rather than repeating the call at each of the four call sites.
+      return this.#encode(prefix);
     }
     return '';
   }
@@ -456,26 +530,32 @@ final class Parser {
       name = this.#nextPositionalName();
     }
 
+    let encPrefix = this.#encode(prefix);
+    let encSuffix = this.#encode(suffix);
+
     match (kind) {
       case PendingKind.Fixed: {
+        // The group's text became the value above, so the value is what is
+        // encoded here; `prefix` was emptied when it moved.
         this.#result.push(
-          new FixedPart(source, prefix, suffix, modifier, this.#componentType)
+          new FixedPart(this.#encode(source), encPrefix, encSuffix, modifier,
+                        this.#componentType)
         );
       }
       case PendingKind.SegmentWildcard: {
         this.#claimName(name);
         this.#result.push(new SegmentWildcardPart(
-          name, prefix, suffix, modifier, this.#componentType));
+          name, encPrefix, encSuffix, modifier, this.#componentType));
       }
       case PendingKind.FullWildcard: {
         this.#claimName(name);
         this.#result.push(new FullWildcardPart(
-          name, prefix, suffix, modifier, this.#componentType));
+          name, encPrefix, encSuffix, modifier, this.#componentType));
       }
       case PendingKind.Regex: {
-        this.#claimName(name);
-        this.#result.push(new RegexPart(
-          name, source, prefix, suffix, modifier, this.#componentType));
+        // `source` is a regex, not literal text, so it is never encoded.
+        this.#result.push(this.#regexOrWildcardPart(
+          name, source, encPrefix, encSuffix, modifier));
       }
     }
   }
@@ -501,8 +581,8 @@ final class Parser {
         if (this.#reader.peekByte() == OPEN_PAREN) {
           let source = this.#parseRegex();
           let modifier = this.#parseModifier();
-          this.#result.push(new RegexPart(
-            name, source, prefix, '', modifier, this.#componentType));
+          this.#result.push(
+            this.#regexOrWildcardPart(name, source, prefix, '', modifier));
         } else {
           let modifier = this.#parseModifier();
           this.#result.push(new SegmentWildcardPart(
@@ -520,8 +600,8 @@ final class Parser {
         let modifier = this.#parseModifier();
         let name = this.#nextPositionalName();
         this.#claimName(name);
-        this.#result.push(new RegexPart(
-          name, source, prefix, '', modifier, this.#componentType));
+        this.#result.push(
+          this.#regexOrWildcardPart(name, source, prefix, '', modifier));
         continue;
       }
 
@@ -545,11 +625,24 @@ final class Parser {
         this.#reader.advanceByte();
         if (!this.#reader.isAtEnd) {
           this.#pending = this.#pending + this.#takeByteAsString();
+          this.#pendingEscaped = true;
         }
         continue;
       }
 
+      // A modifier reaching this far has nothing to modify: a group consumes
+      // its own as it is built, so a `?` or `+` still here was written
+      // against no group at all. That is what makes `bad?hostname` an
+      // invalid hostname pattern — as opposed to `bad\?hostname`, where the
+      // escape makes it a literal the host parser simply truncates at.
+      if (c == QUESTION_MARK || c == PLUS) {
+        throw new PatternSyntaxError(
+          'Nothing to repeat at ' + i32ToString(this.#reader.position)
+        );
+      }
+
       this.#pending = this.#pending + this.#takeByteAsString();
+      this.#pendingEscaped = false;
     }
 
     this.#flushFixedPart();
@@ -563,11 +656,18 @@ final class Parser {
  * `componentType` is carried on every part rather than used during parsing:
  * a prefix tree spanning a whole URL needs to know which component a part
  * came from, and the caller knows it here.
+ *
+ * `encode` is applied to literal text only — fixed values, prefixes and
+ * suffixes — and defaults to leaving it alone. `URLPattern` passes the
+ * percent-encoder for the component being parsed, which is why it cannot be
+ * done to the pattern string as a whole: that would encode the pattern
+ * syntax along with the text.
  */
 export let parsePattern = (
   pattern: String,
-  componentType: URLComponentType = URLComponentType.Pathname
+  componentType: URLComponentType = URLComponentType.Pathname,
+  encode: (s: String) => String = (s: String): String => s
 ): Array<Part> => {
-  let parser = new Parser(pattern, componentType);
+  let parser = new Parser(pattern, componentType, encode);
   return parser.parse();
 };

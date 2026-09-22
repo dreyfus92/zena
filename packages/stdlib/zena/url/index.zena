@@ -24,5 +24,6 @@ export {
   URLComponentType,
   PatternSyntaxError
 } from './pattern-parts.zena';
+export { URLPattern, URLPatternInit } from './pattern.zena';
 export { punycodeEncode, punycodeDecode } from './punycode.zena';
 export { URLSearchParams, ConcurrentModificationError } from './search-params.zena';
